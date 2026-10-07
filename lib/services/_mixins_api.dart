@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '/utils/sp_keys.dart' as sp_keys;
 
 mixin WebAPIMixin {
-  /// Returns the token from Shared Preference
+  /// Returns the token from Shared Preferenc
   /// Token is saved as key pair of [keyToken]
   /// Throws exception in case of any error
   Future<String?> getTokenFromSharedPref() => SharedPreferences.getInstance()
@@ -34,8 +34,7 @@ mixin WebAPIMixin {
   }
 
   /// Handle the dio error in call
-  void onDioError(DioException error, String apiName,
-      { Function? apiFunction}) {
+  void onDioError(DioException error, String apiName, {Function? apiFunction}) {
     String? msg;
     switch (error.type) {
       case DioExceptionType.sendTimeout:
@@ -167,7 +166,7 @@ mixin WebAPIMixin {
       }
     }
 
-    //Navigating back from Connection failed screen if showing on 
+    //Navigating back from Connection failed screen if showing on
     if (Navigator.of(AppConfig.navKey.currentState!.context)
         .isCurrentRoute(ConnectionFailedScreen.routeName)) {
       Navigator.pop(AppConfig.navKey.currentState!.context);
