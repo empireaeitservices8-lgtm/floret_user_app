@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:floret_app/viewmodels/otp_viewmodel.dart';
 import 'safai_logo_widget.dart';
+import 'signup_screen.dart';
 import '../../home/screen/home_screen.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -23,12 +26,13 @@ class _OtpScreenState extends State<OtpScreen> {
 
   int _resendCountdown = 30;
   Timer? _timer;
-  bool _isLoading = false;
   bool _isOtpFocused = false;
+  late final OtpViewModel _otpViewModel;
 
   @override
   void initState() {
     super.initState();
+    _otpViewModel = OtpViewModel();
     _startTimer();
     _otpFocusNode.addListener(() {
       setState(() {
@@ -56,17 +60,18 @@ class _OtpScreenState extends State<OtpScreen> {
     _timer?.cancel();
     _otpController.dispose();
     _otpFocusNode.dispose();
+    _otpViewModel.dispose();
     super.dispose();
   }
 
-  bool get _isOtpValid => _otpController.text.trim().length >= 4;
+  bool get _isOtpValid => _otpController.text.trim().length == 4;
 
   void _onVerifyPressed() async {
     final String otp = _otpController.text.trim();
-    if (otp.length < 4) {
+    if (otp.length != 4) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid OTP code'),
+          content: Text('Please enter a valid 4-digit OTP'),
           backgroundColor: Color(0xFFDE202B),
           behavior: SnackBarBehavior.floating,
         ),
@@ -74,34 +79,74 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    final String formattedPhone =
+        OtpViewModel.formatPhoneNumber(widget.mobileNumber);
 
-    // Simulate verification
-    await Future.delayed(const Duration(milliseconds: 1000));
+    // Call verifyOtp in OtpViewModel
+    final bool success = await _otpViewModel.verifyOtp(formattedPhone, otp);
 
     if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-    });
 
-    // Navigate to HomeScreen
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      HomeScreen.routeName,
-      (route) => false,
-    );
+    if (success) {
+      final verifyResponse = _otpViewModel.verifyOtpResponse;
+      final bool isRegistered = verifyResponse?.isRegistered ?? false;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            verifyResponse?.message ??
+                'OTP verified successfully. You can now proceed.',
+          ),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      // Handle is_registered:
+      if (isRegistered) {
+        // User is already registered -> Continue to Login / Home screen flow
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          HomeScreen.routeName,
+          (route) => false,
+        );
+      } else {
+        // New user -> Navigate to registration / profile setup screen
+        Navigator.pushNamed(
+          context,
+          SignupScreen.routeName,
+        );
+      }
+    } else {
+      // Show user-friendly error message from ViewModel
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _otpViewModel.verifyErrorMessage ??
+                'Invalid OTP. Please check and try again.',
+          ),
+          backgroundColor: const Color(0xFFDE202B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
-  void _onResendPressed() {
+  void _onResendPressed() async {
+    if (_resendCountdown > 0) return;
     _otpController.clear();
     _startTimer();
+
+    final String formattedPhone =
+        OtpViewModel.formatPhoneNumber(widget.mobileNumber);
+    await _otpViewModel.sendOtp(formattedPhone);
+
+    if (!mounted) return;
     final String displayMobile =
         widget.mobileNumber.isNotEmpty ? widget.mobileNumber : '9995723146';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('New OTP sent to +91 $displayMobile'),
+        content: Text('New OTP sent to $displayMobile'),
         backgroundColor: const Color(0xFF238B42),
         behavior: SnackBarBehavior.floating,
       ),
@@ -109,12 +154,7 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _onSignUpPressed() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Navigating to Sign Up...'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    Navigator.pushNamed(context, SignupScreen.routeName);
   }
 
   @override
@@ -122,7 +162,9 @@ class _OtpScreenState extends State<OtpScreen> {
     final String displayMobile =
         widget.mobileNumber.isNotEmpty ? widget.mobileNumber : '9995723146';
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return ChangeNotifierProvider.value(
+      value: _otpViewModel,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
@@ -347,13 +389,17 @@ class _OtpScreenState extends State<OtpScreen> {
                                           GestureDetector(
                                             onTap: _resendCountdown == 0
                                                 ? _onResendPressed
-                                                : _onResendPressed,
-                                            child: const Text(
-                                              'Resend OTP',
+                                                : null,
+                                            child: Text(
+                                              _resendCountdown > 0
+                                                  ? 'Resend OTP (${_resendCountdown}s)'
+                                                  : 'Resend OTP',
                                               style: TextStyle(
                                                 fontSize: 14.5,
                                                 fontWeight: FontWeight.w700,
-                                                color: Color(0xFF1E242F),
+                                                color: _resendCountdown == 0
+                                                    ? const Color(0xFF1E242F)
+                                                    : const Color(0xFF94A3B8),
                                               ),
                                             ),
                                           ),
@@ -402,7 +448,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                                   FilteringTextInputFormatter
                                                       .digitsOnly,
                                                   LengthLimitingTextInputFormatter(
-                                                      6),
+                                                      4),
                                                 ],
                                                 onChanged: (val) {
                                                   setState(() {});
@@ -415,7 +461,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                                 ),
                                                 decoration:
                                                     const InputDecoration(
-                                                  hintText: 'Enter OTP code',
+                                                  hintText: 'Enter 4-digit OTP',
                                                   hintStyle: TextStyle(
                                                     fontSize: 15,
                                                     fontWeight: FontWeight.w400,
@@ -461,81 +507,86 @@ class _OtpScreenState extends State<OtpScreen> {
                                       const SizedBox(height: 20),
 
                                       // Verify & Login Button
-                                      InkWell(
-                                        onTap: _isLoading
-                                            ? null
-                                            : _onVerifyPressed,
-                                        borderRadius:
-                                            BorderRadius.circular(14),
-                                        child: AnimatedContainer(
-                                          duration: const Duration(
-                                              milliseconds: 250),
-                                          height: 54,
-                                          decoration: BoxDecoration(
-                                            color: _isOtpValid
-                                                ? const Color(0xFF1E242F)
-                                                : const Color(0xFFE5E7EB),
+                                      Consumer<OtpViewModel>(
+                                        builder: (context, otpVm, child) {
+                                          final bool isBusy = otpVm.isVerifyingOtp;
+                                          return InkWell(
+                                            onTap: isBusy
+                                                ? null
+                                                : _onVerifyPressed,
                                             borderRadius:
                                                 BorderRadius.circular(14),
-                                            boxShadow: _isOtpValid
-                                                ? [
-                                                    BoxShadow(
-                                                      color: const Color(
-                                                              0xFF1E242F)
-                                                          .withValues(
-                                                              alpha: 0.25),
-                                                      blurRadius: 16,
-                                                      offset:
-                                                          const Offset(0, 6),
-                                                    ),
-                                                  ]
-                                                : null,
-                                          ),
-                                          child: Center(
-                                            child: _isLoading
-                                                ? const SizedBox(
-                                                    width: 22,
-                                                    height: 22,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2.4,
-                                                      color: Colors.white,
-                                                    ),
-                                                  )
-                                                : Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      Text(
-                                                        'Verify & Login',
-                                                        style: TextStyle(
-                                                          fontSize: 15.5,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: _isOtpValid
-                                                              ? Colors.white
-                                                              : const Color(
-                                                                  0xFF757D8A),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(
+                                                  milliseconds: 250),
+                                              height: 54,
+                                              decoration: BoxDecoration(
+                                                color: _isOtpValid
+                                                    ? const Color(0xFF1E242F)
+                                                    : const Color(0xFFE5E7EB),
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                                boxShadow: _isOtpValid
+                                                    ? [
+                                                        BoxShadow(
+                                                          color: const Color(
+                                                                  0xFF1E242F)
+                                                              .withValues(
+                                                                  alpha: 0.25),
+                                                          blurRadius: 16,
+                                                          offset:
+                                                              const Offset(0, 6),
                                                         ),
+                                                      ]
+                                                    : null,
+                                              ),
+                                              child: Center(
+                                                child: isBusy
+                                                    ? const SizedBox(
+                                                        width: 22,
+                                                        height: 22,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2.4,
+                                                          color: Colors.white,
+                                                        ),
+                                                      )
+                                                    : Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Text(
+                                                            'Verify & Login',
+                                                            style: TextStyle(
+                                                              fontSize: 15.5,
+                                                              fontWeight:
+                                                                  FontWeight.w600,
+                                                              color: _isOtpValid
+                                                                  ? Colors.white
+                                                                  : const Color(
+                                                                      0xFF757D8A),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 8),
+                                                          Icon(
+                                                            Icons
+                                                                .arrow_forward_rounded,
+                                                            size: 18,
+                                                            color: _isOtpValid
+                                                                ? Colors.white
+                                                                : const Color(
+                                                                    0xFF757D8A),
+                                                          ),
+                                                        ],
                                                       ),
-                                                      const SizedBox(width: 8),
-                                                      Icon(
-                                                        Icons
-                                                            .arrow_forward_rounded,
-                                                        size: 18,
-                                                        color: _isOtpValid
-                                                            ? Colors.white
-                                                            : const Color(
-                                                                0xFF757D8A),
-                                                      ),
-                                                    ],
-                                                  ),
-                                          ),
-                                        ),
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
@@ -583,6 +634,7 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

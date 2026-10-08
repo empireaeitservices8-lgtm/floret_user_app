@@ -1,5 +1,8 @@
 import 'package:floret_app/features/auth/screen/login_screen.dart';
+import 'package:floret_app/views/login_view.dart';
+import 'package:floret_app/views/send_otp_view.dart';
 import 'package:floret_app/features/auth/screen/otp_screen.dart';
+import 'package:floret_app/features/auth/screen/signup_screen.dart';
 import 'package:floret_app/features/home/screen/home_screen.dart';
 import 'package:floret_app/features/home/screen/bottom_navigation_screen.dart';
 import 'package:floret_app/features/profile/screen/profile_screen.dart';
@@ -26,8 +29,11 @@ import 'package:floret_app/features/booking/screen/receipt_ticket_screen.dart';
 
 Map<String, Widget Function(BuildContext context)> appRoutes() => {
       SplashScreen.routeName: (context) => const SplashScreen(),
+      SendOtpView.routeName: (context) => const SendOtpView(),
+      LoginView.routeName: (context) => const LoginView(),
       LoginScreen.routeName: (context) => const LoginScreen(),
       OtpScreen.routeName: (context) => const OtpScreen(),
+      SignupScreen.routeName: (context) => const SignupScreen(),
       BottomNavigationScreen.routeName: (context) =>
           const BottomNavigationScreen(),
       HomeScreen.routeName: (context) => const HomeScreen(),

@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import 'features/splashscreen/screen/splashscreen.dart';
 import 'providers/language_provider.dart';
 import 'providers/theme_provider.dart';
+import 'viewmodels/login_viewmodel.dart';
 import 'utils/interceptors.dart';
 import 'utils/localization.dart';
 import 'utils/routes.dart';
@@ -38,6 +39,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => LanguageProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => LoginViewModel(),
         ),
       ],
       builder: (context, child) => ScreenUtilInit(
@@ -95,7 +99,5 @@ class MyApp extends StatelessWidget {
         ),
       ),
     );
-
   }
 }
- 

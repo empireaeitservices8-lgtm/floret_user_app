@@ -51,8 +51,8 @@ class OtpViewModel extends ViewModel {
     required void Function(String message) onError,
   }) async {
     final otp = otpController.text.trim();
-    if (otp.length < 4) {
-      onError('Please enter a valid OTP');
+    if (otp.length != 4) {
+      onError('Please enter a valid 4-digit OTP');
       return false;
     }
 

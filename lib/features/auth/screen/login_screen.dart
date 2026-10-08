@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../viewmodel/login_view_model.dart';
 import 'safai_logo_widget.dart';
 import 'otp_screen.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   static const String routeName = '/login';
@@ -62,12 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _onSignUpPressed() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Navigating to Sign Up...'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    Navigator.pushNamed(context, SignupScreen.routeName);
   }
 
   @override

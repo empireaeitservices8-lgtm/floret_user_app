@@ -120,6 +120,9 @@ mixin WebAPIMixin {
 
       case DioExceptionType.badCertificate:
         break;
+      case DioExceptionType.transformTimeout:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
     throw APIException(
         enumProperty: EnumAPIExceptions.httpStatusError,
