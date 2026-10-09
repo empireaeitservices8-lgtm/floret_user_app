@@ -1,15 +1,31 @@
 import 'package:flutter/material.dart';
+import '../model/wallet_model.dart';
+import '../repos/wallet_repository.dart';
 import 'razorpay_checkout_screen.dart';
 
 class TopUpBottomSheet extends StatefulWidget {
-  const TopUpBottomSheet({super.key});
+  final WalletTopupConfigModel? config;
+  final VoidCallback? onTopUpSuccess;
 
-  static Future<void> show(BuildContext context) {
+  const TopUpBottomSheet({
+    super.key,
+    this.config,
+    this.onTopUpSuccess,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    WalletTopupConfigModel? config,
+    VoidCallback? onTopUpSuccess,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const TopUpBottomSheet(),
+      builder: (context) => TopUpBottomSheet(
+        config: config,
+        onTopUpSuccess: onTopUpSuccess,
+      ),
     );
   }
 
@@ -18,14 +34,51 @@ class TopUpBottomSheet extends StatefulWidget {
 }
 
 class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
+  final WalletRepository _walletRepository = WalletRepository();
   int _selectedAmount = 500;
   late final TextEditingController _amountController;
-  final List<int> _presetAmounts = const [500, 1000, 1500, 2000];
+  late List<int> _presetAmounts;
+  late int _minAmount;
+  late int _maxAmount;
 
   @override
   void initState() {
     super.initState();
-    _amountController = TextEditingController(text: '500.00');
+    _presetAmounts = (widget.config != null &&
+            widget.config!.predefinedAmounts.isNotEmpty)
+        ? List<int>.from(widget.config!.predefinedAmounts)
+        : const [500, 1000, 1500, 2000];
+    _minAmount = widget.config?.minAmount ?? 500;
+    _maxAmount = widget.config?.maxAmount ?? 2000;
+
+    _selectedAmount = _presetAmounts.isNotEmpty ? _presetAmounts.first : 500;
+    _amountController = TextEditingController(text: '$_selectedAmount.00');
+
+    // Fetch latest topup config and transactions on sheet open
+    _loadTopupData();
+  }
+
+  Future<void> _loadTopupData() async {
+    try {
+      final configFuture = _walletRepository.fetchTopupConfig();
+      final txFuture = _walletRepository.fetchTransactions();
+      final results = await Future.wait([configFuture, txFuture]);
+
+      final config = results[0] as WalletTopupConfigModel;
+      if (mounted && config.predefinedAmounts.isNotEmpty) {
+        setState(() {
+          _presetAmounts = List<int>.from(config.predefinedAmounts);
+          _minAmount = config.minAmount;
+          _maxAmount = config.maxAmount;
+          if (!_presetAmounts.contains(_selectedAmount)) {
+            _selectedAmount = _presetAmounts.first;
+            _amountController.text = '$_selectedAmount.00';
+          }
+        });
+      }
+    } catch (_) {
+      // Retain fallback presets on error
+    }
   }
 
   @override
@@ -120,9 +173,9 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
           const SizedBox(height: 22),
 
           // Section Title: Select Amount (₹500 - ₹2,000)
-          const Text(
-            'Select Amount (₹500 - ₹2,000)',
-            style: TextStyle(
+          Text(
+            'Select Amount (₹$_minAmount - ₹$_maxAmount)',
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
               color: Color(0xFF1E242F),
@@ -133,26 +186,7 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
           const SizedBox(height: 14),
 
           // Presets Grid / Rows
-          // Row 1: ₹500, ₹1000, ₹1500
-          Row(
-            children: [
-              Expanded(child: _buildPresetButton(_presetAmounts[0])),
-              const SizedBox(width: 10),
-              Expanded(child: _buildPresetButton(_presetAmounts[1])),
-              const SizedBox(width: 10),
-              Expanded(child: _buildPresetButton(_presetAmounts[2])),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Row 2: ₹2000
-          Row(
-            children: [
-              SizedBox(
-                width: (MediaQuery.of(context).size.width - 60) / 3,
-                child: _buildPresetButton(_presetAmounts[3]),
-              ),
-            ],
-          ),
+          _buildPresetWrap(),
 
           const SizedBox(height: 20),
 
@@ -231,12 +265,12 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final amountText = _amountController.text.trim();
                 final amount = double.tryParse(amountText) ?? 500.00;
                 final navigator = Navigator.of(context);
                 navigator.pop();
-                navigator.push(
+                await navigator.push(
                   MaterialPageRoute(
                     settings: const RouteSettings(
                       name: RazorpayCheckoutScreen.routeName,
@@ -244,9 +278,10 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
                     builder: (_) => RazorpayCheckoutScreen(amount: amount),
                   ),
                 );
+                widget.onTopUpSuccess?.call();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E293B),
+                backgroundColor: const Color(0xFF1E242F),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -267,6 +302,24 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  Widget _buildPresetWrap() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 20) / 3;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _presetAmounts.map((amt) {
+            return SizedBox(
+              width: itemWidth,
+              child: _buildPresetButton(amt),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 

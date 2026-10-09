@@ -1,5 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../model/wallet_model.dart';
+import '../viewmodel/wallet_view_model.dart';
 import 'top_up_bottom_sheet.dart';
 import 'auto_top_up_bottom_sheet.dart';
 import 'e_mandate_bottom_sheet.dart';
@@ -16,87 +19,92 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  int _selectedActivityTab = 0; // 0: Wallet Activity, 1: Eco Rewards
-  bool _isAutoTopUpActive = false;
-  double _autoTopUpThreshold = 100.0;
-  double _autoTopUpAmount = 500.0;
-  double _walletBalance = 0.0;
-  late int _safaiPoints;
+  late final WalletViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    _safaiPoints = widget.initialPoints;
-  }
-
-  @override
-  void didUpdateWidget(WalletScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialPoints != widget.initialPoints) {
-      _safaiPoints = widget.initialPoints;
-    }
+    _viewModel = WalletViewModel();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.chevron_left_rounded,
-            color: Color(0xFF1E242F),
-            size: 32,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Floret Wallet',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1E242F),
-            letterSpacing: -0.2,
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          children: [
-            // 1. Green Gradient Wallet Balance Card
-            _buildWalletBalanceCard(),
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<WalletViewModel>(
+        builder: (context, vm, _) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF7F8FA),
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              centerTitle: true,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: Color(0xFF1E242F),
+                  size: 32,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: const Text(
+                'Floret Wallet',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E242F),
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            body: RefreshIndicator(
+              onRefresh: () => vm.loadWalletData(isRefresh: true),
+              color: const Color(0xFF0F7A47),
+              backgroundColor: Colors.white,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Column(
+                  children: [
+                    // 1. Green Gradient Wallet Balance Card
+                    _buildWalletBalanceCard(vm),
 
-            const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-            // 2. 3 Action Cards (Top Up, Auto Top-Up, E-Mandate)
-            _buildActionCards(),
+                    // 2. 3 Action Cards (Top Up, Auto Top-Up, E-Mandate)
+                    _buildActionCards(vm),
 
-            const SizedBox(height: 18),
+                    const SizedBox(height: 18),
 
-            // 3. Tab Switcher (Wallet Activity / Eco Rewards)
-            _buildTabSwitcher(),
+                    // 3. Tab Switcher (Wallet Activity / Eco Rewards)
+                    _buildTabSwitcher(vm),
 
-            const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-            // 4. Activity Content (Wallet Activity or Eco Rewards)
-            _selectedActivityTab == 0
-                ? _buildWalletActivityView()
-                : _buildEcoRewardsView(),
+                    // 4. Activity Content (Wallet Activity or Eco Rewards)
+                    vm.selectedActivityTab == 0
+                        ? _buildWalletActivityView(vm)
+                        : _buildEcoRewardsView(vm),
 
-            const SizedBox(height: 24),
-          ],
-        ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
   // 1. Wallet Balance Card with Green Gradient
-  Widget _buildWalletBalanceCard() {
+  Widget _buildWalletBalanceCard(WalletViewModel vm) {
+    final isAutoTopUp = vm.autoTopupEnabled;
+    final isMandateAuth = vm.mandateAuthorized;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -123,7 +131,7 @@ class _WalletScreenState extends State<WalletScreen> {
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
             child: Column(
               children: [
-                // Top Row: WALLETS BALANCE + Auto Top-Up OFF pill
+                // Top Row: WALLETS BALANCE + Auto Top-Up ON/OFF pill
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -140,19 +148,15 @@ class _WalletScreenState extends State<WalletScreen> {
                       onTap: () async {
                         final res = await AutoTopUpBottomSheet.show(
                           context,
-                          isEnabled: _isAutoTopUpActive,
-                          threshold: _autoTopUpThreshold,
-                          reloadAmount: _autoTopUpAmount,
+                          isEnabled: vm.autoTopupEnabled,
+                          threshold: vm.autoTopupTriggerAmount,
+                          reloadAmount: vm.autoTopupAmount,
                         );
                         if (res != null) {
-                          setState(() {
-                            _isAutoTopUpActive = res.isEnabled;
-                            _autoTopUpThreshold = res.threshold;
-                            _autoTopUpAmount = res.reloadAmount;
-                            if (_isAutoTopUpActive) {
-                              _walletBalance = 1500.0;
-                            }
-                          });
+                          await vm.setupAutoTopUp(
+                            triggerAmount: res.threshold,
+                            topUpAmount: res.reloadAmount,
+                          );
                         }
                       },
                       behavior: HitTestBehavior.opaque,
@@ -173,7 +177,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              _isAutoTopUpActive
+                              isAutoTopUp
                                   ? Icons.sync_rounded
                                   : Icons.power_settings_new_rounded,
                               size: 13,
@@ -181,7 +185,7 @@ class _WalletScreenState extends State<WalletScreen> {
                             ),
                             const SizedBox(width: 5),
                             Text(
-                              _isAutoTopUpActive
+                              isAutoTopUp
                                   ? 'Auto Top-Up ON'
                                   : 'Auto Top-Up OFF',
                               style: const TextStyle(
@@ -205,7 +209,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      '₹ ${_walletBalance.toStringAsFixed(2)}',
+                      '₹ ${vm.walletBalance.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.w800,
@@ -214,7 +218,15 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                     ElevatedButton.icon(
-                      onPressed: () => TopUpBottomSheet.show(context),
+                      onPressed: () {
+                        vm.fetchTopupAndTransactions();
+                        TopUpBottomSheet.show(
+                          context,
+                          config: vm.topupConfig,
+                          onTopUpSuccess: () =>
+                              vm.loadWalletData(isRefresh: true),
+                        );
+                      },
                       icon: const Icon(
                         Icons.add_rounded,
                         size: 18,
@@ -247,7 +259,7 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           ),
 
-          // Bottom Inner Capsule: E-Mandate Pending
+          // Bottom Inner Capsule: E-Mandate Pending or Authorized
           GestureDetector(
             onTap: () => EMandateBottomSheet.show(context),
             behavior: HitTestBehavior.opaque,
@@ -258,20 +270,26 @@ class _WalletScreenState extends State<WalletScreen> {
                 color: Colors.black.withValues(alpha: 0.22),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
                       Icon(
-                        Icons.shield_outlined,
-                        color: Color(0xFFD4E157),
+                        isMandateAuth
+                            ? Icons.verified_rounded
+                            : Icons.shield_outlined,
+                        color: isMandateAuth
+                            ? const Color(0xFF86EFAC)
+                            : const Color(0xFFD4E157),
                         size: 16,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
-                        'E-Mandate Pending',
-                        style: TextStyle(
+                        isMandateAuth
+                            ? 'E-Mandate Active'
+                            : 'E-Mandate Pending',
+                        style: const TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -280,11 +298,13 @@ class _WalletScreenState extends State<WalletScreen> {
                     ],
                   ),
                   Text(
-                    'Authorize >',
+                    isMandateAuth ? 'Authorized ✓' : 'Authorize >',
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: isMandateAuth
+                          ? const Color(0xFF86EFAC)
+                          : Colors.white,
                     ),
                   ),
                 ],
@@ -297,7 +317,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   // 2. 3 Action Cards (Top Up, Auto Top-Up, E-Mandate)
-  Widget _buildActionCards() {
+  Widget _buildActionCards(WalletViewModel vm) {
     return Row(
       children: [
         Expanded(
@@ -307,7 +327,14 @@ class _WalletScreenState extends State<WalletScreen> {
             iconBgColor: const Color(0xFFE2E8F0),
             title: 'Top Up',
             subtitle: 'Add Funds',
-            onTap: () => TopUpBottomSheet.show(context),
+            onTap: () {
+              vm.fetchTopupAndTransactions();
+              TopUpBottomSheet.show(
+                context,
+                config: vm.topupConfig,
+                onTopUpSuccess: () => vm.loadWalletData(isRefresh: true),
+              );
+            },
           ),
         ),
         const SizedBox(width: 10),
@@ -317,25 +344,21 @@ class _WalletScreenState extends State<WalletScreen> {
             iconColor: const Color(0xFFD97706),
             iconBgColor: const Color(0xFFFEF3C7),
             title: 'Auto Top-Up',
-            subtitle: _isAutoTopUpActive
-                ? '₹${_autoTopUpThreshold.toInt()} limit'
+            subtitle: vm.autoTopupEnabled
+                ? '₹${vm.autoTopupTriggerAmount.toInt()} limit'
                 : 'Configure',
             onTap: () async {
               final res = await AutoTopUpBottomSheet.show(
                 context,
-                isEnabled: _isAutoTopUpActive,
-                threshold: _autoTopUpThreshold,
-                reloadAmount: _autoTopUpAmount,
+                isEnabled: vm.autoTopupEnabled,
+                threshold: vm.autoTopupTriggerAmount,
+                reloadAmount: vm.autoTopupAmount,
               );
               if (res != null) {
-                setState(() {
-                  _isAutoTopUpActive = res.isEnabled;
-                  _autoTopUpThreshold = res.threshold;
-                  _autoTopUpAmount = res.reloadAmount;
-                  if (_isAutoTopUpActive) {
-                    _walletBalance = 1500.0;
-                  }
-                });
+                await vm.setupAutoTopUp(
+                  triggerAmount: res.threshold,
+                  topUpAmount: res.reloadAmount,
+                );
               }
             },
           ),
@@ -347,7 +370,7 @@ class _WalletScreenState extends State<WalletScreen> {
             iconColor: const Color(0xFF9333EA),
             iconBgColor: const Color(0xFFF3E8FF),
             title: 'E-Mandate',
-            subtitle: 'Authorize',
+            subtitle: vm.mandateAuthorized ? 'Authorized' : 'Authorize',
             onTap: () => EMandateBottomSheet.show(context),
           ),
         ),
@@ -429,7 +452,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   // 3. Tab Switcher (Segmented Control: Wallet Activity / Eco Rewards)
-  Widget _buildTabSwitcher() {
+  Widget _buildTabSwitcher(WalletViewModel vm) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFEFF1F4),
@@ -440,22 +463,18 @@ class _WalletScreenState extends State<WalletScreen> {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedActivityTab = 0;
-                });
-              },
+              onTap: () => vm.setActivityTab(0),
               behavior: HitTestBehavior.opaque,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: _selectedActivityTab == 0
+                  color: vm.selectedActivityTab == 0
                       ? Colors.white
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: _selectedActivityTab == 0
+                  boxShadow: vm.selectedActivityTab == 0
                       ? [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.05),
@@ -469,10 +488,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   'Wallet Activity',
                   style: TextStyle(
                     fontSize: 13.5,
-                    fontWeight: _selectedActivityTab == 0
+                    fontWeight: vm.selectedActivityTab == 0
                         ? FontWeight.w700
                         : FontWeight.w600,
-                    color: _selectedActivityTab == 0
+                    color: vm.selectedActivityTab == 0
                         ? const Color(0xFF1E242F)
                         : const Color(0xFF64748B),
                   ),
@@ -482,22 +501,18 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedActivityTab = 1;
-                });
-              },
+              onTap: () => vm.setActivityTab(1),
               behavior: HitTestBehavior.opaque,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: _selectedActivityTab == 1
+                  color: vm.selectedActivityTab == 1
                       ? Colors.white
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: _selectedActivityTab == 1
+                  boxShadow: vm.selectedActivityTab == 1
                       ? [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.05),
@@ -511,10 +526,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   'Eco Rewards',
                   style: TextStyle(
                     fontSize: 13.5,
-                    fontWeight: _selectedActivityTab == 1
+                    fontWeight: vm.selectedActivityTab == 1
                         ? FontWeight.w700
                         : FontWeight.w600,
-                    color: _selectedActivityTab == 1
+                    color: vm.selectedActivityTab == 1
                         ? const Color(0xFF1E242F)
                         : const Color(0xFF64748B),
                   ),
@@ -527,104 +542,13 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // 4A. View for "Wallet Activity" (Image 1 & Updated Activity)
-  Widget _buildWalletActivityView() {
-    if (_isAutoTopUpActive || _walletBalance > 0) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFFF1F5F9),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: Color(0xFFDCFCE7),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.south_west_rounded,
-                  color: Color(0xFF16A34A),
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Manual wallet top-up',
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1E242F),
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  SizedBox(height: 3),
-                  Text(
-                    '03 Oct 2026, 04:13 PM',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF94A3B8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  '+₹1500.00',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF16A34A),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'razorpay • COMPLETED',
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+  // 4A. View for "Wallet Activity"
+  Widget _buildWalletActivityView(WalletViewModel vm) {
+    if (vm.walletTransactions.isNotEmpty) {
+      return Column(
+        children: vm.walletTransactions
+            .map((tx) => _buildWalletTransactionItem(tx))
+            .toList(),
       );
     }
 
@@ -668,7 +592,12 @@ class _WalletScreenState extends State<WalletScreen> {
 
           ElevatedButton.icon(
             onPressed: () {
-              TopUpBottomSheet.show(context);
+              vm.fetchTopupAndTransactions();
+              TopUpBottomSheet.show(
+                context,
+                config: vm.topupConfig,
+                onTopUpSuccess: () => vm.loadWalletData(isRefresh: true),
+              );
             },
             icon: const Icon(
               Icons.add_rounded,
@@ -700,8 +629,115 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // 4B. View for "Eco Rewards" (Image 2)
-  Widget _buildEcoRewardsView() {
+  Widget _buildWalletTransactionItem(WalletTransactionItemModel tx) {
+    final isCredit = tx.isCredit;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFF1F5F9),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color:
+                  isCredit ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(
+                isCredit ? Icons.south_west_rounded : Icons.north_east_rounded,
+                color: isCredit
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFF64748B),
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tx.title,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E242F),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  tx.date,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isCredit ? "+" : "-"}₹${tx.amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: isCredit
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFF1E242F),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${tx.paymentMethod} • ${tx.status}',
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4B. View for "Eco Rewards"
+  Widget _buildEcoRewardsView(WalletViewModel vm) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -742,9 +778,9 @@ class _WalletScreenState extends State<WalletScreen> {
                           color: Color(0xFF8C95A6),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        '$_safaiPoints pts',
+                        '${vm.availableSafaiPoints} pts',
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
@@ -756,24 +792,25 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
-                      if (_safaiPoints < 100) {
+                      if (vm.availableSafaiPoints <
+                          vm.minimumRedemptionPoints) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            backgroundColor: Color(0xFFFF5252),
+                          SnackBar(
+                            backgroundColor: const Color(0xFFFF5252),
                             behavior: SnackBarBehavior.fixed,
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 14,
                             ),
                             content: Text(
-                              'Insufficient points! You need at least 100 eco-points to redeem.',
-                              style: TextStyle(
+                              'Insufficient points! You need at least ${vm.minimumRedemptionPoints} eco-points to redeem.',
+                              style: const TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w500,
                                 color: Colors.white,
                               ),
                             ),
-                            duration: Duration(seconds: 3),
+                            duration: const Duration(seconds: 3),
                           ),
                         );
                       } else {
@@ -820,7 +857,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       icon: Icons.arrow_upward_rounded,
                       iconColor: const Color(0xFF10B981),
                       label: 'Earned',
-                      value: '0',
+                      value: '${vm.totalEarned}',
                       valueColor: const Color(0xFF10B981),
                     ),
                   ),
@@ -834,7 +871,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       icon: Icons.shopping_bag_outlined,
                       iconColor: const Color(0xFFD97706),
                       label: 'Redeemed',
-                      value: '0',
+                      value: '${vm.totalRedeemed}',
                       valueColor: const Color(0xFFD97706),
                     ),
                   ),
@@ -848,7 +885,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       icon: Icons.block_rounded,
                       iconColor: const Color(0xFFEF4444),
                       label: 'Expired',
-                      value: '0',
+                      value: '${vm.totalExpired}',
                       valueColor: const Color(0xFFEF4444),
                     ),
                   ),
@@ -872,10 +909,10 @@ class _WalletScreenState extends State<WalletScreen> {
               width: 1,
             ),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
+              const Padding(
                 padding: EdgeInsets.only(top: 1),
                 child: Icon(
                   Icons.info_outline_rounded,
@@ -883,11 +920,11 @@ class _WalletScreenState extends State<WalletScreen> {
                   color: Color(0xFF166534),
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Safai Points Rule: Earn 1 point per ₹100 spent • 1 Point = ₹0.25 redemption value',
-                  style: TextStyle(
+                  'Safai Points Rule: Earn 1 point per ₹${vm.earningsRatio.toInt()} spent • 1 Point = ₹${vm.redemptionValue.toStringAsFixed(2)} redemption value',
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF166534),
@@ -914,37 +951,164 @@ class _WalletScreenState extends State<WalletScreen> {
 
         const SizedBox(height: 12),
 
-        // 4. Empty Reward Points History Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFFF0F3F6),
-              width: 1,
+        // 4. Reward Points Transactions List / Empty Card
+        if (vm.rewardPointsTransactions.isNotEmpty)
+          Column(
+            children: vm.rewardPointsTransactions
+                .map((tx) => _buildRewardPointTransactionItem(tx))
+                .toList(),
+          )
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFF0F3F6),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+            child: const Center(
+              child: Text(
+                'No reward points history found',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF8C95A6),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRewardPointTransactionItem(
+      RewardPointsTransactionItemModel tx) {
+    final isEarned = tx.type == 'earned';
+    final isExpired = tx.type == 'expired';
+
+    Color iconBgColor = const Color(0xFFDCFCE7);
+    Color iconColor = const Color(0xFF16A34A);
+    IconData iconData = Icons.stars_rounded;
+
+    if (isExpired) {
+      iconBgColor = const Color(0xFFFEE2E2);
+      iconColor = const Color(0xFFEF4444);
+      iconData = Icons.block_rounded;
+    } else if (!isEarned) {
+      iconBgColor = const Color(0xFFFEF3C7);
+      iconColor = const Color(0xFFD97706);
+      iconData = Icons.shopping_bag_outlined;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFF1F5F9),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(
+                iconData,
+                color: iconColor,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tx.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E242F),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  tx.date,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isEarned ? "+" : "-"}${tx.points} pts',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isEarned
+                      ? const Color(0xFF16A34A)
+                      : (isExpired
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFFD97706)),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  tx.status,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
               ),
             ],
           ),
-          child: const Center(
-            child: Text(
-              'No reward points history found',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF8C95A6),
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

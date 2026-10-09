@@ -243,7 +243,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                  icon:
+                      const Icon(Icons.check_circle_outline_rounded, size: 20),
                   label: const Text(
                     'Confirm Location',
                     style: TextStyle(
@@ -330,7 +331,8 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 14),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -391,12 +393,12 @@ class _SignupScreenState extends State<SignupScreen> {
         final regRes = _viewModel.registrationResponse;
         final isCommercial =
             regRes?.accountType?.toLowerCase() == 'commercial' ||
-            _viewModel.accountType == 'Commercial';
+                _viewModel.accountType == 'Commercial';
         final requiresPayment = regRes?.requiresPayment ?? isCommercial;
         final message = regRes?.message ??
             (isCommercial
                 ? 'Welcome to Safai 365! Your commercial account registration has been initialized.'
-                : 'Registration completed successfully. Please login with your phone number and OTP.');
+                : 'Welcome to Safai 365! Your account registration has been completed successfully.');
 
         return Dialog(
           shape: RoundedRectangleBorder(
@@ -476,12 +478,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       Navigator.pop(dialogContext);
                       Navigator.pushNamedAndRemoveUntil(
                         context,
-                        LoginScreen.routeName,
+                        HomeScreen.routeName,
                         (route) => false,
                       );
                     },
                     child: const Text(
-                      'Pay Later & Go to Login',
+                      'Pay Later & Go to Home',
                       style: TextStyle(
                         color: Color(0xFF64748B),
                         fontWeight: FontWeight.w600,
@@ -505,34 +507,16 @@ class _SignupScreenState extends State<SignupScreen> {
                         Navigator.pop(dialogContext);
                         Navigator.pushNamedAndRemoveUntil(
                           context,
-                          LoginScreen.routeName,
+                          HomeScreen.routeName,
                           (route) => false,
                         );
                       },
                       child: const Text(
-                        'Proceed to Login',
+                        'Go to Home',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        HomeScreen.routeName,
-                        (route) => false,
-                      );
-                    },
-                    child: const Text(
-                      'Go to Dashboard',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1991,9 +1975,8 @@ class _SignupScreenState extends State<SignupScreen> {
           color: isSelected ? const Color(0xFFEAEFF5) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFF1E242F)
-                : const Color(0xFFE2E5EB),
+            color:
+                isSelected ? const Color(0xFF1E242F) : const Color(0xFFE2E5EB),
             width: isSelected ? 1.6 : 1.2,
           ),
         ),
@@ -2063,6 +2046,7 @@ class _SignupScreenState extends State<SignupScreen> {
               keyboardType: keyboardType,
               inputFormatters: inputFormatters,
               onChanged: onChanged,
+              enabled: true,
               cursorColor: const Color(0xFF1E242F),
               style: const TextStyle(
                 fontSize: 14,

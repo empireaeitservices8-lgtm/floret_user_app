@@ -1,30 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:floret_app/providers/view_model.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
+import 'package:floret_app/repositories/profile_repository.dart' as api_repo;
 import '../repos/profile_repository.dart';
 
 class MyAccountViewModel extends ViewModel {
   final ProfileRepository _repository;
+  final api_repo.ProfileRepository _apiProfileRepository;
 
   bool _isEditing = false;
-  String _fullName = 'nicy nicy';
-  String _phoneNumber = '+919995723146';
+  String _fullName = 'User';
+  String _phoneNumber = '';
 
   final int _totalPickups = 0;
   final double _wasteCollected = 0.0;
   final int _treesEquiv = 0;
 
-  final String _defaultAddress = 'No saved address. Tap Manage to add.';
-  final String _city = '—';
-  final String _pincode = '—';
+  String _defaultAddress = 'No saved address. Tap Manage to add.';
+  String _city = '—';
+  String _pincode = '—';
 
   late final TextEditingController nameController;
   late final TextEditingController phoneController;
 
-  MyAccountViewModel({ProfileRepository? repository})
-      : _repository = repository ?? ProfileRepository() {
+  MyAccountViewModel({
+    ProfileRepository? repository,
+    api_repo.ProfileRepository? apiProfileRepository,
+  })  : _repository = repository ?? ProfileRepository(),
+        _apiProfileRepository =
+            apiProfileRepository ?? api_repo.ProfileRepository() {
     nameController = TextEditingController(text: _fullName);
     phoneController = TextEditingController(text: _phoneNumber);
+    loadProfile();
+  }
+
+  Future<void> loadProfile() async {
+    showLoading();
+    try {
+      final profile = await _apiProfileRepository.getProfile();
+      _fullName = profile.fullName;
+      _phoneNumber = profile.phoneNumber ?? '';
+      nameController.text = _fullName;
+      phoneController.text = _phoneNumber;
+      if (profile.street != null && profile.street!.isNotEmpty) {
+        _defaultAddress = profile.formattedAddress;
+      }
+      if (profile.city != null && profile.city!.isNotEmpty) {
+        _city = profile.city!;
+      }
+      if (profile.zipCode != null && profile.zipCode!.isNotEmpty) {
+        _pincode = profile.zipCode!;
+      }
+      notifyListeners();
+    } catch (_) {
+      try {
+        final local = await _repository.getUserProfile();
+        _fullName = local.name;
+        _phoneNumber = local.mobileNumber;
+        nameController.text = _fullName;
+        phoneController.text = _phoneNumber;
+        notifyListeners();
+      } catch (_) {}
+    } finally {
+      hideLoading();
+    }
   }
 
   bool get isEditing => _isEditing;

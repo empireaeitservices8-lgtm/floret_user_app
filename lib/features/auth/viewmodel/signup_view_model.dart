@@ -10,7 +10,7 @@ class SignupViewModel extends ViewModel {
 
   SignupViewModel({
     AuthRepository? authRepository,
-  })  : _authRepository = authRepository ?? AuthRepository() {
+  }) : _authRepository = authRepository ?? AuthRepository() {
     phoneFocusNode.addListener(() {
       _isPhoneFocused = phoneFocusNode.hasFocus;
       notifyListeners();
@@ -260,8 +260,7 @@ class SignupViewModel extends ViewModel {
   // -------------------------------------------------------------
   // STEP 3: Address & Confirmation
   // -------------------------------------------------------------
-  final TextEditingController streetAddressController =
-      TextEditingController();
+  final TextEditingController streetAddressController = TextEditingController();
   final TextEditingController cityController = TextEditingController();
   final TextEditingController zipCodeController = TextEditingController();
 

@@ -5,6 +5,7 @@ class LoginModel {
   final String phoneNumber;
   final String accountType;
   final String mouStatus;
+  final bool mouDocumentUploaded;
   final bool canAccessApp;
 
   const LoginModel({
@@ -14,20 +15,27 @@ class LoginModel {
     required this.phoneNumber,
     required this.accountType,
     required this.mouStatus,
+    this.mouDocumentUploaded = false,
     required this.canAccessApp,
   });
 
   /// Factory constructor to create a LoginModel instance from a JSON map
   factory LoginModel.fromJson(Map<String, dynamic> json) {
     return LoginModel(
-      token: json['token'] as String? ?? '',
+      token: json['token'] as String? ??
+          json['access_token'] as String? ??
+          json['key'] as String? ??
+          '',
       userId: json['user_id'] is int
           ? json['user_id'] as int
           : int.tryParse(json['user_id']?.toString() ?? '0') ?? 0,
       username: json['username'] as String? ?? '',
-      phoneNumber: json['phone_number'] as String? ?? '',
+      phoneNumber: json['phone_number'] as String? ??
+          json['phone'] as String? ??
+          '',
       accountType: json['account_type'] as String? ?? '',
       mouStatus: json['mou_status'] as String? ?? '',
+      mouDocumentUploaded: json['mou_document_uploaded'] as bool? ?? false,
       canAccessApp: json['can_access_app'] as bool? ?? false,
     );
   }
@@ -41,6 +49,7 @@ class LoginModel {
       'phone_number': phoneNumber,
       'account_type': accountType,
       'mou_status': mouStatus,
+      'mou_document_uploaded': mouDocumentUploaded,
       'can_access_app': canAccessApp,
     };
   }

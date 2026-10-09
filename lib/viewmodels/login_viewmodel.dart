@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/login_model.dart';
 import '../repositories/auth_repository.dart';
+import '../helpers/sp_helper.dart';
+import '../services/web_api_services.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -36,15 +38,19 @@ class LoginViewModel extends ChangeNotifier {
       // 3. Store successful response in state
       _loginResponse = response;
 
-      // 4. Save authentication token and user info to SharedPreferences
+      // 4. Save authentication token and user info to SharedPreferences and SpHelper
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', response.token);
+      await prefs.setString('KEY_TOKEN', response.token);
       await prefs.setInt('user_id', response.userId);
       await prefs.setString('username', response.username);
       await prefs.setString('phone_number', response.phoneNumber);
       await prefs.setString('account_type', response.accountType);
       await prefs.setString('mou_status', response.mouStatus);
       await prefs.setBool('can_access_app', response.canAccessApp);
+      await SpHelper.saveString('KEY_TOKEN', response.token);
+      await SpHelper.saveString('token', response.token);
+      await WebAPIService().initTokenToHeader();
       debugPrint('💾 [LOGIN VIEWMODEL] User details & token successfully persisted to SharedPreferences');
 
       // 5. Complete loading and notify listeners

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../viewmodels/profile_viewmodel.dart';
 import '../../auth/screen/safai_logo_widget.dart';
 import '../../home/screen/home_screen.dart';
 import '../../settings/screen/settings_screen.dart';
@@ -47,6 +49,17 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final profileVm = context.watch<ProfileViewModel>();
+    if (profileVm.profile == null &&
+        !profileVm.isLoading &&
+        profileVm.errorMessage == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          context.read<ProfileViewModel>().getProfile();
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
@@ -267,11 +280,11 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Good afternoon 🌤️',
                       style: TextStyle(
                         fontSize: 13,
@@ -279,15 +292,19 @@ class ProfileScreen extends StatelessWidget {
                         color: Color(0xFF94A3B8),
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'user',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.4,
-                      ),
+                    const SizedBox(height: 2),
+                    Consumer<ProfileViewModel>(
+                      builder: (context, vm, child) {
+                        return Text(
+                          vm.profile?.fullName ?? 'User123',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

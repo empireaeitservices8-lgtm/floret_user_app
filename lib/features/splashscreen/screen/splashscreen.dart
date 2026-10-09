@@ -1,6 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
+import 'package:floret_app/features/home/screen/home_screen.dart';
+import 'package:floret_app/viewmodels/splash_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
   static const routeName = '/SplashScreen';
@@ -14,20 +16,33 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _progressController;
+  late final SplashViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
+    _viewModel = SplashViewModel();
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..forward();
 
-    Timer(const Duration(milliseconds: 2600), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, LoginScreen.routeName);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthAndNavigate();
     });
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    final status = await _viewModel.checkAuthStatus(
+      minDisplayDuration: const Duration(milliseconds: 2500),
+    );
+    if (!mounted) return;
+
+    if (status == AuthGateStatus.authenticated) {
+      Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+    } else {
+      Navigator.pushReplacementNamed(context, LoginScreen.routeName);
+    }
   }
 
   @override
@@ -38,7 +53,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
@@ -112,6 +129,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -87,6 +87,7 @@ class SignupResponseModel {
   final String? accountType;
   final bool requiresPayment;
   final num totalAmount;
+  final String? token;
 
   const SignupResponseModel({
     required this.success,
@@ -97,21 +98,51 @@ class SignupResponseModel {
     this.accountType,
     this.requiresPayment = false,
     this.totalAmount = 0,
+    this.token,
   });
 
   factory SignupResponseModel.fromJson(Map<String, dynamic> json) {
+    String? extractedToken = json['token']?.toString() ??
+        json['access_token']?.toString() ??
+        json['access']?.toString() ??
+        json['key']?.toString() ??
+        json['auth_token']?.toString();
+
+    if (extractedToken == null && json['data'] is Map) {
+      final dataMap = json['data'] as Map;
+      extractedToken = dataMap['token']?.toString() ??
+          dataMap['access_token']?.toString() ??
+          dataMap['access']?.toString() ??
+          dataMap['key']?.toString() ??
+          dataMap['auth_token']?.toString();
+    }
+    if (extractedToken == null && json['user'] is Map) {
+      final userMap = json['user'] as Map;
+      extractedToken = userMap['token']?.toString() ??
+          userMap['access_token']?.toString() ??
+          userMap['access']?.toString() ??
+          userMap['key']?.toString() ??
+          userMap['auth_token']?.toString();
+    }
+
     return SignupResponseModel(
       success: true,
       message: json['message'] as String? ??
-          'Registration completed successfully. Please login with your phone number and OTP.',
+          'Registration completed successfully. Welcome to Safai 365!',
       userId: json['user_id'] is int
           ? json['user_id'] as int
-          : int.tryParse(json['user_id']?.toString() ?? ''),
-      username: json['username'] as String?,
-      phoneNumber: json['phone_number'] as String?,
+          : int.tryParse(json['user_id']?.toString() ??
+              json['id']?.toString() ??
+              (json['data'] is Map ? json['data']['user_id']?.toString() ?? '' : '')),
+      username: json['username'] as String? ??
+          (json['data'] is Map ? json['data']['username']?.toString() : null),
+      phoneNumber: json['phone_number'] as String? ??
+          json['phone'] as String? ??
+          (json['data'] is Map ? json['data']['phone_number']?.toString() : null),
       accountType: json['account_type'] as String?,
       requiresPayment: json['requires_payment'] as bool? ?? false,
       totalAmount: json['total_amount'] as num? ?? 0,
+      token: extractedToken,
     );
   }
 
@@ -121,6 +152,7 @@ class SignupResponseModel {
       message: errorMessage,
       requiresPayment: false,
       totalAmount: 0,
+      token: null,
     );
   }
 
@@ -132,6 +164,7 @@ class SignupResponseModel {
         'account_type': accountType,
         'requires_payment': requiresPayment,
         'total_amount': totalAmount,
+        'token': token,
       };
 }
 

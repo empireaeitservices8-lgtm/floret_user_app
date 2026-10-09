@@ -25,7 +25,6 @@ class SendOtpModel {
 
   @override
   String toString() {
-    // Redact OTP in toString for security
-    return 'SendOtpModel(message: $message, otp: [REDACTED])';
+    return 'SendOtpModel(message: $message, otp: $otp)';
   }
 }

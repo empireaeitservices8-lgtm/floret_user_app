@@ -41,8 +41,8 @@ class WebAPIService with WebAPIMixin, MixinAPIProvider {
         }
         if (initToken) {
           _dio.options.headers
-              .putIfAbsent('Authorization', () => 'Bearer $token');
-          debugPrint('Authorization==>${token!}');
+              .putIfAbsent('Authorization', () => 'Token $token');
+          debugPrint('Authorization==>Token $token');
         }
         return true;
       });

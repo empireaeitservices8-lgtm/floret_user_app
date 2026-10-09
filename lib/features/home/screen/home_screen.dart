@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../auth/screen/safai_logo_widget.dart';
 import '../../settings/screen/settings_screen.dart';
 import '../../profile/screen/profile_screen.dart';
 import '../../notifications/screen/notifications_screen.dart';
 import '../../wallet/screen/wallet_screen.dart';
+import '../viewmodel/home_view_model.dart';
 import 'select_pickup_bottom_sheet.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
-import '../../../helpers/sp_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   static const String routeName = '/home';
@@ -24,209 +25,214 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedNavIndex = 0;
-  String _userName = 'user';
+  late final HomeViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    _loadUserName();
-  }
-
-  void _loadUserName() async {
-    final saved = await SpHelper.getString('user_name');
-    if (saved != null && saved.isNotEmpty && mounted) {
-      setState(() {
-        _userName = saved;
-      });
-    }
+    _viewModel = HomeViewModel();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.white,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
-        body: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Dark Midnight Blue Header
-                _buildHeader(),
-
-                const SizedBox(height: 16),
-
-                // 2. Metrics (Pending Bills & Active Pickups)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricCard(
-                          icon: Icons.receipt_long_outlined,
-                          title: 'Pending Bills',
-                          count: '0',
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildMetricCard(
-                          icon: Icons.local_shipping_outlined,
-                          title: 'Active Pickups',
-                          count: '0',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 3. Waste Categories Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Waste Categories',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E242F),
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildCategoryCard(
-                              title: 'Sanitary Waste',
-                              subtitle: 'Diapers, hygiene',
-                              icon: Icons.baby_changing_station_rounded,
-                              iconColor: const Color(0xFFE11D48),
-                              iconBgColor: const Color(0xFFFFECEF),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildCategoryCard(
-                              title: 'Scrap Waste',
-                              subtitle: 'Paper, metal, plast...',
-                              icon: Icons.recycling_rounded,
-                              iconColor: const Color(0xFF0284C7),
-                              iconBgColor: const Color(0xFFE0F2FE),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildCategoryCard(
-                              title: 'Glass Waste',
-                              subtitle: 'Bottles, jars, shards',
-                              icon: Icons.local_drink_rounded,
-                              iconColor: const Color(0xFF0D9488),
-                              iconBgColor: const Color(0xFFE6F7F0),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // 4. Eco Pickup Booking Banner
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildEcoPickupBanner(),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 5. Climate Impact Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Climate Impact',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E242F),
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildImpactCard(
-                              badgeText: 'co2',
-                              isBadgePill: true,
-                              title: 'CO2 Reduced',
-                              value: '0.0 kg',
-                              gradientColors: const [
-                                Color(0xFF0F9B58),
-                                Color(0xFF0A753F),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _buildImpactCard(
-                              badgeText: r'$',
-                              isBadgePill: false,
-                              title: 'Eco Points',
-                              value: '0 Pts',
-                              onTap: () {
-                                Navigator.pushNamed(
-                                    context, WalletScreen.routeName);
-                              },
-                              gradientColors: const [
-                                Color(0xFFF59E0B),
-                                Color(0xFFEA580C),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // 6. Recycle Progress Card
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildRecycleProgressCard(),
-                ),
-
-                const SizedBox(height: 24),
-              ],
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<HomeViewModel>(
+        builder: (context, vm, _) {
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.light,
+              statusBarBrightness: Brightness.dark,
+              systemNavigationBarColor: Colors.white,
+              systemNavigationBarIconBrightness: Brightness.dark,
             ),
-          ),
-        ),
-        bottomNavigationBar: widget.showBottomNav ? _buildBottomNav() : null,
+            child: Scaffold(
+              backgroundColor: const Color(0xFFF7F8FA),
+              body: SafeArea(
+                top: false,
+                child: RefreshIndicator(
+                  onRefresh: () => vm.loadHomeData(isRefresh: true),
+                  color: const Color(0xFFC5A059),
+                  backgroundColor: const Color(0xFF0F172A),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. Dark Midnight Blue Header
+                        _buildHeader(vm),
+
+                        const SizedBox(height: 16),
+
+                        // 2. Metrics (Pending Bills & Active Pickups)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildMetricCard(
+                                  icon: Icons.receipt_long_outlined,
+                                  title: 'Pending Bills',
+                                  count: '${vm.pendingBillsCount}',
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: _buildMetricCard(
+                                  icon: Icons.local_shipping_outlined,
+                                  title: 'Active Pickups',
+                                  count: '${vm.activePickupsCount}',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // 3. Waste Categories Section
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Waste Categories',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1E242F),
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildCategoryCard(
+                                      title: 'Sanitary Waste',
+                                      subtitle: 'Diapers, hygiene',
+                                      icon: Icons.baby_changing_station_rounded,
+                                      iconColor: const Color(0xFFE11D48),
+                                      iconBgColor: const Color(0xFFFFECEF),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildCategoryCard(
+                                      title: 'Scrap Waste',
+                                      subtitle: 'Paper, metal, plast...',
+                                      icon: Icons.recycling_rounded,
+                                      iconColor: const Color(0xFF0284C7),
+                                      iconBgColor: const Color(0xFFE0F2FE),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildCategoryCard(
+                                      title: 'Glass Waste',
+                                      subtitle: 'Bottles, jars, shards',
+                                      icon: Icons.local_drink_rounded,
+                                      iconColor: const Color(0xFF0D9488),
+                                      iconBgColor: const Color(0xFFE6F7F0),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // 4. Eco Pickup Booking Banner
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildEcoPickupBanner(),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // 5. Climate Impact Section
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Climate Impact',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1E242F),
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildImpactCard(
+                                      badgeText: 'co2',
+                                      isBadgePill: true,
+                                      title: 'CO2 Reduced',
+                                      value: '0.0 kg',
+                                      gradientColors: const [
+                                        Color(0xFF0F9B58),
+                                        Color(0xFF0A753F),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: _buildImpactCard(
+                                      badgeText: r'$',
+                                      isBadgePill: false,
+                                      title: 'Eco Points',
+                                      value: '${vm.ecoPoints} Pts',
+                                      onTap: () {
+                                        Navigator.pushNamed(
+                                            context, WalletScreen.routeName);
+                                      },
+                                      gradientColors: const [
+                                        Color(0xFFF59E0B),
+                                        Color(0xFFEA580C),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // 6. Recycle Progress Card
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildRecycleProgressCard(),
+                        ),
+
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              bottomNavigationBar: widget.showBottomNav ? _buildBottomNav() : null,
+            ),
+          );
+        },
       ),
     );
   }
 
   // 1. Dark Header Widget
-  Widget _buildHeader() {
+  Widget _buildHeader(HomeViewModel vm) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -266,23 +272,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Good afternoon 🌤️',
-                      style: TextStyle(
+                    Text(
+                      vm.timeBasedGreeting,
+                      style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w500,
                         color: Color(0xFF94A3B8),
+                        letterSpacing: 0.2,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      _userName,
+                      'Welcome back, ${vm.displayName}',
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                         letterSpacing: -0.4,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -387,9 +396,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: const Color(0xFF383528),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Text(
-                                '0 pts',
-                                style: TextStyle(
+                              child: Text(
+                                '${vm.ecoPoints} pts',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFFC5A059),

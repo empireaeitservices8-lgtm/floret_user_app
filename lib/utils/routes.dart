@@ -1,14 +1,15 @@
 import 'package:floret_app/features/auth/screen/login_screen.dart';
-import 'package:floret_app/views/login_view.dart';
-import 'package:floret_app/views/send_otp_view.dart';
-import 'package:floret_app/features/auth/screen/otp_screen.dart';
 import 'package:floret_app/features/auth/screen/signup_screen.dart';
-import 'package:floret_app/features/home/screen/home_screen.dart';
+import 'package:floret_app/features/auth/screen/otp_screen.dart';
 import 'package:floret_app/features/home/screen/bottom_navigation_screen.dart';
+import 'package:floret_app/features/home/screen/home_screen.dart';
 import 'package:floret_app/features/profile/screen/profile_screen.dart';
 import 'package:floret_app/features/settings/screen/settings_screen.dart';
 import 'package:floret_app/features/splashscreen/screen/splashscreen.dart';
 import 'package:floret_app/utils/connection_failed_screen.dart';
+import 'package:floret_app/views/login_view.dart';
+import 'package:floret_app/views/profile_view.dart';
+import 'package:floret_app/views/send_otp_view.dart';
 import 'package:flutter/material.dart';
 
 import 'package:floret_app/features/notifications/screen/notifications_screen.dart';
@@ -31,6 +32,7 @@ Map<String, Widget Function(BuildContext context)> appRoutes() => {
       SplashScreen.routeName: (context) => const SplashScreen(),
       SendOtpView.routeName: (context) => const SendOtpView(),
       LoginView.routeName: (context) => const LoginView(),
+      ProfileView.routeName: (context) => const ProfileView(),
       LoginScreen.routeName: (context) => const LoginScreen(),
       OtpScreen.routeName: (context) => const OtpScreen(),
       SignupScreen.routeName: (context) => const SignupScreen(),

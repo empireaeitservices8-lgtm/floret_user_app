@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:floret_app/services/api_endpoints.dart';
 import 'package:floret_app/services/web_api_services.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
@@ -46,31 +47,80 @@ class AuthRepository {
 
   Future<AuthResponseModel> verifyOtp(String mobileNumber, String otp) async {
     try {
-      debugPrint('🚀 [API REQUEST] Verifying OTP: $otp for mobile: $mobileNumber');
-      await Future.delayed(const Duration(milliseconds: 600));
-      final user = UserModel(
-        phone: mobileNumber,
-        name: 'nicy nicy',
-        token: 'auth_token_$mobileNumber',
+      final formattedPhone = mobileNumber.startsWith('+')
+          ? mobileNumber
+          : (mobileNumber.startsWith('91') && mobileNumber.length == 12
+              ? '+$mobileNumber'
+              : '+91$mobileNumber');
+
+      debugPrint('🚀 [API REQUEST] Verifying OTP / Logging in with phone: $formattedPhone');
+      final response = await _apiService.login(
+        phoneNumber: formattedPhone,
+        otp: otp,
       );
 
-      await SpHelper.saveString(sp_keys.keyToken, user.token!);
-      await SpHelper.saveString(sp_keys.keyUserName, user.name);
-      await SpHelper.saveString(sp_keys.keyUseMobile, user.phone);
+      final resData = response.data is Map ? response.data as Map : {};
+      final token = resData['token']?.toString() ?? '';
+      final username = resData['username']?.toString() ?? mobileNumber;
+      final userId = resData['user_id']?.toString() ?? '';
+      final accountType = resData['account_type']?.toString() ?? '';
+      final mouStatus = resData['mou_status']?.toString() ?? '';
+      final canAccessApp = resData['can_access_app'] == true;
+
+      final user = UserModel(
+        phone: formattedPhone,
+        name: username,
+        token: token,
+      );
+
+      if (token.isNotEmpty) {
+        await SpHelper.saveString(sp_keys.keyToken, token);
+        await SpHelper.saveString('token', token);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(sp_keys.keyToken, token);
+        await prefs.setString('token', token);
+      }
+      await SpHelper.saveString(sp_keys.keyUserName, username);
+      await SpHelper.saveString(sp_keys.keyUseMobile, formattedPhone);
+      if (userId.isNotEmpty) {
+        await SpHelper.saveString(sp_keys.keyUserId, userId);
+      }
+      if (accountType.isNotEmpty) {
+        await SpHelper.saveString('account_type', accountType);
+      }
+      if (mouStatus.isNotEmpty) {
+        await SpHelper.saveString('mou_status', mouStatus);
+      }
+      await SpHelper.saveBoolean('can_access_app', canAccessApp);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('phone_number', formattedPhone);
+      await prefs.setString('username', username);
+      if (userId.isNotEmpty) {
+        await prefs.setString('user_id', userId);
+      }
+      if (accountType.isNotEmpty) {
+        await prefs.setString('account_type', accountType);
+      }
+      if (mouStatus.isNotEmpty) {
+        await prefs.setString('mou_status', mouStatus);
+      }
+      await prefs.setBool('can_access_app', canAccessApp);
       await _webAPIService.initTokenToHeader();
 
-      debugPrint('✅ [API RESPONSE] OTP verified successfully for: $mobileNumber');
+      debugPrint('✅ [API RESPONSE] Successfully authenticated with real server token: $token');
       return AuthResponseModel(
         success: true,
         message: 'OTP verified successfully',
         user: user,
-        token: user.token,
+        token: token,
       );
     } catch (e) {
       debugPrint('❌ [API ERROR] Verify OTP error: $e');
+      final errorMsg = e.toString().replaceFirst('Exception: ', '');
       return AuthResponseModel(
         success: false,
-        message: e.toString(),
+        message: errorMsg,
       );
     }
   }
@@ -152,8 +202,39 @@ class AuthRepository {
         final phone = signupResponse.phoneNumber ?? request.phone;
         final name = signupResponse.username ??
             '${request.firstName} ${request.lastName}'.trim();
+        final token = signupResponse.token ??
+            resData['token']?.toString() ??
+            resData['access_token']?.toString() ??
+            resData['access']?.toString() ??
+            resData['key']?.toString() ??
+            resData['auth_token']?.toString() ??
+            '';
+        final userId = signupResponse.userId?.toString() ??
+            resData['user_id']?.toString() ??
+            resData['id']?.toString() ??
+            '';
+
+        if (token.isNotEmpty) {
+          await SpHelper.saveString(sp_keys.keyToken, token);
+          await SpHelper.saveString('token', token);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(sp_keys.keyToken, token);
+          await prefs.setString('token', token);
+          await _webAPIService.initTokenToHeader();
+          debugPrint('💾 [SIGNUP] Saved authentication token to SharedPreferences & SpHelper: $token');
+        }
         await SpHelper.saveString(sp_keys.keyUseMobile, phone);
         await SpHelper.saveString(sp_keys.keyUserName, name);
+        if (userId.isNotEmpty) {
+          await SpHelper.saveString(sp_keys.keyUserId, userId);
+        }
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('phone_number', phone);
+        await prefs.setString('username', name);
+        if (userId.isNotEmpty) {
+          await prefs.setString('user_id', userId);
+        }
+        await prefs.setString('account_type', request.accountType);
 
         return signupResponse;
       } else {
@@ -199,11 +280,44 @@ class AuthRepository {
     }
   }
 
+  Future<String?> getSavedToken() async {
+    final spToken = await SpHelper.getString(sp_keys.keyToken);
+    if (spToken != null && spToken.trim().isNotEmpty) {
+      return spToken.trim();
+    }
+    final spTokenAlt = await SpHelper.getString('token');
+    if (spTokenAlt != null && spTokenAlt.trim().isNotEmpty) {
+      return spTokenAlt.trim();
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final prefToken = prefs.getString(sp_keys.keyToken) ?? prefs.getString('token');
+    if (prefToken != null && prefToken.trim().isNotEmpty) {
+      return prefToken.trim();
+    }
+    return null;
+  }
+
+  Future<bool> checkAuthStatus() async {
+    final token = await getSavedToken();
+    if (token == null || token.trim().isEmpty) {
+      return false;
+    }
+    await _webAPIService.initTokenToHeader();
+    return true;
+  }
+
   Future<String?> getSavedMobile() async {
     return await SpHelper.getString(sp_keys.keyUseMobile);
   }
 
   Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(sp_keys.keyToken);
+    await prefs.remove('token');
+    await prefs.remove('user_id');
+    await prefs.remove('username');
+    await prefs.remove('phone_number');
+    await prefs.remove('account_type');
     await SpHelper.clearAll();
   }
 }
