@@ -251,6 +251,19 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  String _getTimeBasedGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return 'Good morning 🌅';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good afternoon 🌤️';
+    } else if (hour >= 17 && hour < 21) {
+      return 'Good evening 🌆';
+    } else {
+      return 'Good night 🌙';
+    }
+  }
+
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -284,19 +297,23 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Good afternoon 🌤️',
-                      style: TextStyle(
+                    Text(
+                      _getTimeBasedGreeting(),
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF94A3B8),
+                        letterSpacing: 0.2,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Consumer<ProfileViewModel>(
                       builder: (context, vm, child) {
+                        final displayName = vm.profile?.firstName ??
+                            vm.profile?.fullName ??
+                            '';
                         return Text(
-                          vm.profile?.fullName ?? 'User123',
+                          displayName.isNotEmpty ? displayName : 'My Profile',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,

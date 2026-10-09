@@ -18,7 +18,7 @@ class ReceiptTicketScreen extends StatefulWidget {
     this.wasteType = 'Sanitary waste',
     this.pickupAddress =
         'KRAA/11, Paruthippara,\nThiruvananthapuram - 695015',
-    this.contact = 'nicy nicy (+919995723146)',
+    this.contact = 'User',
   });
 
   @override

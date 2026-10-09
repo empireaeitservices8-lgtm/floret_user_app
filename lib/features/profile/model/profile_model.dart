@@ -19,9 +19,9 @@ class UserProfileModel {
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
     return UserProfileModel(
-      name: json['name'] as String? ?? 'user',
-      mobileNumber: json['mobileNumber'] as String? ?? '9995723146',
-      email: json['email'] as String? ?? 'user@gmail.com',
+      name: json['name'] as String? ?? json['first_name'] as String? ?? '',
+      mobileNumber: json['mobileNumber'] as String? ?? json['phone_number'] as String? ?? '',
+      email: json['email'] as String? ?? '',
       location: json['location'] as String? ?? 'Kerala, India',
       totalCollections: json['totalCollections'] as int? ?? 14,
       totalWeightKg: (json['totalWeightKg'] as num?)?.toDouble() ?? 42.5,

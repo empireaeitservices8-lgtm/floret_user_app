@@ -283,7 +283,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Welcome back, ${vm.displayName}',
+                      vm.displayName.isNotEmpty
+                          ? 'Welcome back, ${vm.displayName}'
+                          : 'Welcome back',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,

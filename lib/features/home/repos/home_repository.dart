@@ -20,6 +20,10 @@ class HomeRepository {
 
   /// Retrieves the cached or local user name
   Future<String> getUserName() async {
+    final firstName = await SpHelper.getString('first_name');
+    if (firstName != null && firstName.trim().isNotEmpty && firstName.trim().toLowerCase() != 'user') {
+      return firstName.trim();
+    }
     final name = await SpHelper.getString(sp_keys.keyUserName);
     if (name != null && name.trim().isNotEmpty && name.trim().toLowerCase() != 'user') {
       return name.trim();
@@ -33,10 +37,10 @@ class HomeRepository {
       return raw.trim();
     }
     final homeUname = await SpHelper.getString('home_username');
-    if (homeUname != null && homeUname.trim().isNotEmpty) {
+    if (homeUname != null && homeUname.trim().isNotEmpty && homeUname.trim().toLowerCase() != 'user') {
       return homeUname.trim();
     }
-    return 'User';
+    return '';
   }
 
   /// 1. GET /api/home/
@@ -46,8 +50,10 @@ class HomeRepository {
       if (response.data is Map) {
         final map = Map<String, dynamic>.from(response.data as Map);
         final model = HomeOverviewModel.fromJson(map);
-        // Also save username/message if present
-        if (model.username != null && model.username!.isNotEmpty) {
+        // Also save username/message if present and not generic
+        if (model.username != null &&
+            model.username!.isNotEmpty &&
+            model.username!.toLowerCase() != 'user') {
           await SpHelper.saveString('home_username', model.username!);
         }
         return model;

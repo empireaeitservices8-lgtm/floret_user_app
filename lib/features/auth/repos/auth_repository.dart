@@ -200,8 +200,10 @@ class AuthRepository {
         final signupResponse = SignupResponseModel.fromJson(resData);
 
         final phone = signupResponse.phoneNumber ?? request.phone;
-        final name = signupResponse.username ??
-            '${request.firstName} ${request.lastName}'.trim();
+        final firstName = request.firstName.trim();
+        final lastName = request.lastName.trim();
+        final fullName = '$firstName $lastName'.trim();
+        final primaryName = firstName.isNotEmpty ? firstName : (signupResponse.username ?? fullName);
         final token = signupResponse.token ??
             resData['token']?.toString() ??
             resData['access_token']?.toString() ??
@@ -224,13 +226,21 @@ class AuthRepository {
           debugPrint('💾 [SIGNUP] Saved authentication token to SharedPreferences & SpHelper: $token');
         }
         await SpHelper.saveString(sp_keys.keyUseMobile, phone);
-        await SpHelper.saveString(sp_keys.keyUserName, name);
+        await SpHelper.saveString(sp_keys.keyUserName, primaryName);
+        await SpHelper.saveString('first_name', firstName);
+        await SpHelper.saveString('last_name', lastName);
+        await SpHelper.saveString('username', primaryName);
+        await SpHelper.saveString('user_name', primaryName);
+        await SpHelper.saveString('home_username', primaryName);
         if (userId.isNotEmpty) {
           await SpHelper.saveString(sp_keys.keyUserId, userId);
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('phone_number', phone);
-        await prefs.setString('username', name);
+        await prefs.setString('username', primaryName);
+        await prefs.setString('first_name', firstName);
+        await prefs.setString('last_name', lastName);
+        await prefs.setString('user_name', primaryName);
         if (userId.isNotEmpty) {
           await prefs.setString('user_id', userId);
         }

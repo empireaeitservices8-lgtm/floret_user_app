@@ -1084,8 +1084,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                         .pickupAddressController.text.isNotEmpty
                                     ? '${vm.pickupAddressController.text}, ${vm.cityController.text.isNotEmpty ? vm.cityController.text : "Thiruvananthapuram"} - ${vm.zipCodeController.text.isNotEmpty ? vm.zipCodeController.text : "695015"}'
                                     : 'KRAA/11, Paruthippara,\nThiruvananthapuram - 695015',
-                                contact:
-                                    '${vm.fullNameController.text.isNotEmpty ? vm.fullNameController.text : "nicy nicy"} (${vm.contactNumberController.text.isNotEmpty ? vm.contactNumberController.text : "+919995723146"})',
+                                contact: vm.fullNameController.text.isNotEmpty &&
+                                        vm.contactNumberController.text.isNotEmpty
+                                    ? '${vm.fullNameController.text} (${vm.contactNumberController.text})'
+                                    : (vm.fullNameController.text.isNotEmpty
+                                        ? vm.fullNameController.text
+                                        : (vm.contactNumberController.text.isNotEmpty
+                                            ? vm.contactNumberController.text
+                                            : 'User')),
                               ),
                             ),
                           );

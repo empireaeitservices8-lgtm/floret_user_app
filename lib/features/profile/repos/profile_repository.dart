@@ -13,9 +13,22 @@ class ProfileRepository {
   WebAPIService get webAPIService => _webAPIService;
 
   Future<UserProfileModel> getUserProfile() async {
-    final name = await SpHelper.getString(sp_keys.keyUserName) ?? 'user';
-    final mobile = await SpHelper.getString(sp_keys.keyUseMobile) ?? '9995723146';
-    final email = await SpHelper.getString(sp_keys.keyEmail) ?? 'user@gmail.com';
+    final firstName = await SpHelper.getString('first_name');
+    final storedName = await SpHelper.getString(sp_keys.keyUserName);
+    final rawUname = await SpHelper.getString('username');
+    final name = (firstName != null && firstName.trim().isNotEmpty && firstName.trim().toLowerCase() != 'user')
+        ? firstName.trim()
+        : (storedName != null && storedName.trim().isNotEmpty && storedName.trim().toLowerCase() != 'user')
+            ? storedName.trim()
+            : (rawUname != null && rawUname.trim().isNotEmpty && rawUname.trim().toLowerCase() != 'user')
+                ? rawUname.trim()
+                : '';
+    final mobile = await SpHelper.getString(sp_keys.keyUseMobile) ??
+        await SpHelper.getString('phone_number') ??
+        '';
+    final email = await SpHelper.getString(sp_keys.keyEmail) ??
+        await SpHelper.getString('email') ??
+        '';
 
     return UserProfileModel(
       name: name,

@@ -17,8 +17,12 @@ class HomeViewModel extends ViewModel {
   bool _isRefreshing = false;
 
   String get userName {
+    if (_userName.isNotEmpty && _userName.toLowerCase() != 'user') {
+      return _userName;
+    }
     if (_homeBundle.homeOverview.username != null &&
-        _homeBundle.homeOverview.username!.isNotEmpty) {
+        _homeBundle.homeOverview.username!.isNotEmpty &&
+        _homeBundle.homeOverview.username!.toLowerCase() != 'user') {
       return _homeBundle.homeOverview.username!;
     }
     return _userName;
@@ -28,7 +32,7 @@ class HomeViewModel extends ViewModel {
   String get displayName {
     final name = userName.trim();
     if (name.isEmpty || name.toLowerCase() == 'user') {
-      return 'User';
+      return '';
     }
     // Capitalize first letter of name if alphabetic
     if (name.length > 1 && !name.startsWith('+') && !RegExp(r'^[0-9]+$').hasMatch(name)) {

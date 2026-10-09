@@ -9,11 +9,25 @@ class BookingViewModel extends ViewModel {
   BookingViewModel({BookingRepository? repository})
       : _repository = repository ?? BookingRepository() {
     _categories = _repository.getDefaultCategories();
-    fullNameController = TextEditingController(text: 'nicy nicy');
-    contactNumberController = TextEditingController(text: '+919995723146');
+    fullNameController = TextEditingController();
+    contactNumberController = TextEditingController();
     pickupAddressController = TextEditingController();
     cityController = TextEditingController();
     zipCodeController = TextEditingController();
+    _loadUserContact();
+  }
+
+  Future<void> _loadUserContact() async {
+    try {
+      final contact = await _repository.getUserContact();
+      if (fullNameController.text.isEmpty && contact.fullName.isNotEmpty) {
+        fullNameController.text = contact.fullName;
+      }
+      if (contactNumberController.text.isEmpty && contact.contactNumber.isNotEmpty) {
+        contactNumberController.text = contact.contactNumber;
+      }
+      notifyListeners();
+    } catch (_) {}
   }
 
   late final TextEditingController fullNameController;

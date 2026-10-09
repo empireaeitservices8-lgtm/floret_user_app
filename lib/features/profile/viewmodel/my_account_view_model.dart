@@ -9,7 +9,7 @@ class MyAccountViewModel extends ViewModel {
   final api_repo.ProfileRepository _apiProfileRepository;
 
   bool _isEditing = false;
-  String _fullName = 'User';
+  String _fullName = '';
   String _phoneNumber = '';
 
   final int _totalPickups = 0;

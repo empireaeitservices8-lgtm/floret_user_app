@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../viewmodels/profile_viewmodel.dart';
 import '../../auth/screen/login_screen.dart';
 import '../../home/screen/home_screen.dart';
 import '../../profile/screen/profile_screen.dart';
@@ -55,13 +57,23 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final profileVm = context.watch<ProfileViewModel>();
+    if (profileVm.profile == null &&
+        !profileVm.isLoading &&
+        profileVm.errorMessage == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          context.read<ProfileViewModel>().getProfile();
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
+          physics: const BouncingScrollPhysics(),          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Dark Midnight Blue Header
@@ -341,58 +353,81 @@ class SettingsScreen extends StatelessWidget {
                 width: 1,
               ),
             ),
-            child: Row(
-              children: [
-                // Avatar circle with N
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'N',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E242F),
+            child: Consumer<ProfileViewModel>(
+              builder: (context, vm, child) {
+                final firstName = (vm.profile?.firstName != null &&
+                        vm.profile!.firstName!.trim().isNotEmpty)
+                    ? vm.profile!.firstName!.trim()
+                    : (vm.profile?.user?.firstName != null &&
+                            vm.profile!.user!.firstName!.trim().isNotEmpty)
+                        ? vm.profile!.user!.firstName!.trim()
+                        : (vm.profile?.fullName != null &&
+                                vm.profile!.fullName.trim().isNotEmpty &&
+                                vm.profile!.fullName.trim().toLowerCase() != 'user')
+                            ? vm.profile!.fullName.trim()
+                            : 'User';
+
+                final username = vm.profile?.user?.username?.trim() ?? '';
+                final initial = username.isNotEmpty
+                    ? username[0].toUpperCase()
+                    : (firstName.isNotEmpty && firstName.toLowerCase() != 'user'
+                        ? firstName[0].toUpperCase()
+                        : 'U');
+
+                return Row(
+                  children: [
+                    // Avatar circle with first letter of username
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1E242F),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Text(
-                    'user',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: -0.3,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        firstName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E3A52),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Text(
-                    'Active',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFE2E8F0),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2E3A52),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Text(
+                        'Active',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFE2E8F0),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ],

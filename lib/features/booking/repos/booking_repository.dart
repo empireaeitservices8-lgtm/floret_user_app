@@ -1,3 +1,5 @@
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:flutter/material.dart';
 import '../model/booking_model.dart';
 
@@ -40,10 +42,48 @@ class BookingRepository {
     ];
   }
 
+  Future<BookingContactModel> getUserContact() async {
+    final firstName = await SpHelper.getString('first_name');
+    final lastName = await SpHelper.getString('last_name');
+    final storedName = await SpHelper.getString(sp_keys.keyUserName);
+    final rawUname = await SpHelper.getString('username');
+    final homeUname = await SpHelper.getString('home_username');
+
+    String fullName = '';
+    if (firstName != null &&
+        firstName.trim().isNotEmpty &&
+        firstName.trim().toLowerCase() != 'user') {
+      fullName = (lastName != null && lastName.trim().isNotEmpty)
+          ? '${firstName.trim()} ${lastName.trim()}'
+          : firstName.trim();
+    } else if (storedName != null &&
+        storedName.trim().isNotEmpty &&
+        storedName.trim().toLowerCase() != 'user') {
+      fullName = storedName.trim();
+    } else if (rawUname != null &&
+        rawUname.trim().isNotEmpty &&
+        rawUname.trim().toLowerCase() != 'user') {
+      fullName = rawUname.trim();
+    } else if (homeUname != null &&
+        homeUname.trim().isNotEmpty &&
+        homeUname.trim().toLowerCase() != 'user') {
+      fullName = homeUname.trim();
+    }
+
+    final mobile = await SpHelper.getString(sp_keys.keyUseMobile) ??
+        await SpHelper.getString('phone_number') ??
+        '';
+
+    return BookingContactModel(
+      fullName: fullName,
+      contactNumber: mobile,
+    );
+  }
+
   BookingContactModel getDefaultContact() {
     return const BookingContactModel(
-      fullName: 'nicy nicy',
-      contactNumber: '+919995723146',
+      fullName: '',
+      contactNumber: '',
     );
   }
 

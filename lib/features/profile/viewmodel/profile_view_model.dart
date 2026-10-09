@@ -11,9 +11,9 @@ class ProfileViewModel extends ViewModel {
   }
 
   UserProfileModel _profile = const UserProfileModel(
-    name: 'user',
-    mobileNumber: '9990000000',
-    email: 'user@gmail.com',
+    name: '',
+    mobileNumber: '',
+    email: '',
     location: 'Kerala, India',
   );
 
