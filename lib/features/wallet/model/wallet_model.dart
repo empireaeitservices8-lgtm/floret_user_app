@@ -82,6 +82,35 @@ class WalletBalanceDataModel {
         'created_at': createdAt,
         'updated_at': updatedAt,
       };
+
+  WalletBalanceDataModel copyWith({
+    int? id,
+    int? user,
+    double? balance,
+    bool? autoTopupEnabled,
+    double? autoTopupTriggerAmount,
+    double? autoTopupAmount,
+    bool? mandateAuthorized,
+    String? mandateId,
+    String? mandateAuthorizedAt,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return WalletBalanceDataModel(
+      id: id ?? this.id,
+      user: user ?? this.user,
+      balance: balance ?? this.balance,
+      autoTopupEnabled: autoTopupEnabled ?? this.autoTopupEnabled,
+      autoTopupTriggerAmount:
+          autoTopupTriggerAmount ?? this.autoTopupTriggerAmount,
+      autoTopupAmount: autoTopupAmount ?? this.autoTopupAmount,
+      mandateAuthorized: mandateAuthorized ?? this.mandateAuthorized,
+      mandateId: mandateId ?? this.mandateId,
+      mandateAuthorizedAt: mandateAuthorizedAt ?? this.mandateAuthorizedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }
 
 /// Model for GET /api/wallet/topup/
@@ -316,6 +345,32 @@ class RewardPointsDataModel {
       updatedAt: json['updated_at'] as String?,
     );
   }
+
+  RewardPointsDataModel copyWith({
+    int? id,
+    int? user,
+    int? totalEarned,
+    int? totalRedeemed,
+    int? totalExpired,
+    int? availablePoints,
+    double? monetaryValue,
+    RewardPointsConfigModel? config,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return RewardPointsDataModel(
+      id: id ?? this.id,
+      user: user ?? this.user,
+      totalEarned: totalEarned ?? this.totalEarned,
+      totalRedeemed: totalRedeemed ?? this.totalRedeemed,
+      totalExpired: totalExpired ?? this.totalExpired,
+      availablePoints: availablePoints ?? this.availablePoints,
+      monetaryValue: monetaryValue ?? this.monetaryValue,
+      config: config ?? this.config,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }
 
 /// Model for single transaction item in GET /api/reward-points/transactions/
@@ -521,4 +576,23 @@ class WalletDataBundle {
         const RewardPointsTransactionsResponseModel(),
     this.pickups = const [],
   });
+
+  WalletDataBundle copyWith({
+    WalletBalanceDataModel? walletBalance,
+    WalletTopupConfigModel? walletTopupConfig,
+    WalletTransactionsResponseModel? walletTransactions,
+    RewardPointsDataModel? rewardPoints,
+    RewardPointsTransactionsResponseModel? rewardPointsTransactions,
+    List<PickupItemDataModel>? pickups,
+  }) {
+    return WalletDataBundle(
+      walletBalance: walletBalance ?? this.walletBalance,
+      walletTopupConfig: walletTopupConfig ?? this.walletTopupConfig,
+      walletTransactions: walletTransactions ?? this.walletTransactions,
+      rewardPoints: rewardPoints ?? this.rewardPoints,
+      rewardPointsTransactions:
+          rewardPointsTransactions ?? this.rewardPointsTransactions,
+      pickups: pickups ?? this.pickups,
+    );
+  }
 }

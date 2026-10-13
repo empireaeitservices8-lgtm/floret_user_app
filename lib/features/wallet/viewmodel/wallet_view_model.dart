@@ -5,8 +5,18 @@ import '../repos/wallet_repository.dart';
 class WalletViewModel extends ViewModel {
   final WalletRepository _repository;
 
-  WalletViewModel({WalletRepository? repository})
+  WalletViewModel({WalletRepository? repository, int initialPoints = 0})
       : _repository = repository ?? WalletRepository() {
+    if (initialPoints > 0) {
+      _walletBundle = WalletDataBundle(
+        rewardPoints: RewardPointsDataModel(
+          availablePoints: initialPoints,
+          config: const RewardPointsConfigModel(
+            minimumRedemptionPoints: 100,
+          ),
+        ),
+      );
+    }
     loadWalletData();
   }
 
@@ -67,6 +77,15 @@ class WalletViewModel extends ViewModel {
     }
   }
 
+  void setAvailablePoints(int points) {
+    _walletBundle = _walletBundle.copyWith(
+      rewardPoints: _walletBundle.rewardPoints.copyWith(
+        availablePoints: points,
+      ),
+    );
+    notifyListeners();
+  }
+
   Future<void> fetchTopupAndTransactions() async {
     try {
       final results = await Future.wait([
@@ -98,7 +117,17 @@ class WalletViewModel extends ViewModel {
     }
 
     try {
-      _walletBundle = await _repository.fetchAllWalletData();
+      final bundle = await _repository.fetchAllWalletData();
+      if (_walletBundle.rewardPoints.availablePoints > 0 &&
+          bundle.rewardPoints.availablePoints == 0) {
+        _walletBundle = bundle.copyWith(
+          rewardPoints: bundle.rewardPoints.copyWith(
+            availablePoints: _walletBundle.rewardPoints.availablePoints,
+          ),
+        );
+      } else {
+        _walletBundle = bundle;
+      }
     } catch (e) {
       // Retain previous state on error
     } finally {

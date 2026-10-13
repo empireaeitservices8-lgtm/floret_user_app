@@ -27,13 +27,234 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
     super.dispose();
   }
 
+  static const List<String> _kStates = [
+    'Kerala',
+    'Tamil Nadu',
+    'Karnataka',
+    'Maharashtra',
+    'Delhi',
+    'Andhra Pradesh',
+    'Telangana',
+    'Gujarat',
+  ];
+
+  static const Map<String, List<String>> _kDistricts = {
+    'Kerala': [
+      'Alappuzha',
+      'Ernakulam',
+      'Idukki',
+      'Kannur',
+      'Kasaragod',
+      'Kollam',
+      'Kottayam',
+      'Kozhikode',
+      'Malappuram',
+      'Palakkad',
+      'Pathanamthitta',
+      'Thiruvananthapuram',
+      'Thrissur',
+      'Wayanad',
+    ],
+    'Tamil Nadu': [
+      'Chennai',
+      'Coimbatore',
+      'Madurai',
+      'Salem',
+      'Tiruchirappalli',
+    ],
+    'Karnataka': [
+      'Bengaluru Urban',
+      'Bengaluru Rural',
+      'Mysuru',
+      'Mangaluru',
+      'Hubballi',
+    ],
+  };
+
+  static const Map<String, List<String>> _kLocalBodies = {
+    'Ernakulam': [
+      'Kochi Municipal Corporation',
+      'Tripunithura Municipality',
+      'Kalamassery Municipality',
+      'Aluva Municipality',
+      'Maradu Municipality',
+      'Angamaly Municipality',
+      'Gram Panchayat',
+    ],
+    'Thiruvananthapuram': [
+      'Thiruvananthapuram Corporation',
+      'Nedumangad Municipality',
+      'Neyyattinkara Municipality',
+      'Attingal Municipality',
+      'Varkala Municipality',
+    ],
+    'Kozhikode': [
+      'Kozhikode Corporation',
+      'Vadakara Municipality',
+      'Koyilandy Municipality',
+      'Ramanattukara Municipality',
+    ],
+  };
+
+  static const Map<String, List<String>> _kWards = {
+    'Kochi Municipal Corporation': [
+      'Ward 1 - Fort Kochi',
+      'Ward 2 - Mattancherry',
+      'Ward 3 - Marine Drive',
+      'Ward 4 - Palarivattom',
+      'Ward 5 - Edappally',
+      'Ward 6 - Kakkanad',
+      'Ward 7 - Kaloor',
+      'Ward 8 - Vyttila',
+      'Ward 9 - Panampilly Nagar',
+      'Ward 10 - Kadavanthra',
+    ],
+  };
+
+  List<String> _getDistrictsForState(String state) {
+    return _kDistricts[state] ?? [
+      'Central District',
+      'North District',
+      'South District',
+      'East District',
+      'West District',
+    ];
+  }
+
+  List<String> _getLocalBodiesForDistrict(String district) {
+    return _kLocalBodies[district] ?? [
+      'Municipal Corporation',
+      'Municipality',
+      'Town Panchayat',
+      'Gram Panchayat',
+    ];
+  }
+
+  List<String> _getWardsForLocalBody(String localBody) {
+    return _kWards[localBody] ?? [
+      'Ward 1 - Fort',
+      'Ward 2 - Central',
+      'Ward 3 - North Zone',
+      'Ward 4 - South Zone',
+      'Ward 5 - East Zone',
+    ];
+  }
+
+  Future<String?> _showSelectionPicker({
+    required BuildContext context,
+    required String title,
+    required List<String> items,
+    String? selectedItem,
+  }) async {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (pickerContext) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.55,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1E242F),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF64748B),
+                      size: 20,
+                    ),
+                    onPressed: () => Navigator.pop(pickerContext),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 1,
+                    color: Color(0xFFF1F5F9),
+                  ),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final isSelected = item == selectedItem;
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      title: Text(
+                        item,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? const Color(0xFF1E242F)
+                              : const Color(0xFF475569),
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: Color(0xFF1E242F),
+                              size: 20,
+                            )
+                          : null,
+                      onTap: () => Navigator.pop(pickerContext, item),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showAddAddressBottomSheet(BuildContext context) {
-    String selectedType = 'Home';
-    final addressLineController = TextEditingController();
-    final areaController = TextEditingController();
+    final streetController = TextEditingController();
     final cityController = TextEditingController();
-    final pincodeController = TextEditingController();
-    bool setAsDefault = _viewModel.addresses.isEmpty;
+    final zipController = TextEditingController();
+    String? selectedState;
+    String? selectedDistrict;
+    String? selectedLocalBody;
+    String? selectedWard;
+    bool isDefault = _viewModel.addresses.isEmpty;
 
     showModalBottomSheet(
       context: context,
@@ -42,232 +263,409 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
             return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: EdgeInsets.fromLTRB(
                 20,
-                16,
+                12,
                 20,
-                MediaQuery.of(context).viewInsets.bottom + 24,
+                bottomInset > 0 ? bottomInset + 16 : 24,
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Drag handle
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE2E8F0),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Center drag handle
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                  ),
+                  const SizedBox(height: 16),
 
-                    // Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Add New Address',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E242F),
-                          ),
+                  // Header: Add New Address & Close button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Add New Address',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E242F),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: Color(0xFF94A3B8),
-                            size: 22,
-                          ),
-                          onPressed: () => Navigator.pop(sheetContext),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Address Type Selector
-                    const Text(
-                      'Address Type',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF5A6275),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: ['Home', 'Work', 'Other'].map((type) {
-                        final bool isSelected = selectedType == type;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: ChoiceChip(
-                            label: Text(type),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setSheetState(() => selectedType = type);
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Color(0xFF1E242F),
+                          size: 22,
+                        ),
+                        onPressed: () => Navigator.pop(sheetContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Scrollable form fields matching screenshot
+                  Flexible(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. Street Address & House No
+                          _buildModernFieldContainer(
+                            child: TextField(
+                              controller: streetController,
+                              style: const TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF1E242F),
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Street Address & House No',
+                                hintStyle: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 2. City
+                          _buildModernFieldContainer(
+                            child: TextField(
+                              controller: cityController,
+                              style: const TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF1E242F),
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'City',
+                                hintStyle: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 3. State
+                          _buildDropdownField(
+                            label: selectedState ?? 'State',
+                            isSelected: selectedState != null,
+                            onTap: () async {
+                              final picked = await _showSelectionPicker(
+                                context: context,
+                                title: 'Select State',
+                                items: _kStates,
+                                selectedItem: selectedState,
+                              );
+                              if (picked != null) {
+                                setSheetState(() {
+                                  selectedState = picked;
+                                  selectedDistrict = null;
+                                  selectedLocalBody = null;
+                                  selectedWard = null;
+                                });
                               }
                             },
-                            selectedColor: const Color(0xFF1E242F),
-                            backgroundColor: const Color(0xFFF1F5F9),
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : const Color(0xFF5A6275),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? const Color(0xFF1E242F)
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
+                          const SizedBox(height: 12),
 
-                    // Flat / House No
-                    _buildInputField(
-                      controller: addressLineController,
-                      label: 'House / Flat / Building Name',
-                      hintText: 'e.g. Flat 402, Green Heights',
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Street / Area
-                    _buildInputField(
-                      controller: areaController,
-                      label: 'Street / Area / Locality',
-                      hintText: 'e.g. Park Avenue, Central Road',
-                    ),
-                    const SizedBox(height: 14),
-
-                    // City and Pincode Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildInputField(
-                            controller: cityController,
-                            label: 'City',
-                            hintText: 'e.g. Kochi',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildInputField(
-                            controller: pincodeController,
-                            label: 'Pincode',
-                            hintText: 'e.g. 682001',
-                            keyboardType: TextInputType.number,
-                            formatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(6),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Set as default checkbox
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Checkbox(
-                            value: setAsDefault,
-                            activeColor: const Color(0xFF1E242F),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            onChanged: (val) {
-                              setSheetState(() => setAsDefault = val ?? false);
+                          // 4. Select State first / District
+                          _buildDropdownField(
+                            label: selectedDistrict ??
+                                (selectedState != null
+                                    ? 'District'
+                                    : 'Select State first'),
+                            isSelected: selectedDistrict != null,
+                            onTap: () async {
+                              if (selectedState == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please select State first'),
+                                    duration: Duration(seconds: 1),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              final districts =
+                                  _getDistrictsForState(selectedState!);
+                              final picked = await _showSelectionPicker(
+                                context: context,
+                                title: 'Select District',
+                                items: districts,
+                                selectedItem: selectedDistrict,
+                              );
+                              if (picked != null) {
+                                setSheetState(() {
+                                  selectedDistrict = picked;
+                                  selectedLocalBody = null;
+                                  selectedWard = null;
+                                });
+                              }
                             },
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Set as default address',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1E242F),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                          const SizedBox(height: 12),
 
-                    // Save Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (addressLineController.text.trim().isEmpty ||
-                              cityController.text.trim().isEmpty ||
-                              pincodeController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please fill out required fields.'),
-                                backgroundColor: Color(0xFFDE202B),
-                                behavior: SnackBarBehavior.floating,
+                          // 5. Select District first / Local Body
+                          _buildDropdownField(
+                            label: selectedLocalBody ??
+                                (selectedDistrict != null
+                                    ? 'Local Body'
+                                    : 'Select District first'),
+                            isSelected: selectedLocalBody != null,
+                            onTap: () async {
+                              if (selectedDistrict == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content:
+                                        Text('Please select District first'),
+                                    duration: Duration(seconds: 1),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              final localBodies =
+                                  _getLocalBodiesForDistrict(selectedDistrict!);
+                              final picked = await _showSelectionPicker(
+                                context: context,
+                                title: 'Select Local Body',
+                                items: localBodies,
+                                selectedItem: selectedLocalBody,
+                              );
+                              if (picked != null) {
+                                setSheetState(() {
+                                  selectedLocalBody = picked;
+                                  selectedWard = null;
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 6. Select Local Body first / Ward
+                          _buildDropdownField(
+                            label: selectedWard ??
+                                (selectedLocalBody != null
+                                    ? 'Ward / Locality'
+                                    : 'Select Local Body first'),
+                            isSelected: selectedWard != null,
+                            onTap: () async {
+                              if (selectedLocalBody == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content:
+                                        Text('Please select Local Body first'),
+                                    duration: Duration(seconds: 1),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              final wards =
+                                  _getWardsForLocalBody(selectedLocalBody!);
+                              final picked = await _showSelectionPicker(
+                                context: context,
+                                title: 'Select Ward / Locality',
+                                items: wards,
+                                selectedItem: selectedWard,
+                              );
+                              if (picked != null) {
+                                setSheetState(() {
+                                  selectedWard = picked;
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 7. Zip Code
+                          _buildModernFieldContainer(
+                            child: TextField(
+                              controller: zipController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                              ],
+                              style: const TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF1E242F),
                               ),
-                            );
-                            return;
-                          }
-
-                          _viewModel.addAddress(
-                            type: selectedType,
-                            addressLine: addressLineController.text.trim(),
-                            area: areaController.text.trim(),
-                            city: cityController.text.trim(),
-                            pincode: pincodeController.text.trim(),
-                            isDefault: setAsDefault,
-                          );
-
-                          Navigator.pop(sheetContext);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Address added successfully!'),
-                              backgroundColor: Color(0xFF059669),
-                              behavior: SnackBarBehavior.floating,
+                              decoration: const InputDecoration(
+                                hintText: 'Zip Code',
+                                hintStyle: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                              ),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E242F),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
                           ),
-                        ),
-                        child: const Text(
-                          'Save Address',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                          const SizedBox(height: 18),
+
+                          // Set as Default Address Row
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Set as Default Address',
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1E242F),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    setSheetState(() => isDefault = !isDefault);
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    width: 48,
+                                    height: 28,
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      color: isDefault
+                                          ? const Color(0xFF1E242F)
+                                          : const Color(0xFFE2DCE7),
+                                    ),
+                                    alignment: isDefault
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    child: Container(
+                                      width: 22,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isDefault
+                                            ? Colors.white
+                                            : const Color(0xFF717582),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 24),
+
+                          // SAVE ADDRESS Button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (streetController.text.trim().isEmpty ||
+                                    cityController.text.trim().isEmpty ||
+                                    zipController.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Please fill out all required fields.'),
+                                      backgroundColor: Color(0xFFDE202B),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                _viewModel.addAddress(
+                                  addressLine: streetController.text.trim(),
+                                  city: cityController.text.trim(),
+                                  pincode: zipController.text.trim(),
+                                  state: selectedState,
+                                  district: selectedDistrict,
+                                  localBody: selectedLocalBody,
+                                  ward: selectedWard,
+                                  area: [
+                                    if (selectedWard != null) selectedWard,
+                                    if (selectedLocalBody != null)
+                                      selectedLocalBody,
+                                  ].join(', '),
+                                  isDefault: isDefault,
+                                );
+
+                                Navigator.pop(sheetContext);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content:
+                                        Text('Address saved successfully!'),
+                                    backgroundColor: Color(0xFF059669),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E2837),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text(
+                                'SAVE ADDRESS',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -276,61 +674,58 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
     );
   }
 
-  Widget _buildInputField({
-    required TextEditingController controller,
+  Widget _buildModernFieldContainer({required Widget child}) {
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFF1F5F9),
+          width: 1.0,
+        ),
+      ),
+      alignment: Alignment.centerLeft,
+      child: child,
+    );
+  }
+
+  Widget _buildDropdownField({
     required String label,
-    required String hintText,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? formatters,
+    required bool isSelected,
+    required VoidCallback onTap,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF5A6275),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: _buildModernFieldContainer(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                    color: isSelected
+                        ? const Color(0xFF1E242F)
+                        : const Color(0xFF6B7280),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(
+                Icons.arrow_drop_down,
+                color: Color(0xFF6B7280),
+                size: 24,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 6),
-        Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFE2E8F0),
-              width: 1.2,
-            ),
-          ),
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            inputFormatters: formatters,
-            style: const TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E242F),
-            ),
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF94A3B8),
-              ),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 14,
-              ),
-              border: InputBorder.none,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -489,7 +884,30 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                 color: Color(0xFFA0AAB8),
               ),
             ),
-            const SizedBox(height: 80),
+            const SizedBox(height: 20),
+
+            // Add Address Button
+            ElevatedButton.icon(
+              onPressed: () => _showAddAddressBottomSheet(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E2837),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text(
+                'Add Address',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 60),
           ],
         ),
       ),

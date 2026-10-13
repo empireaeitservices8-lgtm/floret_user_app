@@ -19,6 +19,7 @@ class ApiService {
   static const String rewardPointsTransactionsEndpoint =
       '/api/reward-points/transactions/';
   static const String pickupsEndpoint = '/api/pickups/';
+  static const String receiveBillEndpoint = '/api/receive-bill/';
 
   final Dio _dio;
 
@@ -534,5 +535,13 @@ class ApiService {
       default:
         return error.message ?? 'Network error occurred. Please try again.';
     }
+  }
+
+  /// Sends a GET request to /api/receive-bill/
+  Future<Response> receiveBill({int? pickupId}) async {
+    return await _dio.get(
+      receiveBillEndpoint,
+      queryParameters: pickupId != null ? {'pickup_id': pickupId} : null,
+    );
   }
 }

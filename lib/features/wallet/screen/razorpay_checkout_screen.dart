@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'payment_successful_screen.dart';
 import 'wallet_screen.dart';
 
 class RazorpayCheckoutScreen extends StatefulWidget {
@@ -66,97 +68,27 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
     super.dispose();
   }
 
-  void _onPayPressed() async {
-    setState(() {
-      _isProcessing = true;
-    });
-
-    // Simulate payment gateway communication
-    await Future.delayed(const Duration(milliseconds: 1200));
-
-    if (!mounted) return;
-    setState(() {
-      _isProcessing = false;
-    });
-
-    // Show success dialog
-    _showPaymentSuccessDialog();
+  void _onPayPressed() {
+    _show3DSecureModal();
   }
 
-  void _showPaymentSuccessDialog() {
+  void _show3DSecureModal() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dlgContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
-        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE6F8ED),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF10B981),
-                  size: 38,
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'Payment Successful!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E242F),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '₹${widget.amount.toStringAsFixed(2)} has been successfully credited to your Floret Wallet.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF6B7280),
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(dlgContext); // close dialog
-                  _onClosePressed(); // return to Floret Wallet
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F1E36),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Done',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (dlgContext) => ThreeDSecureAuthDialog(
+        amount: widget.amount,
+        onAuthorized: _navigateToSuccessScreen,
+      ),
+    );
+  }
+
+  void _navigateToSuccessScreen() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        settings: const RouteSettings(name: PaymentSuccessfulScreen.routeName),
+        builder: (_) => PaymentSuccessfulScreen(amount: widget.amount),
       ),
     );
   }
@@ -1227,3 +1159,233 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
     );
   }
 }
+
+class ThreeDSecureAuthDialog extends StatefulWidget {
+  final double amount;
+  final VoidCallback onAuthorized;
+
+  const ThreeDSecureAuthDialog({
+    super.key,
+    required this.amount,
+    required this.onAuthorized,
+  });
+
+  @override
+  State<ThreeDSecureAuthDialog> createState() => _ThreeDSecureAuthDialogState();
+}
+
+class _ThreeDSecureAuthDialogState extends State<ThreeDSecureAuthDialog> {
+  int _countdown = 44;
+  Timer? _countdownTimer;
+  bool _isAuthorizing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_countdown > 1) {
+        setState(() {
+          _countdown--;
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handleAuthorize() async {
+    setState(() {
+      _isAuthorizing = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (!mounted) return;
+
+    Navigator.pop(context); // Close dialog
+    widget.onAuthorized();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final formattedAmount = '₹${widget.amount.toStringAsFixed(2)}';
+
+    return Dialog(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Top Header: Dark lock badge + Title + Close 'X'
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F1E36),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.lock_rounded,
+                      color: Colors.white,
+                      size: 19,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    '3D Secure Authentication',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF334155),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  key: const Key('close_3ds_auth_modal'),
+                  onTap: () => Navigator.pop(context),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF334155),
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFFE2E8F0), thickness: 1, height: 1),
+            const SizedBox(height: 20),
+
+            // OTP Notice
+            Text(
+              'Enter the  OTP sent to your bank registered\nmobile number to authorize $formattedAmount',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF64748B),
+                height: 1.45,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // OTP Display Box
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFCBD5E1),
+                  width: 1.2,
+                ),
+              ),
+              child: const Center(
+                child: Text(
+                  '7 8 2 9 1 0',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 8,
+                    color: Color(0xFF1E242F),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Resend countdown
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Resend in ${_countdown}s',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Authorize Payment button (Green in Image 1, Grey spinner in Image 2)
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                key: const Key('authorize_payment_button'),
+                onPressed: _isAuthorizing ? null : _handleAuthorize,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isAuthorizing
+                      ? const Color(0xFFE2E8F0)
+                      : const Color(0xFF10B981),
+                  disabledBackgroundColor: const Color(0xFFE2E8F0),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _isAuthorizing
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Authorize Payment',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

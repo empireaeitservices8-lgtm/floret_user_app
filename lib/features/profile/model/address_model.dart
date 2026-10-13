@@ -5,15 +5,23 @@ class AddressModel {
   final String area;
   final String city;
   final String pincode;
+  final String? state;
+  final String? district;
+  final String? localBody;
+  final String? ward;
   final bool isDefault;
 
   AddressModel({
     required this.id,
-    required this.type,
+    this.type = 'Home',
     required this.addressLine,
-    required this.area,
+    this.area = '',
     required this.city,
     required this.pincode,
+    this.state,
+    this.district,
+    this.localBody,
+    this.ward,
     this.isDefault = false,
   });
 
@@ -24,6 +32,10 @@ class AddressModel {
     String? area,
     String? city,
     String? pincode,
+    String? state,
+    String? district,
+    String? localBody,
+    String? ward,
     bool? isDefault,
   }) {
     return AddressModel(
@@ -33,6 +45,10 @@ class AddressModel {
       area: area ?? this.area,
       city: city ?? this.city,
       pincode: pincode ?? this.pincode,
+      state: state ?? this.state,
+      district: district ?? this.district,
+      localBody: localBody ?? this.localBody,
+      ward: ward ?? this.ward,
       isDefault: isDefault ?? this.isDefault,
     );
   }

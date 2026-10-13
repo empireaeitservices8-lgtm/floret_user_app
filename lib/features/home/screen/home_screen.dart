@@ -9,6 +9,7 @@ import '../../wallet/screen/wallet_screen.dart';
 import '../viewmodel/home_view_model.dart';
 import 'select_pickup_bottom_sheet.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
+import '../../profile/model/order_model.dart';
 
 class HomeScreen extends StatefulWidget {
   static const String routeName = '/home';
@@ -67,28 +68,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 16),
 
-                        // 2. Metrics (Pending Bills & Active Pickups)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _buildMetricCard(
-                                  icon: Icons.receipt_long_outlined,
-                                  title: 'Pending Bills',
-                                  count: '${vm.pendingBillsCount}',
-                                ),
+                        // 2. Metrics (Pending Pickups & Active Pickups) — live from OrderStore
+                        ValueListenableBuilder<List<OrderModel>>(
+                          valueListenable: OrderStore.instance.orders,
+                          builder: (context, orders, _) {
+                            final activeCount = orders
+                                .where((o) => o.status == OrderStatus.pending)
+                                .length;
+                            final pendingCount = orders
+                                .where((o) => o.status == OrderStatus.pending)
+                                .length;
+                            return Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildMetricCard(
+                                      icon: Icons.receipt_long_outlined,
+                                      title: 'Pending Bills',
+                                      count: '$pendingCount',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: _buildMetricCard(
+                                      icon: Icons.local_shipping_outlined,
+                                      title: 'Active Pickups',
+                                      count: '$activeCount',
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: _buildMetricCard(
-                                  icon: Icons.local_shipping_outlined,
-                                  title: 'Active Pickups',
-                                  count: '${vm.activePickupsCount}',
-                                ),
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 24),
@@ -111,14 +124,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(height: 14),
                               Row(
                                 children: [
-                                  Expanded(
-                                    child: _buildCategoryCard(
-                                      title: 'Sanitary Waste',
-                                      subtitle: 'Diapers, hygiene',
-                                      icon: Icons.baby_changing_station_rounded,
-                                      iconColor: const Color(0xFFE11D48),
-                                      iconBgColor: const Color(0xFFFFECEF),
-                                    ),
+                                  _buildCategoryCard(
+                                    title: 'Sanitary Waste',
+                                    subtitle: 'Diapers, hygiene',
+                                    icon: Icons.baby_changing_station_rounded,
+                                    iconColor: const Color(0xFFE11D48),
+                                    iconBgColor: const Color(0xFFFFECEF),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -131,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 12),
-                                  Expanded(
+                                  Flexible(
                                     child: _buildCategoryCard(
                                       title: 'Glass Waste',
                                       subtitle: 'Bottles, jars, shards',
@@ -172,38 +183,50 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               const SizedBox(height: 14),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildImpactCard(
-                                      badgeText: 'co2',
-                                      isBadgePill: true,
-                                      title: 'CO2 Reduced',
-                                      value: '0.0 kg',
-                                      gradientColors: const [
-                                        Color(0xFF0F9B58),
-                                        Color(0xFF0A753F),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: _buildImpactCard(
-                                      badgeText: r'$',
-                                      isBadgePill: false,
-                                      title: 'Eco Points',
-                                      value: '${vm.ecoPoints} Pts',
-                                      onTap: () {
-                                        Navigator.pushNamed(
-                                            context, WalletScreen.routeName);
-                                      },
-                                      gradientColors: const [
-                                        Color(0xFFF59E0B),
-                                        Color(0xFFEA580C),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                              ValueListenableBuilder<List<OrderModel>>(
+                                valueListenable: OrderStore.instance.orders,
+                                builder: (context, orders, _) {
+                                  final completedCount = orders
+                                      .where((o) =>
+                                          o.status == OrderStatus.completed)
+                                      .length;
+                                  // Each completed pickup reduces ~0.5 kg CO₂
+                                  final co2 =
+                                      (completedCount * 0.5).toStringAsFixed(1);
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildImpactCard(
+                                          badgeText: 'CO₂',
+                                          isBadgePill: true,
+                                          title: 'CO₂ Reduced',
+                                          value: '$co2 kg',
+                                          gradientColors: const [
+                                            Color(0xFF0F9B58),
+                                            Color(0xFF0A753F),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: _buildImpactCard(
+                                          badgeText: r'$',
+                                          isBadgePill: false,
+                                          title: 'Eco Points',
+                                          value: '${vm.ecoPoints} Pts',
+                                          onTap: () {
+                                            Navigator.pushNamed(context,
+                                                WalletScreen.routeName);
+                                          },
+                                          gradientColors: const [
+                                            Color(0xFFF59E0B),
+                                            Color(0xFFEA580C),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -223,7 +246,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              bottomNavigationBar: widget.showBottomNav ? _buildBottomNav() : null,
+              bottomNavigationBar:
+                  widget.showBottomNav ? _buildBottomNav() : null,
             ),
           );
         },
@@ -283,9 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      vm.displayName.isNotEmpty
-                          ? 'Welcome back, ${vm.displayName}'
-                          : 'Welcome back',
+                      vm.displayName.isNotEmpty ? vm.displayName : 'User',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -376,16 +398,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            const Flexible(
-                              child: Text(
-                                'Sustainability Score',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
+                            Text(
+                              'Sustainability Score',
+                              maxLines: 1,
+                              //   overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -465,7 +485,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String count,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -480,8 +500,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(12),
@@ -492,19 +512,22 @@ class _HomeScreenState extends State<HomeScreen> {
               color: const Color(0xFF5A6275),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFF64748B),
+                    height: 1.25,
                   ),
                 ),
                 const SizedBox(height: 2),

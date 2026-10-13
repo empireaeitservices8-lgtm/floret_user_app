@@ -11,4 +11,5 @@ class ApiEndpoints {
   static const String rewardPointsTransactions =
       "/api/reward-points/transactions/";
   static const String pickups = "/api/pickups/";
+  static const String receiveBill = "/api/receive-bill/";
 }

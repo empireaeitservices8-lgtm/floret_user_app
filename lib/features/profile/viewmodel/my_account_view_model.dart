@@ -9,8 +9,8 @@ class MyAccountViewModel extends ViewModel {
   final api_repo.ProfileRepository _apiProfileRepository;
 
   bool _isEditing = false;
-  String _fullName = '';
-  String _phoneNumber = '';
+  String _fullName = 'demo pr';
+  String _phoneNumber = '+917306929058';
 
   final int _totalPickups = 0;
   final double _wasteCollected = 0.0;
@@ -38,8 +38,14 @@ class MyAccountViewModel extends ViewModel {
     showLoading();
     try {
       final profile = await _apiProfileRepository.getProfile();
-      _fullName = profile.fullName;
-      _phoneNumber = profile.phoneNumber ?? '';
+      if (profile.fullName.trim().isNotEmpty &&
+          profile.fullName.trim().toLowerCase() != 'user') {
+        _fullName = profile.fullName;
+      }
+      if (profile.phoneNumber != null &&
+          profile.phoneNumber!.trim().isNotEmpty) {
+        _phoneNumber = profile.phoneNumber!;
+      }
       nameController.text = _fullName;
       phoneController.text = _phoneNumber;
       if (profile.street != null && profile.street!.isNotEmpty) {
@@ -55,8 +61,12 @@ class MyAccountViewModel extends ViewModel {
     } catch (_) {
       try {
         final local = await _repository.getUserProfile();
-        _fullName = local.name;
-        _phoneNumber = local.mobileNumber;
+        if (local.name.trim().isNotEmpty) {
+          _fullName = local.name;
+        }
+        if (local.mobileNumber.trim().isNotEmpty) {
+          _phoneNumber = local.mobileNumber;
+        }
         nameController.text = _fullName;
         phoneController.text = _phoneNumber;
         notifyListeners();
@@ -77,7 +87,7 @@ class MyAccountViewModel extends ViewModel {
   String get pincode => _pincode;
 
   String get avatarInitial {
-    if (_fullName.trim().isEmpty) return 'N';
+    if (_fullName.trim().isEmpty) return 'D';
     return _fullName.trim()[0].toUpperCase();
   }
 

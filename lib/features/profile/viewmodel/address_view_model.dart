@@ -23,11 +23,15 @@ class AddressViewModel extends ViewModel {
   }
 
   void addAddress({
-    required String type,
+    String type = 'Home',
     required String addressLine,
-    required String area,
+    String area = '',
     required String city,
     required String pincode,
+    String? state,
+    String? district,
+    String? localBody,
+    String? ward,
     bool isDefault = false,
   }) {
     final bool makeDefault = isDefault || _addresses.isEmpty;
@@ -45,6 +49,10 @@ class AddressViewModel extends ViewModel {
       area: area,
       city: city,
       pincode: pincode,
+      state: state,
+      district: district,
+      localBody: localBody,
+      ward: ward,
       isDefault: makeDefault,
     );
 

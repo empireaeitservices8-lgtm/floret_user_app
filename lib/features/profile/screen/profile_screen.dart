@@ -3,14 +3,18 @@ import 'package:provider/provider.dart';
 import '../../../viewmodels/profile_viewmodel.dart';
 import '../../auth/screen/safai_logo_widget.dart';
 import '../../home/screen/home_screen.dart';
+import '../../home/repos/home_repository.dart';
 import '../../settings/screen/settings_screen.dart';
 import '../../wallet/screen/wallet_screen.dart';
 import 'order_history_screen.dart';
 import 'my_account_screen.dart';
 import 'contact_support_screen.dart';
+import '../../notifications/screen/notifications_screen.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
+import '../model/order_model.dart';
+import '../../../helpers/sp_helper.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   static const String routeName = '/profile';
   final bool showBottomNav;
 
@@ -18,6 +22,43 @@ class ProfileScreen extends StatelessWidget {
     super.key,
     this.showBottomNav = true,
   });
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  int _ecoPoints = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPoints();
+  }
+
+  Future<void> _loadPoints() async {
+    try {
+      final cached = await SpHelper.getString('eco_reward_points');
+      if (cached != null &&
+          int.tryParse(cached) != null &&
+          int.parse(cached) > 0) {
+        if (mounted) setState(() => _ecoPoints = int.parse(cached));
+        return;
+      }
+      final model = await HomeRepository().fetchRewardPoints();
+      if (model.availablePoints > 0) {
+        await SpHelper.saveString(
+            'eco_reward_points', model.availablePoints.toString());
+        if (mounted) setState(() => _ecoPoints = model.availablePoints);
+        return;
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _ecoPoints = 250;
+      });
+    }
+  }
 
   void _onBottomNavTapped(BuildContext context, int index) {
     if (index == 0) {
@@ -70,7 +111,7 @@ class ProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Dark Midnight Blue Header
-              _buildHeader(),
+              _buildHeader(context),
 
               const SizedBox(height: 24),
 
@@ -247,7 +288,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: showBottomNav ? _buildBottomNav(context) : null,
+      bottomNavigationBar: widget.showBottomNav ? _buildBottomNav(context) : null,
     );
   }
 
@@ -264,7 +305,7 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 50, 18, 22),
@@ -326,38 +367,44 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              Stack(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293D),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF2E3E58),
-                        width: 1,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, NotificationsScreen.routeName);
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293D),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF2E3E58),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        color: Colors.white,
+                        size: 22,
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 9,
+                        height: 9,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -365,57 +412,79 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 20),
 
           // 3-Column Metrics Card (Carbon Saved, Points, Pickups)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1B2438),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: const Color(0xFF28364F),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                // Col 1: Carbon Saved
-                Expanded(
-                  child: _buildMetricColumn(
-                    icon: Icons.forest_rounded,
-                    iconColor: const Color(0xFF4ADE80),
-                    value: '0.0 kg',
-                    label: 'Carbon Saved',
+          ValueListenableBuilder<List<OrderModel>>(
+            valueListenable: OrderStore.instance.orders,
+            builder: (context, orders, _) {
+              final pickupsCount = orders.length;
+              final completedCount = orders
+                  .where((o) => o.status == OrderStatus.completed)
+                  .length;
+              final carbonSaved = (completedCount * 0.5).toStringAsFixed(1);
+              final displayPoints = _ecoPoints > 0
+                  ? _ecoPoints
+                  : (completedCount > 0 ? completedCount * 50 : 250);
+
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1B2438),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0xFF28364F),
+                    width: 1,
                   ),
                 ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: const Color(0xFF2E3D56),
+                child: Row(
+                  children: [
+                    // Col 1: Carbon Saved
+                    Expanded(
+                      child: _buildMetricColumn(
+                        icon: Icons.forest_rounded,
+                        iconColor: const Color(0xFF4ADE80),
+                        value: '$carbonSaved kg',
+                        label: 'Carbon Saved',
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: const Color(0xFF2E3D56),
+                    ),
+                    // Col 2: Points
+                    Expanded(
+                      child: _buildMetricColumn(
+                        icon: Icons.stars_rounded,
+                        iconColor: const Color(0xFFFBBF24),
+                        value: '$displayPoints pts',
+                        label: 'Points',
+                        onTap: () {
+                          Navigator.pushNamed(context, WalletScreen.routeName);
+                        },
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: const Color(0xFF2E3D56),
+                    ),
+                    // Col 3: Pickups
+                    Expanded(
+                      child: _buildMetricColumn(
+                        icon: Icons.local_shipping_rounded,
+                        iconColor: const Color(0xFF60A5FA),
+                        value: '$pickupsCount',
+                        label: 'Pickups',
+                        onTap: () {
+                          Navigator.pushNamed(
+                              context, OrderHistoryScreen.routeName);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                // Col 2: Points
-                Expanded(
-                  child: _buildMetricColumn(
-                    icon: Icons.stars_rounded,
-                    iconColor: const Color(0xFFFBBF24),
-                    value: '0 pts',
-                    label: 'Points',
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: const Color(0xFF2E3D56),
-                ),
-                // Col 3: Pickups
-                Expanded(
-                  child: _buildMetricColumn(
-                    icon: Icons.local_shipping_rounded,
-                    iconColor: const Color(0xFF60A5FA),
-                    value: '0',
-                    label: 'Pickups',
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -427,8 +496,9 @@ class ProfileScreen extends StatelessWidget {
     required Color iconColor,
     required String value,
     required String label,
+    VoidCallback? onTap,
   }) {
-    return Column(
+    final col = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -457,6 +527,15 @@ class ProfileScreen extends StatelessWidget {
         ),
       ],
     );
+
+    if (onTap != null) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: col,
+      );
+    }
+    return col;
   }
 
   Widget _buildActionItem({

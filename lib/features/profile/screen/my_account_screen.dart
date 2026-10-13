@@ -37,10 +37,11 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     } else if (index == 1) {
       Navigator.pushReplacementNamed(context, SettingsScreen.routeName);
     } else if (index == 2) {
-      Navigator.popUntil(
-        context,
-        ModalRoute.withName(ProfileScreen.routeName),
-      );
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        Navigator.pushReplacementNamed(context, ProfileScreen.routeName);
+      }
     }
   }
 
@@ -156,11 +157,9 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Edit Mode Avatar Section
-                        if (vm.isEditing) ...[
-                          _buildAvatarSection(vm),
-                          const SizedBox(height: 18),
-                        ],
+                        // Avatar Section (Always Visible)
+                        _buildAvatarSection(vm),
+                        const SizedBox(height: 22),
 
                         // 3 Summary Cards
                         _buildSummaryMetrics(vm),
@@ -216,21 +215,21 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            Color(0xFF122C24),
-            Color(0xFF154830),
-            Color(0xFF1E6B38),
+            Color(0xFF0F382A),
+            Color(0xFF144D30),
+            Color(0xFF186835),
           ],
         ),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
           child: Row(
             children: [
               // Circular translucent back button
@@ -238,17 +237,17 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                 behavior: HitTestBehavior.opaque,
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
+                    color: Colors.white.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
                   child: const Center(
                     child: Icon(
-                      Icons.arrow_back_ios_new_rounded,
+                      Icons.chevron_left_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 28,
                     ),
                   ),
                 ),
@@ -260,7 +259,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                   child: Text(
                     'My Account',
                     style: TextStyle(
-                      fontSize: 19,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       letterSpacing: -0.3,
@@ -270,7 +269,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
               ),
 
               // Spacer for symmetrical alignment
-              const SizedBox(width: 40),
+              const SizedBox(width: 42),
             ],
           ),
         ),
@@ -278,20 +277,20 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     );
   }
 
-  // Edit Mode Avatar with circular border and initial
+  // Circular avatar with slate border ring and initial, with full name below
   Widget _buildAvatarSection(MyAccountViewModel vm) {
     return Center(
       child: Column(
         children: [
           Container(
-            width: 86,
-            height: 86,
+            width: 92,
+            height: 92,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFFEDF2F7),
+              color: const Color(0xFFE8EEF5),
               border: Border.all(
-                color: const Color(0xFF54677E),
-                width: 3.5,
+                color: const Color(0xFF334155),
+                width: 3.8,
               ),
               boxShadow: [
                 BoxShadow(
@@ -305,21 +304,21 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
               child: Text(
                 vm.avatarInitial,
                 style: const TextStyle(
-                  fontSize: 36,
+                  fontSize: 38,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1E242F),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             vm.fullName,
             style: const TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF1E242F),
-              letterSpacing: -0.3,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -346,7 +345,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
           child: _buildMetricItem(
             icon: Icons.scale_rounded,
             value: '${vm.wasteCollected.toStringAsFixed(1)} kg',
-            label: 'Waste Collected',
+            label: 'Waste\nCollected',
           ),
         ),
         const SizedBox(width: 12),
@@ -354,7 +353,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
         // Trees Equiv.
         Expanded(
           child: _buildMetricItem(
-            icon: Icons.energy_savings_leaf_rounded,
+            icon: Icons.eco_rounded,
             value: '${vm.treesEquiv}',
             label: 'Trees Equiv.',
           ),
@@ -372,7 +371,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
@@ -386,8 +385,8 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             decoration: const BoxDecoration(
               color: Color(0xFFF1F5F9),
               shape: BoxShape.circle,
@@ -396,7 +395,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
               child: Icon(
                 icon,
                 color: const Color(0xFF1E242F),
-                size: 19,
+                size: 20,
               ),
             ),
           ),
@@ -404,19 +403,20 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
           Text(
             value,
             style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF1E242F),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 11.5,
               fontWeight: FontWeight.w500,
               color: Color(0xFF8C96A6),
+              height: 1.25,
             ),
           ),
         ],
@@ -435,9 +435,10 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 15.5,
+            fontSize: 17,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1E242F),
+            letterSpacing: -0.2,
           ),
         ),
         actionWidget,
@@ -470,7 +471,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                 'Save',
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
               ),
@@ -484,7 +485,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       onTap: () => vm.toggleEdit(),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -498,15 +499,15 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
           children: [
             Icon(
               Icons.edit_outlined,
-              size: 13.5,
+              size: 14,
               color: Color(0xFF1E242F),
             ),
-            SizedBox(width: 4),
+            SizedBox(width: 5),
             Text(
               'Edit',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFF1E242F),
               ),
             ),
@@ -524,7 +525,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       },
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -541,12 +542,12 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
               size: 14,
               color: Color(0xFF1E242F),
             ),
-            SizedBox(width: 4),
+            SizedBox(width: 5),
             Text(
               'Manage',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFF1E242F),
               ),
             ),

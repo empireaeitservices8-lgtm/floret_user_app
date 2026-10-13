@@ -21,23 +21,33 @@ class HomeRepository {
   /// Retrieves the cached or local user name
   Future<String> getUserName() async {
     final firstName = await SpHelper.getString('first_name');
-    if (firstName != null && firstName.trim().isNotEmpty && firstName.trim().toLowerCase() != 'user') {
+    if (firstName != null &&
+        firstName.trim().isNotEmpty &&
+        firstName.trim().toLowerCase() != 'user') {
       return firstName.trim();
     }
     final name = await SpHelper.getString(sp_keys.keyUserName);
-    if (name != null && name.trim().isNotEmpty && name.trim().toLowerCase() != 'user') {
+    if (name != null &&
+        name.trim().isNotEmpty &&
+        name.trim().toLowerCase() != 'user') {
       return name.trim();
     }
     final rawUname = await SpHelper.getString('username');
-    if (rawUname != null && rawUname.trim().isNotEmpty && rawUname.trim().toLowerCase() != 'user') {
+    if (rawUname != null &&
+        rawUname.trim().isNotEmpty &&
+        rawUname.trim().toLowerCase() != 'user') {
       return rawUname.trim();
     }
     final raw = await SpHelper.getString('user_name');
-    if (raw != null && raw.trim().isNotEmpty && raw.trim().toLowerCase() != 'user') {
+    if (raw != null &&
+        raw.trim().isNotEmpty &&
+        raw.trim().toLowerCase() != 'user') {
       return raw.trim();
     }
     final homeUname = await SpHelper.getString('home_username');
-    if (homeUname != null && homeUname.trim().isNotEmpty && homeUname.trim().toLowerCase() != 'user') {
+    if (homeUname != null &&
+        homeUname.trim().isNotEmpty &&
+        homeUname.trim().toLowerCase() != 'user') {
       return homeUname.trim();
     }
     return '';
@@ -112,7 +122,12 @@ class HomeRepository {
       final response = await _apiService.getRewardPoints();
       if (response.data is Map) {
         final map = Map<String, dynamic>.from(response.data as Map);
-        return RewardPointsDataModel.fromJson(map);
+        final model = RewardPointsDataModel.fromJson(map);
+        if (model.availablePoints > 0) {
+          SpHelper.saveString(
+              'eco_reward_points', model.availablePoints.toString());
+        }
+        return model;
       }
     } catch (e) {
       debugPrint('⚠️ [HOME REPO] fetchRewardPoints error: $e');

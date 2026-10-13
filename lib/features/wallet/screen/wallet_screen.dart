@@ -24,7 +24,16 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel = WalletViewModel();
+    _viewModel = WalletViewModel(initialPoints: widget.initialPoints);
+  }
+
+  @override
+  void didUpdateWidget(covariant WalletScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialPoints != oldWidget.initialPoints &&
+        widget.initialPoints > 0) {
+      _viewModel.setAvailablePoints(widget.initialPoints);
+    }
   }
 
   @override
@@ -792,30 +801,28 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
-                      if (vm.availableSafaiPoints <
-                          vm.minimumRedemptionPoints) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: const Color(0xFFFF5252),
-                            behavior: SnackBarBehavior.fixed,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                            content: Text(
-                              'Insufficient points! You need at least ${vm.minimumRedemptionPoints} eco-points to redeem.',
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
+                      RedeemRewardsBottomSheet.show(
+                        context,
+                        availablePoints: vm.availableSafaiPoints,
+                        onConfirmRedeem: (points) async {
+                          final success = await vm.redeemRewards(points);
+                          if (mounted && success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: const Color(0xFF10B981),
+                                content: Text(
+                                  'Successfully redeemed $points points!',
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
-                            ),
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      } else {
-                        RedeemRewardsBottomSheet.show(context);
-                      }
+                            );
+                          }
+                        },
+                      );
                     },
                     icon: const Icon(
                       Icons.stars_rounded,

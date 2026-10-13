@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../viewmodel/booking_view_model.dart';
 import '../repos/booking_repository.dart';
 import 'receipt_ticket_screen.dart';
+import '../../profile/model/order_model.dart';
 
 class BookPickupScreen extends StatefulWidget {
   static const String routeName = '/book_pickup';
@@ -1073,11 +1074,37 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                   .join(', ')
                               : 'Sanitary waste';
 
+                          // Save order so it appears in Order History
+                          final bookingId =
+                              OrderStore.instance.generateBookingId();
+                          final addr = vm.pickupAddressController.text.trim();
+                          final city = vm.cityController.text.trim();
+                          final shortAddress = [addr, city]
+                              .where((s) => s.isNotEmpty)
+                              .join(', ');
+                          OrderStore.instance.addOrder(
+                            OrderModel(
+                              bookingId: bookingId,
+                              wasteType: wasteTypeText,
+                              pickupDate:
+                                  _selectedDate ?? DateTime(2026, 10, 3),
+                              address: shortAddress.isNotEmpty
+                                  ? shortAddress
+                                  : 'Paruthippara, Thiruvananthapuram',
+                              fullAddress: shortAddress.isNotEmpty
+                                  ? '$shortAddress${vm.zipCodeController.text.isNotEmpty ? ' - ${vm.zipCodeController.text}' : ''}'
+                                  : 'KRAA/11, Paruthippara,\nThiruvananthapuram - 695015',
+                              contact: vm.fullNameController.text.isNotEmpty
+                                  ? vm.fullNameController.text
+                                  : 'User',
+                            ),
+                          );
+
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => ReceiptTicketScreen(
-                                bookingId: 'WC-161',
+                                bookingId: bookingId,
                                 date: 'Thursday, 15 Oct 2026',
                                 wasteType: wasteTypeText,
                                 pickupAddress: vm
@@ -1242,14 +1269,18 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              hasValue ? currentValue : hint,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                color: hasValue
-                    ? const Color(0xFF1E242F)
-                    : const Color(0xFF94A3B8),
+            Expanded(
+              child: Text(
+                hasValue ? currentValue : hint,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                  color: hasValue
+                      ? const Color(0xFF1E242F)
+                      : const Color(0xFF94A3B8),
+                ),
               ),
             ),
             const Icon(
@@ -1271,6 +1302,10 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
       builder: (sheetContext) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -1301,26 +1336,37 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            ...items.map(
-              (item) => ListTile(
-                title: Text(
-                  item,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1E242F),
-                  ),
-                ),
-                onTap: () {
-                  onSelect(item);
-                  Navigator.pop(sheetContext);
-                },
-                contentPadding: EdgeInsets.zero,
-                trailing: const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 14,
-                  color: Color(0xFF94A3B8),
-                ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: items
+                    .map(
+                      (item) => ListTile(
+                        title: Text(
+                          item,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1E242F),
+                          ),
+                        ),
+                        onTap: () {
+                          onSelect(item);
+                          Navigator.pop(sheetContext);
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ],

@@ -1,6 +1,7 @@
 import 'package:floret_app/providers/view_model.dart';
 import '../model/notification_model.dart';
 import '../repos/notification_repository.dart';
+import '../../profile/model/order_model.dart';
 
 class NotificationsViewModel extends ViewModel {
   final NotificationRepository _repository;
@@ -8,6 +9,8 @@ class NotificationsViewModel extends ViewModel {
   NotificationsViewModel({NotificationRepository? repository})
       : _repository = repository ?? NotificationRepository() {
     loadNotifications();
+    // Listen to OrderStore so new bookings auto-appear in notifications
+    OrderStore.instance.orders.addListener(_onOrdersChanged);
   }
 
   int _selectedTabIndex = 0;
@@ -30,10 +33,72 @@ class NotificationsViewModel extends ViewModel {
     }
   }
 
+  void _onOrdersChanged() {
+    _buildNotificationsFromOrders();
+    notifyListeners();
+  }
+
+  /// Converts each booked order into a [NotificationItemModel].
+  /// pending  → category 'Upcoming'
+  /// completed → category 'Delivered'
+  void _buildNotificationsFromOrders() {
+    final orders = OrderStore.instance.orders.value;
+    _notifications = orders.map((order) {
+      final isCancelled = order.status == OrderStatus.cancelled;
+      final isUpcoming = !isCancelled &&
+          (order.status == OrderStatus.pending ||
+              order.status == OrderStatus.reschedule);
+      final category = isCancelled
+          ? 'Cancelled'
+          : isUpcoming
+              ? 'Upcoming'
+              : 'Delivered';
+
+      // Format date: dd MMM yyyy
+      final d = order.pickupDate;
+      final months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      final dateStr =
+          '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+
+      final title = isCancelled
+          ? 'Pickup Cancelled • ${order.bookingId}'
+          : isUpcoming
+              ? 'Pickup Scheduled • ${order.bookingId}'
+              : 'Pickup Delivered • ${order.bookingId}';
+
+      final description = isCancelled
+          ? 'Your ${order.wasteType} pickup scheduled for $dateStr was cancelled.'
+          : isUpcoming
+              ? 'Your ${order.wasteType} pickup is scheduled for $dateStr. '
+                'Address: ${order.address}.'
+              : 'Your ${order.wasteType} pickup on $dateStr has been delivered. '
+                'Thank you for recycling!';
+
+      return NotificationItemModel(
+        id: order.bookingId,
+        title: title,
+        description: description,
+        time: dateStr,
+        category: category,
+        isRead: order.status == OrderStatus.completed ||
+            order.status == OrderStatus.cancelled,
+      );
+    }).toList();
+  }
+
   Future<void> loadNotifications() async {
     showLoading();
     try {
-      _notifications = await _repository.fetchNotifications();
+      // Build from local OrderStore (real bookings)
+      _buildNotificationsFromOrders();
+      // Optionally merge with remote notifications
+      final remote = await _repository.fetchNotifications();
+      if (remote.isNotEmpty) {
+        _notifications = [..._notifications, ...remote];
+      }
     } finally {
       hideLoading();
     }
@@ -54,5 +119,11 @@ class NotificationsViewModel extends ViewModel {
       );
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    OrderStore.instance.orders.removeListener(_onOrdersChanged);
+    super.dispose();
   }
 }

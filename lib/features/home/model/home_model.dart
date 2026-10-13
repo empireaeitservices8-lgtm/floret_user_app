@@ -133,6 +133,35 @@ class WalletBalanceDataModel {
         'created_at': createdAt,
         'updated_at': updatedAt,
       };
+
+  WalletBalanceDataModel copyWith({
+    int? id,
+    int? user,
+    double? balance,
+    bool? autoTopupEnabled,
+    double? autoTopupTriggerAmount,
+    double? autoTopupAmount,
+    bool? mandateAuthorized,
+    String? mandateId,
+    String? mandateAuthorizedAt,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return WalletBalanceDataModel(
+      id: id ?? this.id,
+      user: user ?? this.user,
+      balance: balance ?? this.balance,
+      autoTopupEnabled: autoTopupEnabled ?? this.autoTopupEnabled,
+      autoTopupTriggerAmount:
+          autoTopupTriggerAmount ?? this.autoTopupTriggerAmount,
+      autoTopupAmount: autoTopupAmount ?? this.autoTopupAmount,
+      mandateAuthorized: mandateAuthorized ?? this.mandateAuthorized,
+      mandateId: mandateId ?? this.mandateId,
+      mandateAuthorizedAt: mandateAuthorizedAt ?? this.mandateAuthorizedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }
 
 /// Model for GET /api/wallet/transactions/

@@ -25,6 +25,7 @@ import 'package:floret_app/features/profile/screen/contact_support_screen.dart';
 import 'package:floret_app/features/booking/screen/disposal_console_screen.dart';
 import 'package:floret_app/features/booking/screen/book_pickup_screen.dart';
 import 'package:floret_app/features/wallet/screen/razorpay_checkout_screen.dart';
+import 'package:floret_app/features/wallet/screen/payment_successful_screen.dart';
 
 import 'package:floret_app/features/booking/screen/receipt_ticket_screen.dart';
 
@@ -58,6 +59,8 @@ Map<String, Widget Function(BuildContext context)> appRoutes() => {
       BookPickupScreen.routeName: (context) => const BookPickupScreen(),
       RazorpayCheckoutScreen.routeName: (context) =>
           const RazorpayCheckoutScreen(),
+      PaymentSuccessfulScreen.routeName: (context) =>
+          const PaymentSuccessfulScreen(),
       ReceiptTicketScreen.routeName: (context) =>
           const ReceiptTicketScreen(),
     };

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:floret_app/viewmodels/profile_viewmodel.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
 import 'package:floret_app/features/auth/screen/otp_screen.dart';
 import 'package:floret_app/features/home/screen/home_screen.dart';
@@ -8,6 +10,7 @@ import 'package:floret_app/features/settings/screen/settings_screen.dart';
 import 'package:floret_app/features/splashscreen/screen/splashscreen.dart';
 import 'package:floret_app/features/notifications/screen/notifications_screen.dart';
 import 'package:floret_app/features/wallet/screen/wallet_screen.dart';
+import 'package:floret_app/features/wallet/screen/redeem_rewards_bottom_sheet.dart';
 import 'package:floret_app/features/settings/screen/privacy_security_screen.dart';
 import 'package:floret_app/features/settings/screen/notification_preferences_screen.dart';
 import 'package:floret_app/features/settings/screen/help_support_screen.dart';
@@ -16,6 +19,10 @@ import 'package:floret_app/features/profile/screen/order_history_screen.dart';
 import 'package:floret_app/features/booking/screen/disposal_console_screen.dart';
 import 'package:floret_app/features/booking/screen/book_pickup_screen.dart';
 import 'package:floret_app/features/wallet/screen/razorpay_checkout_screen.dart';
+import 'package:floret_app/features/wallet/screen/payment_successful_screen.dart';
+import 'package:floret_app/features/profile/model/order_model.dart';
+import 'package:floret_app/features/profile/model/bill_model.dart';
+import 'package:floret_app/features/profile/screen/pickup_bill_bottom_sheet.dart';
 
 void main() {
   testWidgets('1. SplashScreen renders Floret logo and loading indicator',
@@ -381,12 +388,15 @@ void main() {
     addTearDown(() => tester.view.resetPhysicalSize());
 
     await tester.pumpWidget(
-      MaterialApp(
-        initialRoute: ProfileScreen.routeName,
-        routes: {
-          ProfileScreen.routeName: (c) => const ProfileScreen(),
-          WalletScreen.routeName: (c) => const WalletScreen(),
-        },
+      ChangeNotifierProvider(
+        create: (_) => ProfileViewModel(),
+        child: MaterialApp(
+          initialRoute: ProfileScreen.routeName,
+          routes: {
+            ProfileScreen.routeName: (c) => const ProfileScreen(),
+            WalletScreen.routeName: (c) => const WalletScreen(),
+          },
+        ),
       ),
     );
     await tester.pump();
@@ -567,7 +577,7 @@ void main() {
   });
 
   testWidgets(
-      '14. WalletScreen shows insufficient points snackbar when 0 pts, and opens Redeem Reward Points when >= 100 pts',
+      '14. WalletScreen tap on Redeem opens Redeem Reward Points bottom sheet matching design',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -584,32 +594,10 @@ void main() {
     await tester.tap(find.text('Eco Rewards'));
     await tester.pumpAndSettle();
 
-    // Tap Redeem button with 0 pts -> shows red snackbar matching screenshot
+    // Tap Redeem button with 0 pts -> opens bottom sheet matching screenshot
     final redeemBtnFinder = find.text('Redeem');
     expect(redeemBtnFinder, findsOneWidget);
     await tester.tap(redeemBtnFinder);
-    await tester.pump();
-    expect(
-      find.text(
-          'Insufficient points! You need at least 100 eco-points to redeem.'),
-      findsOneWidget,
-    );
-    await tester.pumpAndSettle();
-
-    // Now test with >= 100 points opening the bottom sheet
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: WalletScreen(initialPoints: 100),
-      ),
-    );
-    await tester.pump();
-
-    // Switch to Eco Rewards tab
-    await tester.tap(find.text('Eco Rewards'));
-    await tester.pumpAndSettle();
-
-    // Tap Redeem button with 100 pts
-    await tester.tap(find.text('Redeem'));
     await tester.pumpAndSettle();
 
     // Verify Redeem Bottom Sheet content
@@ -622,6 +610,48 @@ void main() {
     expect(find.text('Points to Redeem'), findsOneWidget);
     expect(find.text('Description'), findsOneWidget);
     expect(find.text('Available Points'), findsOneWidget);
+    expect(
+        find.descendant(
+          of: find.byType(RedeemRewardsBottomSheet),
+          matching: find.text('0 pts'),
+        ),
+        findsOneWidget);
+    expect(find.text('Confirm Redeem'), findsOneWidget);
+
+    // Tap Confirm Redeem with 0 pts -> closes bottom sheet then shows red snackbar
+    await tester.tap(find.text('Confirm Redeem'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RedeemRewardsBottomSheet), findsNothing);
+    expect(
+      find.text(
+          'Insufficient points! You need at least 100 eco-points to redeem.'),
+      findsOneWidget,
+    );
+
+    // Now test with >= 100 points opening the bottom sheet and successfully redeeming
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: WalletScreen(initialPoints: 100),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Switch to Eco Rewards tab
+    await tester.tap(find.text('Eco Rewards'));
+    await tester.pumpAndSettle();
+
+    // Tap Redeem button with 100 pts
+    await tester.tap(find.text('Redeem'));
+    await tester.pumpAndSettle();
+
+    // Verify Redeem Bottom Sheet content
+    expect(find.text('Redeem Reward Points'), findsOneWidget);
+    expect(
+        find.descendant(
+          of: find.byType(RedeemRewardsBottomSheet),
+          matching: find.text('100 pts'),
+        ),
+        findsOneWidget);
     expect(find.text('Confirm Redeem'), findsOneWidget);
 
     // Tap Confirm Redeem and dismiss
@@ -1009,16 +1039,21 @@ void main() {
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() => tester.view.resetPhysicalSize());
 
+    OrderStore.instance.orders.value = [];
+
     await tester.pumpWidget(
-      MaterialApp(
-        initialRoute: ProfileScreen.routeName,
-        routes: {
-          ProfileScreen.routeName: (c) => const ProfileScreen(),
-          OrderHistoryScreen.routeName: (c) => const OrderHistoryScreen(),
-        },
+      ChangeNotifierProvider(
+        create: (_) => ProfileViewModel(),
+        child: MaterialApp(
+          initialRoute: ProfileScreen.routeName,
+          routes: {
+            ProfileScreen.routeName: (c) => const ProfileScreen(),
+            OrderHistoryScreen.routeName: (c) => const OrderHistoryScreen(),
+          },
+        ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     // Verify on ProfileScreen and find Order History
     final orderHistoryFinder = find.text('Order History');
@@ -1296,8 +1331,12 @@ void main() {
     addTearDown(() => tester.view.resetPhysicalSize());
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: RazorpayCheckoutScreen(amount: 500.00),
+      MaterialApp(
+        home: const RazorpayCheckoutScreen(amount: 500.00),
+        routes: {
+          HomeScreen.routeName: (context) =>
+              const Scaffold(body: Text('Home Landed')),
+        },
       ),
     );
     await tester.pump();
@@ -1388,23 +1427,43 @@ void main() {
     final payBtn = find.text('PAY ₹500.00 VIA RAZORPAY');
     expect(payBtn, findsOneWidget);
 
-    // Tap Pay button
+    // Tap Pay button -> opens 3D Secure Authentication modal (Image 1)
     await tester.tap(payBtn);
-    await tester.pump(const Duration(milliseconds: 1500));
     await tester.pumpAndSettle();
 
-    // Verify Payment Successful dialog
-    expect(find.text('Payment Successful!'), findsOneWidget);
+    // Verify 3D Secure Authentication modal elements (Image 1)
+    expect(find.text('3D Secure Authentication'), findsOneWidget);
     expect(
-      find.text(
-          '₹500.00 has been successfully credited to your Floret Wallet.'),
+      find.textContaining('Enter the  OTP sent to your bank registered'),
       findsOneWidget,
     );
-    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('7 8 2 9 1 0'), findsOneWidget);
+    expect(find.textContaining('Resend in '), findsOneWidget);
+    expect(find.text('Authorize Payment'), findsOneWidget);
 
-    // Tap Done
-    await tester.tap(find.text('Done'));
+    // Tap Authorize Payment button -> Changes to loading state with spinner (Image 2)
+    final authBtn = find.byKey(const Key('authorize_payment_button'));
+    await tester.tap(authBtn);
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    // Complete authorization delay -> Navigates to PaymentSuccessfulScreen (Image 3)
+    await tester.pump(const Duration(milliseconds: 1600));
     await tester.pumpAndSettle();
+
+    // Verify Payment Successful screen elements (Image 3)
+    expect(find.text('Payment Successful!'), findsOneWidget);
+    expect(
+      find.text('Your payment was processed and verified successfully.'),
+      findsOneWidget,
+    );
+    expect(find.text('Go to Home'), findsOneWidget);
+
+    // Tap Go to Home button -> Navigates to HomeScreen
+    await tester.tap(find.text('Go to Home'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home Landed'), findsOneWidget);
   });
 
   testWidgets(
@@ -1432,5 +1491,181 @@ void main() {
 
     // Verify back on Floret Wallet
     expect(find.text('Floret Wallet'), findsOneWidget);
+  });
+
+  testWidgets(
+      '28. PaymentSuccessfulScreen auto-redirects to Home after 3 seconds',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: const PaymentSuccessfulScreen(),
+        routes: {
+          HomeScreen.routeName: (context) =>
+              const Scaffold(body: Text('Home Landed Auto')),
+        },
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Payment Successful!'), findsOneWidget);
+    expect(
+      find.text('Your payment was processed and verified successfully.'),
+      findsOneWidget,
+    );
+    expect(find.text('Go to Home'), findsOneWidget);
+
+    // Advance timer by 3 seconds
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+
+    // Verify auto-navigated to Home
+    expect(find.text('Home Landed Auto'), findsOneWidget);
+  });
+
+  testWidgets(
+      '29. Tapping close on 3D Secure modal dismisses popup and stays on RazorpayCheckoutScreen',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: RazorpayCheckoutScreen(amount: 500.00),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Pay button to open 3DS modal
+    await tester.tap(find.text('PAY ₹500.00 VIA RAZORPAY'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3D Secure Authentication'), findsOneWidget);
+
+    // Tap close button on modal
+    await tester.tap(find.byKey(const Key('close_3ds_auth_modal')));
+    await tester.pumpAndSettle();
+
+    // Modal dismissed
+    expect(find.text('3D Secure Authentication'), findsNothing);
+    expect(find.text('PAY ₹500.00 VIA RAZORPAY'), findsOneWidget);
+  });
+
+  testWidgets(
+      '30. OrderHistoryScreen -> View Bill on Completed order displays Pickup Bill Details matching Image 1',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final completedOrder = OrderModel(
+      bookingId: 'WC-168',
+      wasteType: 'Sanitary waste',
+      pickupDate: DateTime(2026, 10, 15),
+      address: 'Paruthippara, Thiruvananthapuram',
+      fullAddress: 'KRAA/11, Paruthippara,\nThiruvananthapuram - 695015',
+      contact: 'User',
+      status: OrderStatus.completed,
+    );
+    OrderStore.instance.orders.value = [completedOrder];
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: OrderHistoryScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('WC-168'), findsOneWidget);
+    expect(find.text('Sanitary waste'), findsOneWidget);
+
+    final viewBillFinder = find.text('View Bill');
+    expect(viewBillFinder, findsOneWidget);
+
+    // Tap View Bill
+    await tester.tap(viewBillFinder);
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    // Verify Image 1 Pickup Bill Details elements
+    expect(find.text('Pickup Bill Details'), findsOneWidget);
+    expect(find.text('Bill Breakdown'), findsOneWidget);
+    expect(
+        find.text('Waste processing (1.0 kg @ ₹42/kg)'), findsOneWidget);
+    expect(find.text('₹42.00'), findsOneWidget);
+    expect(find.text('Disposal fee + GST'), findsOneWidget);
+    expect(find.text('₹7.56'), findsOneWidget);
+    expect(find.text('Txn ID'), findsOneWidget);
+    expect(find.text('CASH-1791886722066'), findsOneWidget);
+    expect(find.text('Grand Total'), findsOneWidget);
+    expect(find.text('₹49.56'), findsOneWidget);
+    expect(find.text('Collector Rating'), findsOneWidget);
+    expect(find.text('Download / Print PDF Invoice'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+
+    // Tap Close button
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    // Sheet dismissed
+    expect(find.text('Bill Breakdown'), findsNothing);
+  });
+
+  testWidgets(
+      '31. OrderHistoryScreen -> View Bill on Pending order displays Bill Pending Generation matching Image 2',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final pendingOrder = OrderModel(
+      bookingId: 'WC-165',
+      wasteType: 'Sanitary waste',
+      pickupDate: DateTime(2026, 10, 14),
+      address: 'Pattom, Thiruvananthapuram',
+      fullAddress: 'TC 14/1250, Pattom,\nThiruvananthapuram - 695004',
+      contact: 'User',
+      status: OrderStatus.pending,
+    );
+    OrderStore.instance.orders.value = [pendingOrder];
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: OrderHistoryScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('WC-165'), findsOneWidget);
+    expect(find.text('Sanitary waste'), findsOneWidget);
+
+    final viewBillFinder = find.text('View Bill');
+    expect(viewBillFinder, findsOneWidget);
+
+    // Tap View Bill
+    await tester.tap(viewBillFinder);
+    await tester.pumpAndSettle();
+
+    // Verify Image 2 Bill Pending Generation elements
+    expect(find.text('Pickup Bill Details'), findsOneWidget);
+    expect(find.text('Bill Pending Generation'), findsOneWidget);
+    expect(
+      find.text(
+          'The collector has not yet submitted the live bill breakdown for this pickup. The live breakdown will be displayed here as soon as the collector submits the bill.'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.hourglass_top_rounded), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+
+    // Tap Close button
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    // Sheet dismissed
+    expect(find.text('Bill Pending Generation'), findsNothing);
   });
 }

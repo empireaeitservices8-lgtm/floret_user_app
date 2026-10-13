@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/services/web_api_services.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
 import '../model/wallet_model.dart';
 
 class WalletRepository {
@@ -64,7 +65,12 @@ class WalletRepository {
       final response = await _apiService.getRewardPoints();
       if (response.data is Map) {
         final map = Map<String, dynamic>.from(response.data as Map);
-        return RewardPointsDataModel.fromJson(map);
+        final model = RewardPointsDataModel.fromJson(map);
+        if (model.availablePoints > 0) {
+          SpHelper.saveString(
+              'eco_reward_points', model.availablePoints.toString());
+        }
+        return model;
       }
     } catch (e) {
       debugPrint('⚠️ [WALLET REPO] fetchRewardPoints error: $e');

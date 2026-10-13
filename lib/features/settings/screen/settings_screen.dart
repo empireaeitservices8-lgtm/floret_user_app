@@ -73,7 +73,8 @@ class SettingsScreen extends StatelessWidget {
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),          child: Column(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Dark Midnight Blue Header
@@ -363,16 +364,20 @@ class SettingsScreen extends StatelessWidget {
                         ? vm.profile!.user!.firstName!.trim()
                         : (vm.profile?.fullName != null &&
                                 vm.profile!.fullName.trim().isNotEmpty &&
-                                vm.profile!.fullName.trim().toLowerCase() != 'user')
+                                vm.profile!.fullName.trim().toLowerCase() !=
+                                    'user')
                             ? vm.profile!.fullName.trim()
                             : 'User';
 
                 final username = vm.profile?.user?.username?.trim() ?? '';
-                final initial = username.isNotEmpty
-                    ? username[0].toUpperCase()
+                final initial = firstName.isNotEmpty
+                    ? firstName[0].toUpperCase()
                     : (firstName.isNotEmpty && firstName.toLowerCase() != 'user'
                         ? firstName[0].toUpperCase()
                         : 'U');
+                // print("Username: $username");
+                // print("Username: $firstName");
+                // print("Username: $initial");
 
                 return Row(
                   children: [

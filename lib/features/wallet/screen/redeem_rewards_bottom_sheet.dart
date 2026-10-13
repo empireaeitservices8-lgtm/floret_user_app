@@ -1,14 +1,28 @@
 import 'package:flutter/material.dart';
 
 class RedeemRewardsBottomSheet extends StatefulWidget {
-  const RedeemRewardsBottomSheet({super.key});
+  final int availablePoints;
+  final ValueChanged<int>? onConfirmRedeem;
 
-  static Future<void> show(BuildContext context) {
+  const RedeemRewardsBottomSheet({
+    super.key,
+    this.availablePoints = 0,
+    this.onConfirmRedeem,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    int availablePoints = 0,
+    ValueChanged<int>? onConfirmRedeem,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const RedeemRewardsBottomSheet(),
+      builder: (context) => RedeemRewardsBottomSheet(
+        availablePoints: availablePoints,
+        onConfirmRedeem: onConfirmRedeem,
+      ),
     );
   }
 
@@ -71,9 +85,9 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF7ED),
+                  shape: BoxShape.circle,
                 ),
                 child: const Center(
                   child: Icon(
@@ -310,10 +324,10 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Available Points',
                     style: TextStyle(
                       fontSize: 12,
@@ -321,13 +335,15 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
                       color: Color(0xFF8C95A6),
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    '0 pts',
+                    '${widget.availablePoints} pts',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFEF4444),
+                      color: widget.availablePoints > 0
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
                     ),
                   ),
                 ],
@@ -336,7 +352,34 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    final pointsToRedeem =
+                        int.tryParse(_pointsController.text.trim()) ?? 100;
+                    if (widget.availablePoints < pointsToRedeem) {
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(context);
+                      messenger.showSnackBar(
+                        SnackBar(
+                          backgroundColor: const Color(0xFFFF5252),
+                          behavior: SnackBarBehavior.fixed,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          content: Text(
+                            'Insufficient points! You need at least $pointsToRedeem eco-points to redeem.',
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    } else {
+                      Navigator.pop(context);
+                      widget.onConfirmRedeem?.call(pointsToRedeem);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1E293B),
