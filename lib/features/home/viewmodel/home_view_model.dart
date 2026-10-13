@@ -31,11 +31,14 @@ class HomeViewModel extends ViewModel {
   /// Formatted user display name
   String get displayName {
     final name = userName.trim();
+    print("nameeeeee: $name");
     if (name.isEmpty || name.toLowerCase() == 'user') {
       return '';
     }
     // Capitalize first letter of name if alphabetic
-    if (name.length > 1 && !name.startsWith('+') && !RegExp(r'^[0-9]+$').hasMatch(name)) {
+    if (name.length > 1 &&
+        !name.startsWith('+') &&
+        !RegExp(r'^[0-9]+$').hasMatch(name)) {
       return name[0].toUpperCase() + name.substring(1);
     }
     return name;
@@ -64,8 +67,7 @@ class HomeViewModel extends ViewModel {
   WalletBalanceDataModel get walletBalance => _homeBundle.walletBalance;
   WalletTransactionsResponseModel get walletTransactions =>
       _homeBundle.walletTransactions;
-  WalletTopupConfigModel get walletTopupConfig =>
-      _homeBundle.walletTopupConfig;
+  WalletTopupConfigModel get walletTopupConfig => _homeBundle.walletTopupConfig;
   RewardPointsDataModel get rewardPoints => _homeBundle.rewardPoints;
   RewardPointsTransactionsResponseModel get rewardPointsTransactions =>
       _homeBundle.rewardPointsTransactions;
@@ -74,10 +76,9 @@ class HomeViewModel extends ViewModel {
   bool get isRefreshing => _isRefreshing;
 
   int get pendingBillsCount => _homeBundle.homeOverview.pendingBills;
-  int get activePickupsCount =>
-      _homeBundle.homeOverview.scheduledPickups > 0
-          ? _homeBundle.homeOverview.scheduledPickups
-          : _homeBundle.pickups.length;
+  int get activePickupsCount => _homeBundle.homeOverview.scheduledPickups > 0
+      ? _homeBundle.homeOverview.scheduledPickups
+      : _homeBundle.pickups.length;
   int get ecoPoints => _homeBundle.rewardPoints.availablePoints;
   double get walletAmount => _homeBundle.walletBalance.balance;
 
