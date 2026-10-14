@@ -56,8 +56,12 @@ class _LoginViewState extends State<LoginView> {
           ),
         );
 
-        // Navigate to Home screen and remove login route from stack
-        Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+        // Navigate to Home screen and remove all previous routes from stack
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          HomeScreen.routeName,
+          (route) => false,
+        );
       } else {
         // can_access_app is false
         debugPrint('⚠️ [LOGIN UI] Access restricted (can_access_app == false)');

@@ -10,38 +10,36 @@ class HomeViewModel extends ViewModel {
     loadHomeData();
   }
 
-  String _userName = 'user';
+  String _userName = '';
   int _selectedNavIndex = 0;
   HomeDataBundle _homeBundle = const HomeDataBundle();
   List<PickupOptionModel> _pickupOptions = const [];
   bool _isRefreshing = false;
 
   String get userName {
-    if (_userName.isNotEmpty && _userName.toLowerCase() != 'user') {
+    if (_userName.isNotEmpty &&
+        _userName.toLowerCase() != 'user' &&
+        _userName.toLowerCase() != 'null') {
       return _userName;
     }
-    if (_homeBundle.homeOverview.username != null &&
-        _homeBundle.homeOverview.username!.isNotEmpty &&
-        _homeBundle.homeOverview.username!.toLowerCase() != 'user') {
-      return _homeBundle.homeOverview.username!;
-    }
-    return _userName;
+    return '';
   }
 
   /// Formatted user display name
   String get displayName {
     final name = userName.trim();
-    print("nameeeeee: $name");
-    if (name.isEmpty || name.toLowerCase() == 'user') {
+    if (name.isEmpty ||
+        name.toLowerCase() == 'user' ||
+        name.toLowerCase() == 'null' ||
+        name.startsWith('+') ||
+        RegExp(r'^[0-9]+$').hasMatch(name)) {
       return '';
     }
     // Capitalize first letter of name if alphabetic
-    if (name.length > 1 &&
-        !name.startsWith('+') &&
-        !RegExp(r'^[0-9]+$').hasMatch(name)) {
+    if (name.length > 1) {
       return name[0].toUpperCase() + name.substring(1);
     }
-    return name;
+    return name.toUpperCase();
   }
 
   /// Greeting based on current local time of the day
@@ -57,6 +55,51 @@ class HomeViewModel extends ViewModel {
       return 'Good night 🌙';
     }
   }
+
+  /// Dynamic greeting formatting with optional name override
+  String getGreeting({String? name}) {
+    final hour = DateTime.now().hour;
+    String greetText;
+    String emoji;
+    if (hour >= 5 && hour < 12) {
+      greetText = 'Good morning';
+      emoji = '🌅';
+    } else if (hour >= 12 && hour < 17) {
+      greetText = 'Good afternoon';
+      emoji = '🌤️';
+    } else if (hour >= 17 && hour < 21) {
+      greetText = 'Good evening';
+      emoji = '🌆';
+    } else {
+      greetText = 'Good night';
+      emoji = '🌙';
+    }
+
+    final rawName = (name != null &&
+            name.trim().isNotEmpty &&
+            name.trim().toLowerCase() != 'user' &&
+            name.trim().toLowerCase() != 'null')
+        ? name.trim()
+        : displayName;
+
+    final isPhone = rawName.startsWith('+') || RegExp(r'^[0-9]+$').hasMatch(rawName);
+    final validName = isPhone ? '' : rawName;
+
+    final formattedName = validName.isNotEmpty
+        ? (validName.length > 1
+            ? validName[0].toUpperCase() + validName.substring(1)
+            : validName.toUpperCase())
+        : '';
+
+    if (formattedName.isNotEmpty) {
+      return '$greetText, $formattedName $emoji';
+    }
+    return '$greetText $emoji';
+  }
+
+  /// Time-based greeting with user name appended
+  /// e.g. "Good morning, John 🌅"
+  String get greetingWithName => getGreeting();
 
   /// Welcome back text with username
   String get welcomeBackText => 'Welcome back, $displayName';

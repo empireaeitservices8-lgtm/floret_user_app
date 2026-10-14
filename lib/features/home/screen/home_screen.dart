@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../../viewmodels/profile_viewmodel.dart';
 import '../../auth/screen/safai_logo_widget.dart';
 import '../../settings/screen/settings_screen.dart';
 import '../../profile/screen/profile_screen.dart';
@@ -27,15 +28,36 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedNavIndex = 0;
   late final HomeViewModel _viewModel;
+  late final ProfileViewModel _localProfileVm;
 
   @override
   void initState() {
     super.initState();
     _viewModel = HomeViewModel();
+    _localProfileVm = ProfileViewModel();
+  }
+
+  ProfileViewModel _getProfileViewModel(BuildContext context, {bool listen = true}) {
+    try {
+      return Provider.of<ProfileViewModel>(context, listen: listen);
+    } catch (_) {
+      return _localProfileVm;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final profileVm = _getProfileViewModel(context, listen: true);
+    if (profileVm.profile == null &&
+        !profileVm.isLoading &&
+        profileVm.errorMessage == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          _getProfileViewModel(context, listen: false).getProfile();
+        }
+      });
+    }
+
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: Consumer<HomeViewModel>(
@@ -53,7 +75,12 @@ class _HomeScreenState extends State<HomeScreen> {
               body: SafeArea(
                 top: false,
                 child: RefreshIndicator(
-                  onRefresh: () => vm.loadHomeData(isRefresh: true),
+                  onRefresh: () async {
+                    await Future.wait([
+                      vm.loadHomeData(isRefresh: true),
+                      _getProfileViewModel(context, listen: false).getProfile(),
+                    ]);
+                  },
                   color: const Color(0xFFC5A059),
                   backgroundColor: const Color(0xFF0F172A),
                   child: SingleChildScrollView(
@@ -64,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 1. Dark Midnight Blue Header
-                        _buildHeader(vm),
+                        _buildHeader(vm, profileVm),
 
                         const SizedBox(height: 16),
 
@@ -256,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // 1. Dark Header Widget
-  Widget _buildHeader(HomeViewModel vm) {
+  Widget _buildHeader(HomeViewModel vm, ProfileViewModel profileVm) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -297,17 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      vm.timeBasedGreeting,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF94A3B8),
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      vm.displayName.isNotEmpty ? vm.displayName : 'User',
+                      vm.getGreeting(name: profileVm.firstName),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,

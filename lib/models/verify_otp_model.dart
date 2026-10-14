@@ -11,10 +11,20 @@ class VerifyOtpModel {
 
   /// Factory constructor to deserialize JSON into VerifyOtpModel
   factory VerifyOtpModel.fromJson(Map<String, dynamic> json) {
+    bool? parsedIsRegistered;
+    final rawReg = json['is_registered'] ?? json['isRegistered'] ?? json['registered'];
+    if (rawReg is bool) {
+      parsedIsRegistered = rawReg;
+    } else if (rawReg is int) {
+      parsedIsRegistered = rawReg == 1;
+    } else if (rawReg is String) {
+      parsedIsRegistered = rawReg.toLowerCase() == 'true' || rawReg == '1';
+    }
+
     return VerifyOtpModel(
       message: json['message'] as String?,
       phoneNumber: json['phone_number'] as String?,
-      isRegistered: json['is_registered'] as bool?,
+      isRegistered: parsedIsRegistered,
     );
   }
 

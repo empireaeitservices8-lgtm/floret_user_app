@@ -1,6 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/sp_helper.dart';
+import '../utils/sp_keys.dart' as sp_keys;
 import '../models/profile_model.dart';
+import '../features/profile/model/order_model.dart';
 import '../services/api_service.dart';
 
 class ProfileRepository {
@@ -48,6 +52,31 @@ class ProfileRepository {
     debugPrint('   Zip Code: ${profileModel.zipCode}');
     debugPrint('   Registration Fee Paid: ${profileModel.registrationFeePaid}');
     debugPrint('================================================================');
+
+    // 4. Cache user's first name and last name for persistent display across app
+    final firstName = profileModel.displayFirstName;
+    if (firstName.isNotEmpty) {
+      await SpHelper.saveString('first_name', firstName);
+      await SpHelper.saveString(sp_keys.keyUserName, firstName);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('first_name', firstName);
+    }
+    final lastName = (profileModel.user?.lastName ?? profileModel.lastName ?? '').trim();
+    if (lastName.isNotEmpty) {
+      await SpHelper.saveString('last_name', lastName);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_name', lastName);
+    }
+
+    final uId = profileModel.user?.id?.toString() ??
+        (profileModel.id != null ? profileModel.id.toString() : '');
+    if (uId.isNotEmpty) {
+      await SpHelper.saveString(sp_keys.keyUserId, uId);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(sp_keys.keyUserId, uId);
+      await prefs.setString('user_id', uId);
+      await OrderStore.instance.loadForUser(uId);
+    }
 
     return profileModel;
   }

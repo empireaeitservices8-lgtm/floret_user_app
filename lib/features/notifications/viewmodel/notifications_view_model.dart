@@ -1,4 +1,6 @@
 import 'package:floret_app/providers/view_model.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import '../model/notification_model.dart';
 import '../repos/notification_repository.dart';
 import '../../profile/model/order_model.dart';
@@ -42,26 +44,47 @@ class NotificationsViewModel extends ViewModel {
   /// pending  → category 'Upcoming'
   /// completed → category 'Delivered'
   void _buildNotificationsFromOrders() {
-    final orders = OrderStore.instance.orders.value;
+    final currentUserId = OrderStore.instance.currentUserId;
+    final allOrders = OrderStore.instance.orders.value;
+
+    // Isolate notifications by authenticated user
+    final orders = allOrders.where((order) {
+      if (currentUserId.isNotEmpty) {
+        return order.userId == currentUserId;
+      }
+      return true;
+    }).toList();
+
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+
+    String formatDate(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+
     _notifications = orders.map((order) {
       final isCancelled = order.status == OrderStatus.cancelled;
       final isUpcoming = !isCancelled &&
           (order.status == OrderStatus.pending ||
               order.status == OrderStatus.reschedule);
+      final isDelivered =
+          !isCancelled && !isUpcoming && order.status == OrderStatus.completed;
+
       final category = isCancelled
           ? 'Cancelled'
           : isUpcoming
               ? 'Upcoming'
               : 'Delivered';
 
-      // Format date: dd MMM yyyy
-      final d = order.pickupDate;
-      final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      final dateStr =
-          '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+      // Scheduled pickup date (preserved for upcoming and cancelled)
+      final scheduledDateStr = formatDate(order.pickupDate);
+
+      // Actual completion date (for delivered notifications, use actual completedDate if available; safely fall back to pickupDate)
+      final actualDate = isDelivered
+          ? (order.completedDate ?? order.pickupDate)
+          : order.pickupDate;
+      final actualDateStr = formatDate(actualDate);
 
       final title = isCancelled
           ? 'Pickup Cancelled • ${order.bookingId}'
@@ -70,21 +93,22 @@ class NotificationsViewModel extends ViewModel {
               : 'Pickup Delivered • ${order.bookingId}';
 
       final description = isCancelled
-          ? 'Your ${order.wasteType} pickup scheduled for $dateStr was cancelled.'
+          ? 'Your ${order.wasteType} pickup scheduled for $scheduledDateStr was cancelled.'
           : isUpcoming
-              ? 'Your ${order.wasteType} pickup is scheduled for $dateStr. '
+              ? 'Your ${order.wasteType} pickup is scheduled for $scheduledDateStr. '
                 'Address: ${order.address}.'
-              : 'Your ${order.wasteType} pickup on $dateStr has been delivered. '
+              : 'Your ${order.wasteType} pickup on $actualDateStr has been delivered. '
                 'Thank you for recycling!';
 
       return NotificationItemModel(
         id: order.bookingId,
         title: title,
         description: description,
-        time: dateStr,
+        time: actualDateStr,
         category: category,
         isRead: order.status == OrderStatus.completed ||
             order.status == OrderStatus.cancelled,
+        userId: order.userId,
       );
     }).toList();
   }
@@ -92,12 +116,22 @@ class NotificationsViewModel extends ViewModel {
   Future<void> loadNotifications() async {
     showLoading();
     try {
-      // Build from local OrderStore (real bookings)
+      // Build from local OrderStore (real bookings for authenticated user)
       _buildNotificationsFromOrders();
+
       // Optionally merge with remote notifications
       final remote = await _repository.fetchNotifications();
       if (remote.isNotEmpty) {
-        _notifications = [..._notifications, ...remote];
+        final uid = OrderStore.instance.currentUserId.isNotEmpty
+            ? OrderStore.instance.currentUserId
+            : (await SpHelper.getString(sp_keys.keyUserId) ?? '');
+        final userRemote = remote.where((n) {
+          if (uid.isNotEmpty) {
+            return n.userId == uid;
+          }
+          return true;
+        }).toList();
+        _notifications = [..._notifications, ...userRemote];
       }
     } finally {
       hideLoading();
@@ -116,6 +150,7 @@ class NotificationsViewModel extends ViewModel {
         time: old.time,
         category: old.category,
         isRead: true,
+        userId: old.userId,
       );
       notifyListeners();
     }

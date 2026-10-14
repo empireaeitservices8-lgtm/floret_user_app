@@ -41,6 +41,17 @@ class ProfileModel {
     this.registrationFeePaid,
   });
 
+  /// Returns user's first name, prioritizing user.firstName then firstName
+  String get displayFirstName {
+    final first = (user?.firstName ?? firstName ?? '').trim();
+    if (first.isNotEmpty &&
+        first.toLowerCase() != 'user' &&
+        first.toLowerCase() != 'null') {
+      return first;
+    }
+    return '';
+  }
+
   /// Returns full name combining first_name and last_name, or falls back to username / phoneNumber
   String get fullName {
     final first = (firstName ?? user?.firstName ?? '').trim();
@@ -97,8 +108,14 @@ class ProfileModel {
       accountType: json['account_type']?.toString(),
       mouDocument: json['mou_document']?.toString(),
       mouStatus: json['mou_status']?.toString(),
-      firstName: json['first_name']?.toString(),
-      lastName: json['last_name']?.toString(),
+      firstName: json['first_name']?.toString() ??
+          (json['user'] is Map
+              ? (json['user'] as Map)['first_name']?.toString()
+              : null),
+      lastName: json['last_name']?.toString() ??
+          (json['user'] is Map
+              ? (json['user'] as Map)['last_name']?.toString()
+              : null),
       street: json['street']?.toString(),
       city: json['city']?.toString(),
       state: json['state']?.toString(),

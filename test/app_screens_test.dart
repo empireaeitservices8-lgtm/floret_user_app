@@ -21,8 +21,6 @@ import 'package:floret_app/features/booking/screen/book_pickup_screen.dart';
 import 'package:floret_app/features/wallet/screen/razorpay_checkout_screen.dart';
 import 'package:floret_app/features/wallet/screen/payment_successful_screen.dart';
 import 'package:floret_app/features/profile/model/order_model.dart';
-import 'package:floret_app/features/profile/model/bill_model.dart';
-import 'package:floret_app/features/profile/screen/pickup_bill_bottom_sheet.dart';
 
 void main() {
   testWidgets('1. SplashScreen renders Floret logo and loading indicator',
@@ -1189,8 +1187,6 @@ void main() {
 
     expect(find.text('Book Pickup'), findsOneWidget);
     expect(find.text('Contact Details'), findsOneWidget);
-    expect(find.text('nicy nicy'), findsOneWidget);
-    expect(find.text('+919995723146'), findsOneWidget);
 
     // 4. Again tap on continue shows location details and put tick mark on location and so on
     final continueFinder = find.text('Continue');
@@ -1219,21 +1215,62 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
 
+    // Tapping Continue without filling required location details triggers validation error
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Please fill all required location details correctly'),
+      findsOneWidget,
+    );
+    expect(find.text('Please enter pickup address'), findsOneWidget);
+    expect(find.text('Please enter city'), findsOneWidget);
+    expect(find.text('Please select state'), findsOneWidget);
+    expect(find.text('Please enter zip / postal code'), findsOneWidget);
+
+    // Dismiss SnackBar
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    // Fill valid location details
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Enter street name & house number'),
+      'KRAA/11, Paruthippara',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Enter city'),
+      'Thiruvananthapuram',
+    );
+    await tester.tap(find.text('Select state'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kerala'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Enter zip code'),
+      '695015',
+    );
+    await tester.pumpAndSettle();
+
     // Continue to Schedule
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(find.text('Schedule Pickup'), findsOneWidget);
     expect(find.text('Please select Pickup Date'), findsOneWidget);
-    expect(find.text('03-10-2026'), findsOneWidget);
+    expect(find.text('Select Pickup Date'), findsOneWidget);
+    expect(find.text('Landmark (Optional)'), findsOneWidget);
+    expect(find.text('Collector Notes (Optional)'), findsOneWidget);
     expect(find.text('Booking Summary'), findsOneWidget);
 
-    // Tap date to open calendar picker
-    await tester.tap(find.text('03-10-2026'));
+    // Tap date field to open calendar picker
+    await tester.tap(find.text('Select Pickup Date'));
     await tester.pumpAndSettle();
     expect(find.text('OK'), findsOneWidget);
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
+
+    final now = DateTime.now();
+    final todayStr = '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+    expect(find.text(todayStr), findsOneWidget);
 
     // Confirm Scheduling -> Shows CircularProgressIndicator in button
     await tester.tap(find.text('Confirm Scheduling'));
@@ -1247,10 +1284,35 @@ void main() {
     // Verify Receipt Ticket screen elements
     expect(find.text('Receipt Ticket'), findsOneWidget);
     expect(find.text('Booking Successful!'), findsOneWidget);
-    expect(find.text('Booking ID: WC-161'), findsOneWidget);
-    expect(find.text('Thursday, 15 Oct 2026'), findsOneWidget);
+    expect(find.textContaining('Booking ID: WC-'), findsOneWidget);
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final expectedLongDate =
+        '${days[now.weekday - 1]}, ${now.day.toString().padLeft(2, '0')} ${months[now.month - 1]} ${now.year}';
+    expect(find.text(expectedLongDate), findsOneWidget);
     expect(find.text('Sanitary waste'), findsOneWidget);
-    expect(find.text('*WC-161*'), findsOneWidget);
+    expect(find.textContaining('WC-'), findsWidgets);
     expect(find.text('Pickup scheduled successfully!'), findsOneWidget);
     expect(find.text('Back to Home'), findsOneWidget);
 

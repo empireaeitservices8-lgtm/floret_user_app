@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:floret_app/providers/view_model.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
 import 'package:floret_app/repositories/profile_repository.dart' as api_repo;
@@ -10,6 +12,7 @@ class MyAccountViewModel extends ViewModel {
 
   bool _isEditing = false;
   String _fullName = 'demo pr';
+  String _firstName = '';
   String _phoneNumber = '+917306929058';
 
   final int _totalPickups = 0;
@@ -31,13 +34,47 @@ class MyAccountViewModel extends ViewModel {
             apiProfileRepository ?? api_repo.ProfileRepository() {
     nameController = TextEditingController(text: _fullName);
     phoneController = TextEditingController(text: _phoneNumber);
+    _loadFromCache();
     loadProfile();
+  }
+
+  Future<void> _loadFromCache() async {
+    try {
+      final cachedFirst = await SpHelper.getString('first_name');
+      final cachedFull = await SpHelper.getString(sp_keys.keyUserName);
+      final cachedPhone = await SpHelper.getString(sp_keys.keyUseMobile) ??
+          await SpHelper.getString('phone_number');
+      if (cachedFirst != null &&
+          cachedFirst.trim().isNotEmpty &&
+          cachedFirst.trim().toLowerCase() != 'user' &&
+          cachedFirst.trim().toLowerCase() != 'null') {
+        _firstName = cachedFirst.trim();
+      }
+      if (cachedFull != null &&
+          cachedFull.trim().isNotEmpty &&
+          cachedFull.trim().toLowerCase() != 'user' &&
+          cachedFull.trim().toLowerCase() != 'null') {
+        _fullName = cachedFull.trim();
+      }
+      if (cachedPhone != null && cachedPhone.trim().isNotEmpty) {
+        _phoneNumber = cachedPhone.trim();
+      }
+      if (!_isEditing) {
+        nameController.text = _fullName.isNotEmpty ? _fullName : _firstName;
+        phoneController.text = _phoneNumber;
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   Future<void> loadProfile() async {
     showLoading();
     try {
       final profile = await _apiProfileRepository.getProfile();
+      final fName = profile.displayFirstName;
+      if (fName.isNotEmpty) {
+        _firstName = fName;
+      }
       if (profile.fullName.trim().isNotEmpty &&
           profile.fullName.trim().toLowerCase() != 'user') {
         _fullName = profile.fullName;
@@ -46,8 +83,10 @@ class MyAccountViewModel extends ViewModel {
           profile.phoneNumber!.trim().isNotEmpty) {
         _phoneNumber = profile.phoneNumber!;
       }
-      nameController.text = _fullName;
-      phoneController.text = _phoneNumber;
+      if (!_isEditing) {
+        nameController.text = _fullName.isNotEmpty ? _fullName : _firstName;
+        phoneController.text = _phoneNumber;
+      }
       if (profile.street != null && profile.street!.isNotEmpty) {
         _defaultAddress = profile.formattedAddress;
       }
@@ -67,8 +106,10 @@ class MyAccountViewModel extends ViewModel {
         if (local.mobileNumber.trim().isNotEmpty) {
           _phoneNumber = local.mobileNumber;
         }
-        nameController.text = _fullName;
-        phoneController.text = _phoneNumber;
+        if (!_isEditing) {
+          nameController.text = _fullName;
+          phoneController.text = _phoneNumber;
+        }
         notifyListeners();
       } catch (_) {}
     } finally {
@@ -77,7 +118,8 @@ class MyAccountViewModel extends ViewModel {
   }
 
   bool get isEditing => _isEditing;
-  String get fullName => _fullName;
+  String get fullName => _fullName.isNotEmpty ? _fullName : _firstName;
+  String get firstName => _firstName.isNotEmpty ? _firstName : (_fullName.split(' ').firstWhere((s) => s.isNotEmpty, orElse: () => 'User'));
   String get phoneNumber => _phoneNumber;
   int get totalPickups => _totalPickups;
   double get wasteCollected => _wasteCollected;
@@ -87,8 +129,9 @@ class MyAccountViewModel extends ViewModel {
   String get pincode => _pincode;
 
   String get avatarInitial {
-    if (_fullName.trim().isEmpty) return 'D';
-    return _fullName.trim()[0].toUpperCase();
+    final name = _firstName.isNotEmpty ? _firstName : _fullName.trim();
+    if (name.isEmpty || name.toLowerCase() == 'user') return 'U';
+    return name[0].toUpperCase();
   }
 
   void toggleEdit() {

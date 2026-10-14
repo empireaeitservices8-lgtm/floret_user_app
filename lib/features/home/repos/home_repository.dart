@@ -18,37 +18,34 @@ class HomeRepository {
   WebAPIService get webAPIService => _webAPIService;
   ApiService get apiService => _apiService;
 
-  /// Retrieves the cached or local user name
+  /// Retrieves the cached or local user first name
   Future<String> getUserName() async {
     final firstName = await SpHelper.getString('first_name');
     if (firstName != null &&
         firstName.trim().isNotEmpty &&
-        firstName.trim().toLowerCase() != 'user') {
+        firstName.trim().toLowerCase() != 'user' &&
+        firstName.trim().toLowerCase() != 'null' &&
+        !firstName.trim().startsWith('+') &&
+        !RegExp(r'^[0-9]+$').hasMatch(firstName.trim())) {
       return firstName.trim();
     }
     final name = await SpHelper.getString(sp_keys.keyUserName);
     if (name != null &&
         name.trim().isNotEmpty &&
-        name.trim().toLowerCase() != 'user') {
+        name.trim().toLowerCase() != 'user' &&
+        name.trim().toLowerCase() != 'null' &&
+        !name.trim().startsWith('+') &&
+        !RegExp(r'^[0-9]+$').hasMatch(name.trim())) {
       return name.trim();
-    }
-    final rawUname = await SpHelper.getString('username');
-    if (rawUname != null &&
-        rawUname.trim().isNotEmpty &&
-        rawUname.trim().toLowerCase() != 'user') {
-      return rawUname.trim();
     }
     final raw = await SpHelper.getString('user_name');
     if (raw != null &&
         raw.trim().isNotEmpty &&
-        raw.trim().toLowerCase() != 'user') {
+        raw.trim().toLowerCase() != 'user' &&
+        raw.trim().toLowerCase() != 'null' &&
+        !raw.trim().startsWith('+') &&
+        !RegExp(r'^[0-9]+$').hasMatch(raw.trim())) {
       return raw.trim();
-    }
-    final homeUname = await SpHelper.getString('home_username');
-    if (homeUname != null &&
-        homeUname.trim().isNotEmpty &&
-        homeUname.trim().toLowerCase() != 'user') {
-      return homeUname.trim();
     }
     return '';
   }

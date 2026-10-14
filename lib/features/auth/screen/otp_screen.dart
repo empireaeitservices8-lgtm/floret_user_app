@@ -89,7 +89,6 @@ class _OtpScreenState extends State<OtpScreen> {
 
     if (success) {
       final verifyResponse = _otpViewModel.verifyOtpResponse;
-      final bool isRegistered = verifyResponse?.isRegistered ?? false;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -102,21 +101,12 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
       );
 
-      // Handle is_registered:
-      if (isRegistered) {
-        // User is already registered -> Continue to Login / Home screen flow
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          HomeScreen.routeName,
-          (route) => false,
-        );
-      } else {
-        // New user -> Navigate to registration / profile setup screen
-        Navigator.pushNamed(
-          context,
-          SignupScreen.routeName,
-        );
-      }
+      // Successfully logged in -> Navigate directly to Home screen and clear auth backstack
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        HomeScreen.routeName,
+        (route) => false,
+      );
     } else {
       // Show user-friendly error message from ViewModel
       ScaffoldMessenger.of(context).showSnackBar(

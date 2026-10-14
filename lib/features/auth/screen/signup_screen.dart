@@ -5,7 +5,6 @@ import '../viewmodel/signup_view_model.dart';
 import 'safai_logo_widget.dart';
 import 'login_screen.dart';
 import '../../home/screen/home_screen.dart';
-import '../../wallet/screen/razorpay_checkout_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   static const String routeName = '/signup';
@@ -383,149 +382,23 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   // -------------------------------------------------------------
-  // REGISTRATION SUCCESS DIALOG
+  // REGISTRATION SUCCESS NAVIGATION
   // -------------------------------------------------------------
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        final regRes = _viewModel.registrationResponse;
-        final isCommercial =
-            regRes?.accountType?.toLowerCase() == 'commercial' ||
-                _viewModel.accountType == 'Commercial';
-        final requiresPayment = regRes?.requiresPayment ?? isCommercial;
-        final message = regRes?.message ??
-            (isCommercial
-                ? 'Welcome to Safai 365! Your commercial account registration has been initialized.'
-                : 'Welcome to Safai 365! Your account registration has been completed successfully.');
-
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          backgroundColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF238B42).withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF238B42),
-                    size: 38,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Registration Complete!',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E242F),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    color: Color(0xFF64748B),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                if (requiresPayment) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E242F),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(dialogContext);
-                        Navigator.pushNamed(
-                          context,
-                          RazorpayCheckoutScreen.routeName,
-                        );
-                      },
-                      child: Text(
-                        'Pay Registration Fee (₹${regRes?.totalAmount.toInt() ?? 1000})',
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        HomeScreen.routeName,
-                        (route) => false,
-                      );
-                    },
-                    child: const Text(
-                      'Pay Later & Go to Home',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E242F),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(dialogContext);
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          HomeScreen.routeName,
-                          (route) => false,
-                        );
-                      },
-                      child: const Text(
-                        'Go to Home',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
+  void _onRegistrationSuccess() {
+    if (!mounted) return;
+    final message = _viewModel.registrationResponse?.message ??
+        'Registration completed successfully! Welcome to Safai 365.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      HomeScreen.routeName,
+      (route) => false,
     );
   }
 
@@ -1922,7 +1795,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 : () {
                     FocusScope.of(context).unfocus();
                     vm.completeRegistration(
-                      onSuccess: _showSuccessDialog,
+                      onSuccess: _onRegistrationSuccess,
                       onError: (err) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

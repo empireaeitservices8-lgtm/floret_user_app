@@ -288,7 +288,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: widget.showBottomNav ? _buildBottomNav(context) : null,
+      bottomNavigationBar:
+          widget.showBottomNav ? _buildBottomNav(context) : null,
     );
   }
 
@@ -338,29 +339,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _getTimeBasedGreeting(),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF94A3B8),
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
                     Consumer<ProfileViewModel>(
                       builder: (context, vm, child) {
-                        final displayName = vm.profile?.firstName ??
-                            vm.profile?.fullName ??
-                            '';
+                        final displayName = vm.firstName;
+                        final name = displayName.isNotEmpty ? displayName : '';
+                        final greeting = _getTimeBasedGreeting();
+                        // Extract greeting text and emoji
+                        final parts = greeting.split(RegExp(r'(?=[\u{1F300}-\u{1F9FF}])', unicode: true));
+                        final greetText = parts.first.trim();
+                        final emoji = parts.length > 1 ? parts.last.trim() : '';
+                        final combinedGreeting = name.isNotEmpty
+                            ? '$greetText, $name $emoji'.trim()
+                            : greeting;
                         return Text(
-                          displayName.isNotEmpty ? displayName : 'My Profile',
+                          combinedGreeting,
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                             letterSpacing: -0.4,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         );
                       },
                     ),
@@ -416,9 +416,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             valueListenable: OrderStore.instance.orders,
             builder: (context, orders, _) {
               final pickupsCount = orders.length;
-              final completedCount = orders
-                  .where((o) => o.status == OrderStatus.completed)
-                  .length;
+              final completedCount =
+                  orders.where((o) => o.status == OrderStatus.completed).length;
               final carbonSaved = (completedCount * 0.5).toStringAsFixed(1);
               final displayPoints = _ecoPoints > 0
                   ? _ecoPoints

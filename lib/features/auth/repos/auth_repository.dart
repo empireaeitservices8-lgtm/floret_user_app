@@ -7,6 +7,7 @@ import 'package:floret_app/services/web_api_services.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:floret_app/services/api_service.dart';
+import '../../profile/model/order_model.dart';
 import '../model/auth_model.dart';
 
 class AuthRepository {
@@ -84,6 +85,7 @@ class AuthRepository {
       await SpHelper.saveString(sp_keys.keyUseMobile, formattedPhone);
       if (userId.isNotEmpty) {
         await SpHelper.saveString(sp_keys.keyUserId, userId);
+        await OrderStore.instance.loadForUser(userId);
       }
       if (accountType.isNotEmpty) {
         await SpHelper.saveString('account_type', accountType);
@@ -234,6 +236,7 @@ class AuthRepository {
         await SpHelper.saveString('home_username', primaryName);
         if (userId.isNotEmpty) {
           await SpHelper.saveString(sp_keys.keyUserId, userId);
+          await OrderStore.instance.loadForUser(userId);
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('phone_number', phone);
@@ -329,5 +332,6 @@ class AuthRepository {
     await prefs.remove('phone_number');
     await prefs.remove('account_type');
     await SpHelper.clearAll();
+    OrderStore.instance.resetForLogout();
   }
 }

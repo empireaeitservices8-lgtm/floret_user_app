@@ -18,6 +18,7 @@ class OrderHistoryScreen extends StatefulWidget {
 
 class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   int _selectedFilterIndex = 0;
+  String _currentUserId = '';
 
   final List<String> _filters = const [
     'All',
@@ -26,6 +27,21 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     'Reschedule',
     'Cancelled',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserOrders();
+  }
+
+  Future<void> _loadUserOrders() async {
+    await OrderStore.instance.loadForUser();
+    if (mounted) {
+      setState(() {
+        _currentUserId = OrderStore.instance.currentUserId;
+      });
+    }
+  }
 
   void _onBottomNavTapped(BuildContext context, int index) {
     if (index == 0) {
@@ -59,7 +75,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             child: ValueListenableBuilder<List<OrderModel>>(
               valueListenable: OrderStore.instance.orders,
               builder: (context, orders, _) {
-                final filtered = _filterOrders(orders);
+                final effectiveUserId = _currentUserId.isNotEmpty
+                    ? _currentUserId
+                    : OrderStore.instance.currentUserId;
+                final userOrders = orders.where((order) {
+                  if (effectiveUserId.isNotEmpty) {
+                    return order.userId == effectiveUserId;
+                  }
+                  return true;
+                }).toList();
+
+                final filtered = _filterOrders(userOrders);
                 if (filtered.isEmpty) return _buildEmptyState();
                 return ListView.separated(
                   physics: const BouncingScrollPhysics(),

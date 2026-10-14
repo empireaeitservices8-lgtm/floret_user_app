@@ -356,8 +356,11 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   Widget _buildProfileHeaderCard(ProfileModel profile) {
-    final initials = profile.fullName.isNotEmpty
-        ? profile.fullName[0].toUpperCase()
+    final displayName = profile.displayFirstName.isNotEmpty
+        ? profile.displayFirstName
+        : profile.fullName;
+    final initials = displayName.isNotEmpty
+        ? displayName[0].toUpperCase()
         : 'U';
 
     return Container(
@@ -393,7 +396,7 @@ class _ProfileViewState extends State<ProfileView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  profile.fullName,
+                  displayName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 19,

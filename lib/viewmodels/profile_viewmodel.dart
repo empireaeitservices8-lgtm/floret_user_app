@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/sp_helper.dart';
+import '../utils/sp_keys.dart' as sp_keys;
 import '../models/profile_model.dart';
 import '../repositories/profile_repository.dart';
 
@@ -8,12 +10,15 @@ class ProfileViewModel extends ChangeNotifier {
   final ProfileRepository _profileRepository;
 
   ProfileViewModel({ProfileRepository? profileRepository})
-      : _profileRepository = profileRepository ?? ProfileRepository();
+      : _profileRepository = profileRepository ?? ProfileRepository() {
+    _loadCachedFirstName();
+  }
 
   bool _isLoading = false;
   String? _errorMessage;
   bool _isUnauthorized = false;
   ProfileModel? _profile;
+  String _cachedFirstName = '';
 
   // Getters
   bool get isLoading => _isLoading;
@@ -21,6 +26,38 @@ class ProfileViewModel extends ChangeNotifier {
   bool get isUnauthorized => _isUnauthorized;
   ProfileModel? get profile => _profile;
   bool get hasProfile => _profile != null;
+
+  /// Returns authenticated user's first name, with caching support
+  String get firstName {
+    final name = (_profile?.displayFirstName.isNotEmpty == true)
+        ? _profile!.displayFirstName
+        : _cachedFirstName;
+    if (name.isNotEmpty &&
+        name.toLowerCase() != 'user' &&
+        name.toLowerCase() != 'null') {
+      return name;
+    }
+    return '';
+  }
+
+  /// Loads cached first name from SpHelper
+  Future<void> _loadCachedFirstName() async {
+    try {
+      final cached = await SpHelper.getString('first_name');
+      if (cached != null &&
+          cached.trim().isNotEmpty &&
+          cached.trim().toLowerCase() != 'user' &&
+          cached.trim().toLowerCase() != 'null') {
+        _cachedFirstName = cached.trim();
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  /// Public method to reload cached data
+  Future<void> loadCachedData() async {
+    await _loadCachedFirstName();
+  }
 
   /// Fetches the authenticated user profile
   Future<bool> getProfile({VoidCallback? onUnauthorized}) async {
@@ -34,11 +71,16 @@ class ProfileViewModel extends ChangeNotifier {
     try {
       final fetchedProfile = await _profileRepository.getProfile();
       _profile = fetchedProfile;
+      final fName = fetchedProfile.displayFirstName;
+      if (fName.isNotEmpty) {
+        _cachedFirstName = fName;
+      }
       _errorMessage = null;
       _isUnauthorized = false;
       debugPrint('================================================================');
       debugPrint('🎉 [PROFILE VIEWMODEL] Profile fetched & stored successfully:');
       debugPrint('   User: ${_profile?.fullName}');
+      debugPrint('   First Name: ${_profile?.displayFirstName}');
       debugPrint('   Phone: ${_profile?.phoneNumber}');
       debugPrint('   Email: ${_profile?.displayEmail}');
       debugPrint('   Address: ${_profile?.formattedAddress}');
@@ -90,6 +132,15 @@ class ProfileViewModel extends ChangeNotifier {
       await prefs.remove('account_type');
       await prefs.remove('mou_status');
       await prefs.remove('can_access_app');
+      await prefs.remove('first_name');
+      await prefs.remove('last_name');
+      await prefs.remove('user_name');
+      await prefs.remove(sp_keys.keyUserName);
+      await SpHelper.saveString('first_name', '');
+      await SpHelper.saveString('last_name', '');
+      await SpHelper.saveString('username', '');
+      await SpHelper.saveString('user_name', '');
+      await SpHelper.saveString(sp_keys.keyUserName, '');
       debugPrint('🧹 [PROFILE VIEWMODEL] Local authentication cache cleared.');
     } catch (e) {
       debugPrint('⚠️ [PROFILE VIEWMODEL] Error clearing shared preferences: $e');
@@ -100,6 +151,7 @@ class ProfileViewModel extends ChangeNotifier {
   Future<void> logout() async {
     await _clearSavedAuth();
     _profile = null;
+    _cachedFirstName = '';
     _errorMessage = null;
     _isUnauthorized = false;
     notifyListeners();

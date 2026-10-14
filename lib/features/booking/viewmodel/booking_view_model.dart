@@ -23,7 +23,8 @@ class BookingViewModel extends ViewModel {
       if (fullNameController.text.isEmpty && contact.fullName.isNotEmpty) {
         fullNameController.text = contact.fullName;
       }
-      if (contactNumberController.text.isEmpty && contact.contactNumber.isNotEmpty) {
+      if (contactNumberController.text.isEmpty &&
+          contact.contactNumber.isNotEmpty) {
         contactNumberController.text = contact.contactNumber;
       }
       notifyListeners();
@@ -118,10 +119,15 @@ class BookingViewModel extends ViewModel {
 
   void toggleCategory(String id, bool selected) {
     final index = _categories.indexWhere((c) => c.id == id);
-    if (index != -1) {
-      _categories[index] = _categories[index].copyWith(isSelected: selected);
-      notifyListeners();
+    if (index == -1) return;
+
+    if (index == 0) {
+      _categories[0] = _categories[0].copyWith(isSelected: selected);
     }
+    for (int i = 1; i < _categories.length; i++) {
+      _categories[i] = _categories[i].copyWith(isSelected: false);
+    }
+    notifyListeners();
   }
 
   void setAddressTab(int index) {

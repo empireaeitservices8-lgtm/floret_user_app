@@ -9,6 +9,7 @@ import '../services/web_api_services.dart';
 
 import '../helpers/sp_helper.dart';
 import '../utils/sp_keys.dart' as sp_keys;
+import '../features/profile/model/order_model.dart';
 
 class AuthRepository {
   final ApiService _apiService;
@@ -73,6 +74,7 @@ class AuthRepository {
     await SpHelper.saveString(sp_keys.keyUseMobile, loginModel.phoneNumber);
     if (loginModel.userId > 0) {
       await SpHelper.saveString(sp_keys.keyUserId, loginModel.userId.toString());
+      await OrderStore.instance.loadForUser(loginModel.userId.toString());
     }
     if (loginModel.accountType.isNotEmpty) {
       await SpHelper.saveString('account_type', loginModel.accountType);
@@ -164,14 +166,12 @@ class AuthRepository {
 
     // 4. If the user is registered, call /api/login/ to retrieve and persist the token
     if (verifyOtpModel.isRegistered == true) {
-      try {
-        await login(
-          phoneNumber: phoneNumber,
-          otp: otp,
-        );
-      } catch (loginError) {
-        debugPrint('⚠️ [AUTH REPOSITORY] Auto login after OTP verification error: $loginError');
-      }
+      await login(
+        phoneNumber: phoneNumber,
+        otp: otp,
+      );
+    } else {
+      throw Exception('No account found with this phone number. Please register first.');
     }
 
     return verifyOtpModel;
@@ -214,7 +214,11 @@ class AuthRepository {
     await prefs.remove('account_type');
     await prefs.remove('mou_status');
     await prefs.remove('can_access_app');
+    await prefs.remove('first_name');
+    await prefs.remove('last_name');
+    await prefs.remove('user_name');
     await SpHelper.clearAll();
+    OrderStore.instance.resetForLogout();
     debugPrint('🧹 [AUTH REPOSITORY] Cleared local authentication cache.');
   }
 
@@ -239,6 +243,15 @@ class AuthRepository {
 
       // Initialize API headers with the authentication token
       await WebAPIService().initTokenToHeader();
+
+      // Ensure OrderStore is loaded for the authenticated user
+      final savedUid = await SpHelper.getString(sp_keys.keyUserId) ??
+          prefs.getString(sp_keys.keyUserId) ??
+          prefs.getString('user_id') ??
+          prefs.getInt('user_id')?.toString();
+      if (savedUid != null && savedUid.isNotEmpty) {
+        await OrderStore.instance.loadForUser(savedUid);
+      }
     } catch (e) {
       debugPrint('⚠️ [AUTH REPOSITORY] Token header initialization warning: $e');
     }

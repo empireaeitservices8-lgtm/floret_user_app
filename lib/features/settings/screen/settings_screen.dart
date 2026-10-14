@@ -356,28 +356,13 @@ class SettingsScreen extends StatelessWidget {
             ),
             child: Consumer<ProfileViewModel>(
               builder: (context, vm, child) {
-                final firstName = (vm.profile?.firstName != null &&
-                        vm.profile!.firstName!.trim().isNotEmpty)
-                    ? vm.profile!.firstName!.trim()
-                    : (vm.profile?.user?.firstName != null &&
-                            vm.profile!.user!.firstName!.trim().isNotEmpty)
-                        ? vm.profile!.user!.firstName!.trim()
-                        : (vm.profile?.fullName != null &&
-                                vm.profile!.fullName.trim().isNotEmpty &&
-                                vm.profile!.fullName.trim().toLowerCase() !=
-                                    'user')
-                            ? vm.profile!.fullName.trim()
-                            : 'User';
+                final firstName = vm.firstName.isNotEmpty
+                    ? vm.firstName
+                    : 'User';
 
-                final username = vm.profile?.user?.username?.trim() ?? '';
-                final initial = firstName.isNotEmpty
+                final initial = firstName.isNotEmpty && firstName.toLowerCase() != 'user'
                     ? firstName[0].toUpperCase()
-                    : (firstName.isNotEmpty && firstName.toLowerCase() != 'user'
-                        ? firstName[0].toUpperCase()
-                        : 'U');
-                // print("Username: $username");
-                // print("Username: $firstName");
-                // print("Username: $initial");
+                    : 'U';
 
                 return Row(
                   children: [

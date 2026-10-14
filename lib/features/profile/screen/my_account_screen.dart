@@ -313,7 +313,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
           ),
           const SizedBox(height: 14),
           Text(
-            vm.fullName,
+            vm.firstName.isNotEmpty ? vm.firstName : (vm.fullName.isNotEmpty ? vm.fullName : 'User'),
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,

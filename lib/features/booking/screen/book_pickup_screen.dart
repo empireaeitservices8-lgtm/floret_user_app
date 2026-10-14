@@ -21,16 +21,27 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
   bool _internalViewModel = false;
   final BookingRepository _repo = BookingRepository();
 
-  DateTime? _selectedDate = DateTime(2026, 10, 3);
-  String _pickupDateText = '03-10-2026';
+  DateTime? _selectedDate;
+  String _pickupDateText = '';
+  bool _hasSubmittedDate = false;
+  bool _hasSubmittedLocation = false;
   final TextEditingController _landmarkController = TextEditingController();
   final TextEditingController _collectorNotesController =
       TextEditingController();
   bool _isConfirming = false;
 
+  bool _isZipValid(String zip) {
+    final clean = zip.trim().replaceAll(' ', '');
+    return clean.isNotEmpty && RegExp(r'^\d{6}$').hasMatch(clean);
+  }
+
   @override
   void initState() {
     super.initState();
+    _selectedDate = null;
+    _pickupDateText = '';
+    _hasSubmittedDate = false;
+    _hasSubmittedLocation = false;
     if (widget.viewModel != null) {
       _viewModel = widget.viewModel!;
     } else {
@@ -47,6 +58,36 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       _viewModel.dispose();
     }
     super.dispose();
+  }
+
+  String _formatLongDate(DateTime d) {
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final dayName = days[d.weekday - 1];
+    final dayNum = d.day.toString().padLeft(2, '0');
+    final monthName = months[d.month - 1];
+    return '$dayName, $dayNum $monthName ${d.year}';
   }
 
   @override
@@ -504,6 +545,12 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           controller: vm.pickupAddressController,
           hintText: 'Enter street name & house number',
           prefixIcon: Icons.home_work_outlined,
+          hasError: _hasSubmittedLocation &&
+              vm.pickupAddressController.text.trim().isEmpty,
+          errorText: 'Please enter pickup address',
+          onChanged: (_) {
+            if (_hasSubmittedLocation) setState(() {});
+          },
         ),
         const SizedBox(height: 18),
 
@@ -514,6 +561,12 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           controller: vm.cityController,
           hintText: 'Enter city',
           prefixIcon: Icons.location_city_outlined,
+          hasError: _hasSubmittedLocation &&
+              vm.cityController.text.trim().isEmpty,
+          errorText: 'Please enter city',
+          onChanged: (_) {
+            if (_hasSubmittedLocation) setState(() {});
+          },
         ),
         const SizedBox(height: 18),
 
@@ -523,10 +576,16 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         _buildDropdownSelector(
           currentValue: vm.selectedState,
           hint: 'Select state',
+          hasError: _hasSubmittedLocation &&
+              (vm.selectedState == null || vm.selectedState!.isEmpty),
+          errorText: 'Please select state',
           onTap: () => _showSelectionSheet(
             title: 'Select State',
             items: _repo.getAvailableStates(),
-            onSelect: (state) => vm.setStateSelection(state),
+            onSelect: (state) {
+              vm.setStateSelection(state);
+              if (_hasSubmittedLocation) setState(() {});
+            },
           ),
         ),
         const SizedBox(height: 18),
@@ -618,6 +677,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           hintText: 'Enter zip code',
           prefixIcon: Icons.markunread_mailbox_outlined,
           keyboardType: TextInputType.number,
+          hasError: _hasSubmittedLocation &&
+              !_isZipValid(vm.zipCodeController.text.trim()),
+          errorText: vm.zipCodeController.text.trim().isEmpty
+              ? 'Please enter zip / postal code'
+              : 'Please enter a valid 6-digit zip code',
+          onChanged: (_) {
+            if (_hasSubmittedLocation) setState(() {});
+          },
         ),
         const SizedBox(height: 22),
 
@@ -705,38 +772,40 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Error / Alert banner matching Image
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFDE8E8),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0x80FCA5A5),
-              width: 1,
+        // Error / Alert banner matching Image (shown when date is not yet selected)
+        if (_selectedDate == null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDE8E8),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0x80FCA5A5),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: const [
+                Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFE05368),
+                  size: 22,
+                ),
+                SizedBox(width: 12),
+                Text(
+                  'Please select Pickup Date',
+                  style: TextStyle(
+                    color: Color(0xFFE05368),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            children: const [
-              Icon(
-                Icons.error_outline_rounded,
-                color: Color(0xFFE05368),
-                size: 22,
-              ),
-              SizedBox(width: 12),
-              Text(
-                'Please select Pickup Date',
-                style: TextStyle(
-                  color: Color(0xFFE05368),
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
+          const SizedBox(height: 20),
+        ],
 
         // Section Title: Schedule Pickup
         const Text(
@@ -777,7 +846,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           onTap: () async {
             final picked = await showDatePicker(
               context: context,
-              initialDate: _selectedDate ?? DateTime(2026, 10, 3),
+              initialDate: _selectedDate ?? DateTime.now(),
               firstDate: DateTime(2020),
               lastDate: DateTime(2035),
               builder: (context, child) {
@@ -800,6 +869,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                 final m = picked.month.toString().padLeft(2, '0');
                 final y = picked.year.toString();
                 _pickupDateText = '$d-$m-$y';
+                _hasSubmittedDate = false;
               });
             }
           },
@@ -812,7 +882,9 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: const Color(0xFF182236),
+                color: (_hasSubmittedDate && _selectedDate == null)
+                    ? const Color(0xFFE05368)
+                    : const Color(0xFF182236),
                 width: 1.5,
               ),
             ),
@@ -825,17 +897,37 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                 ),
                 const SizedBox(width: 14),
                 Text(
-                  _pickupDateText,
-                  style: const TextStyle(
+                  _pickupDateText.isNotEmpty
+                      ? _pickupDateText
+                      : 'Select Pickup Date',
+                  style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E242F),
+                    fontWeight: _pickupDateText.isNotEmpty
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                    color: _pickupDateText.isNotEmpty
+                        ? const Color(0xFF1E242F)
+                        : const Color(0xFF94A3B8),
                   ),
                 ),
               ],
             ),
           ),
         ),
+        if (_hasSubmittedDate && _selectedDate == null) ...[
+          const SizedBox(height: 6),
+          const Padding(
+            padding: EdgeInsets.only(left: 4),
+            child: Text(
+              'Please select a valid pickup date',
+              style: TextStyle(
+                color: Color(0xFFE05368),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
 
         // Landmark (Optional)
@@ -849,9 +941,10 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         ),
         const SizedBox(height: 8),
         Container(
+          width: double.infinity,
           height: 52,
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: const Color(0xFFFAFAFC),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: const Color(0xFFF1F5F9),
@@ -868,17 +961,19 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: TextField(
+                child: TextFormField(
                   controller: _landmarkController,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
                     color: Color(0xFF1E242F),
                   ),
                   decoration: const InputDecoration(
                     hintText: 'Enter nearby landmark',
                     hintStyle: TextStyle(
                       color: Color(0xFF94A3B8),
-                      fontSize: 14,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w400,
                     ),
                     border: InputBorder.none,
                     isDense: true,
@@ -902,16 +997,17 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         ),
         const SizedBox(height: 8),
         Container(
-          height: 76,
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 110),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: const Color(0xFFFAFAFC),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: const Color(0xFFF1F5F9),
               width: 1.2,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -925,18 +1021,21 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: TextField(
+                child: TextFormField(
                   controller: _collectorNotesController,
-                  maxLines: 2,
+                  minLines: 3,
+                  maxLines: 5,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
                     color: Color(0xFF1E242F),
                   ),
                   decoration: const InputDecoration(
                     hintText: 'Any special instructions for the collector',
                     hintStyle: TextStyle(
                       color: Color(0xFF94A3B8),
-                      fontSize: 14,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w400,
                     ),
                     border: InputBorder.none,
                     isDense: true,
@@ -1051,8 +1150,76 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                         if (vm.currentStep == 0) {
                           vm.proceedToLocation();
                         } else if (vm.currentStep == 1) {
+                          final addr = vm.pickupAddressController.text.trim();
+                          final city = vm.cityController.text.trim();
+                          final state = vm.selectedState;
+                          final zip = vm.zipCodeController.text.trim();
+
+                          final bool isAddressValid = addr.isNotEmpty;
+                          final bool isCityValid = city.isNotEmpty;
+                          final bool isStateValid =
+                              state != null && state.isNotEmpty;
+                          final bool isZipValid = _isZipValid(zip);
+
+                          if (!isAddressValid ||
+                              !isCityValid ||
+                              !isStateValid ||
+                              !isZipValid) {
+                            setState(() {
+                              _hasSubmittedLocation = true;
+                            });
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Please fill all required location details correctly',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                backgroundColor: const Color(0xFFE05368),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                margin:
+                                    const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                            return;
+                          }
                           vm.proceedToSchedule();
                         } else {
+                          // Validation: ensure pickup date is selected before confirming
+                          if (_selectedDate == null) {
+                            setState(() {
+                              _hasSubmittedDate = true;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Please select Pickup Date before proceeding',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                backgroundColor: const Color(0xFFE05368),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                            return;
+                          }
+
                           setState(() {
                             _isConfirming = true;
                           });
@@ -1082,12 +1249,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                           final shortAddress = [addr, city]
                               .where((s) => s.isNotEmpty)
                               .join(', ');
+                          final scheduledDate =
+                              _selectedDate ?? DateTime.now();
+
                           OrderStore.instance.addOrder(
                             OrderModel(
                               bookingId: bookingId,
                               wasteType: wasteTypeText,
-                              pickupDate:
-                                  _selectedDate ?? DateTime(2026, 10, 3),
+                              pickupDate: scheduledDate,
                               address: shortAddress.isNotEmpty
                                   ? shortAddress
                                   : 'Paruthippara, Thiruvananthapuram',
@@ -1105,7 +1274,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                             MaterialPageRoute(
                               builder: (context) => ReceiptTicketScreen(
                                 bookingId: bookingId,
-                                date: 'Thursday, 15 Oct 2026',
+                                date: _formatLongDate(scheduledDate),
                                 wasteType: wasteTypeText,
                                 pickupAddress: vm
                                         .pickupAddressController.text.isNotEmpty
@@ -1203,44 +1372,71 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     required String hintText,
     required IconData prefixIcon,
     TextInputType keyboardType = TextInputType.text,
+    bool hasError = false,
+    String? errorText,
+    ValueChanged<String>? onChanged,
   }) {
-    return Container(
-      height: 52,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFF1F5F9),
-          width: 1.2,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(
-          fontSize: 14.5,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF1E242F),
-        ),
-        decoration: InputDecoration(
-          prefixIcon: Icon(
-            prefixIcon,
-            color: const Color(0xFF94A3B8),
-            size: 20,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 52,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAFAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hasError
+                  ? const Color(0xFFE05368)
+                  : const Color(0xFFF1F5F9),
+              width: hasError ? 1.5 : 1.2,
+            ),
           ),
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w400,
-            color: Color(0xFF94A3B8),
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 16,
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            onChanged: onChanged,
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E242F),
+            ),
+            decoration: InputDecoration(
+              prefixIcon: Icon(
+                prefixIcon,
+                color: const Color(0xFF94A3B8),
+                size: 20,
+              ),
+              hintText: hintText,
+              hintStyle: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF94A3B8),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 16,
+              ),
+            ),
           ),
         ),
-      ),
+        if (hasError && errorText != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Color(0xFFE05368),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1249,48 +1445,73 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     required String? currentValue,
     required String hint,
     required VoidCallback onTap,
+    bool hasError = false,
+    String? errorText,
   }) {
     final bool hasValue = currentValue != null && currentValue.isNotEmpty;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFAFAFC),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: const Color(0xFFF1F5F9),
-            width: 1.2,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                hasValue ? currentValue : hint,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                  color: hasValue
-                      ? const Color(0xFF1E242F)
-                      : const Color(0xFF94A3B8),
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: double.infinity,
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: hasError
+                    ? const Color(0xFFE05368)
+                    : const Color(0xFFF1F5F9),
+                width: hasError ? 1.5 : 1.2,
               ),
             ),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF94A3B8),
-              size: 22,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    hasValue ? currentValue : hint,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                      color: hasValue
+                          ? const Color(0xFF1E242F)
+                          : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 22,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        if (hasError && errorText != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Color(0xFFE05368),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1306,13 +1527,12 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.7,
       ),
-      builder: (sheetContext) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
+      builder: (sheetContext) => Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1372,6 +1592,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
