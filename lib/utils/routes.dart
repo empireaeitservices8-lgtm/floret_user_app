@@ -28,8 +28,11 @@ import 'package:floret_app/features/wallet/screen/razorpay_checkout_screen.dart'
 import 'package:floret_app/features/wallet/screen/payment_successful_screen.dart';
 
 import 'package:floret_app/features/booking/screen/receipt_ticket_screen.dart';
+import 'package:floret_app/features/map/screen/location_picker_map_screen.dart';
 
 Map<String, Widget Function(BuildContext context)> appRoutes() => {
+      LocationPickerMapScreen.routeName: (context) =>
+          const LocationPickerMapScreen(),
       SplashScreen.routeName: (context) => const SplashScreen(),
       SendOtpView.routeName: (context) => const SendOtpView(),
       LoginView.routeName: (context) => const LoginView(),

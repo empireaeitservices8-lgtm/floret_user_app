@@ -73,7 +73,7 @@ class ThemeProvider extends ChangeNotifier {
           break;
       }
     } else {
-      _themeMode = ThemeMode.dark;
+      _themeMode = ThemeMode.system;
     }
 
     notifyListeners();

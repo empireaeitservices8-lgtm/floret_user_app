@@ -46,11 +46,11 @@ class HomeViewModel extends ViewModel {
   String get timeBasedGreeting {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) {
-      return 'Good morning 🌅';
+      return 'Good morning 🌤️';
     } else if (hour >= 12 && hour < 17) {
       return 'Good afternoon 🌤️';
     } else if (hour >= 17 && hour < 21) {
-      return 'Good evening 🌆';
+      return 'Good evening 🌙';
     } else {
       return 'Good night 🌙';
     }
@@ -63,13 +63,13 @@ class HomeViewModel extends ViewModel {
     String emoji;
     if (hour >= 5 && hour < 12) {
       greetText = 'Good morning';
-      emoji = '🌅';
+      emoji = '🌤️';
     } else if (hour >= 12 && hour < 17) {
       greetText = 'Good afternoon';
       emoji = '🌤️';
     } else if (hour >= 17 && hour < 21) {
       greetText = 'Good evening';
-      emoji = '🌆';
+      emoji = '🌙';
     } else {
       greetText = 'Good night';
       emoji = '🌙';
@@ -82,7 +82,8 @@ class HomeViewModel extends ViewModel {
         ? name.trim()
         : displayName;
 
-    final isPhone = rawName.startsWith('+') || RegExp(r'^[0-9]+$').hasMatch(rawName);
+    final isPhone =
+        rawName.startsWith('+') || RegExp(r'^[0-9]+$').hasMatch(rawName);
     final validName = isPhone ? '' : rawName;
 
     final formattedName = validName.isNotEmpty

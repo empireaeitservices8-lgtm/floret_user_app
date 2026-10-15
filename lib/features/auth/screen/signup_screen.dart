@@ -5,6 +5,7 @@ import '../viewmodel/signup_view_model.dart';
 import 'safai_logo_widget.dart';
 import 'login_screen.dart';
 import '../../home/screen/home_screen.dart';
+import '../../map/screen/location_picker_map_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   static const String routeName = '/signup';
@@ -54,229 +55,37 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   // -------------------------------------------------------------
-  // LOCATE ON MAP MODAL
+  // LOCATE ON MAP
   // -------------------------------------------------------------
-  void _showLocateOnMapSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Locate on Live Map',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E242F),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 22),
-                    onPressed: () => Navigator.pop(sheetContext),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Simulated Interactive Map Container
-              Container(
-                height: 220,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Grid background
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFFE2E8F0), Color(0xFFD5DEE8)],
-                            ),
-                          ),
-                          child: CustomPaint(
-                            painter: _MapGridPainter(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Center Map Pin
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E242F),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.location_on_rounded,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Floating Badge
-                    Positioned(
-                      top: 14,
-                      left: 14,
-                      right: 14,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.gps_fixed_rounded,
-                              size: 18,
-                              color: Color(0xFF238B42),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Kacheri, Nedumangadu, Thiruvananthapuram 695541',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E242F),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Selected Coordinates',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '8.6015° N, 76.9995° E • Thiruvananthapuram, Kerala',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E242F),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E242F),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon:
-                      const Icon(Icons.check_circle_outline_rounded, size: 20),
-                  label: const Text(
-                    'Confirm Location',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  onPressed: () {
-                    _viewModel.setMapLocation(
-                      street: 'Door No. 12, Kacheri Junction',
-                      city: 'Nedumangadu',
-                      state: 'Kerala',
-                      district: 'Thiruvananthapuram',
-                      localBody: 'Nedumangadu Municipality',
-                      ward: '9 - KACHERI',
-                      zipCode: '695541',
-                      lat: 8.6015,
-                      lng: 76.9995,
-                    );
-                    Navigator.pop(sheetContext);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Address autofilled from Map!'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+  Future<void> _showLocateOnMapSheet() async {
+    final result = await Navigator.push<SelectedLocationResult>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LocationPickerMapScreen(
+          confirmButtonText: 'Confirm Location',
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    _viewModel.setMapLocation(
+      street: result.street.isNotEmpty ? result.street : result.fullAddress,
+      city: result.city,
+      state: result.state,
+      district: result.district,
+      localBody: result.localBody ?? '',
+      ward: result.ward ?? '',
+      zipCode: result.zipCode,
+      lat: result.latitude,
+      lng: result.longitude,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Address autofilled from Map!'),
+        backgroundColor: Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -1454,7 +1263,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
         // Locate on Map Card
         InkWell(
-          onTap: () => _showLocateOnMapSheet(context),
+          onTap: _showLocateOnMapSheet,
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -2022,45 +1831,4 @@ class _SignupScreenState extends State<SignupScreen> {
       ],
     );
   }
-}
-
-// -------------------------------------------------------------
-// MAP GRID PAINTER FOR SIMULATED MAP
-// -------------------------------------------------------------
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.35)
-      ..strokeWidth = 1.0;
-
-    // Draw grid lines
-    const spacing = 28.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    // Draw simulated road lines
-    final roadPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.7)
-      ..strokeWidth = 6.0
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawLine(
-      Offset(0, size.height * 0.4),
-      Offset(size.width, size.height * 0.6),
-      roadPaint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.5, 0),
-      Offset(size.width * 0.35, size.height),
-      roadPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

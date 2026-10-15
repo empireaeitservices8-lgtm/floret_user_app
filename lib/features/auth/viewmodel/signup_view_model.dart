@@ -283,7 +283,9 @@ class SignupViewModel extends ViewModel {
   String? get step3ErrorMessage => _step3ErrorMessage;
 
   double? _latitude;
+  double? get latitude => _latitude;
   double? _longitude;
+  double? get longitude => _longitude;
 
   static const List<String> keralaOnlyState = ['Kerala'];
 

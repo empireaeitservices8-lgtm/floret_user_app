@@ -4,6 +4,7 @@ import '../viewmodel/booking_view_model.dart';
 import '../repos/booking_repository.dart';
 import 'receipt_ticket_screen.dart';
 import '../../profile/model/order_model.dart';
+import '../../map/screen/location_picker_map_screen.dart';
 
 class BookPickupScreen extends StatefulWidget {
   static const String routeName = '/book_pickup';
@@ -335,6 +336,40 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     );
   }
 
+  Future<void> _openMapLocationPicker(BookingViewModel vm) async {
+    final result = await Navigator.push<SelectedLocationResult>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LocationPickerMapScreen(
+          confirmButtonText: 'Confirm & Save Address',
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    vm.setMapLocation(
+      address: result.street.isNotEmpty
+          ? result.street
+          : result.fullAddress,
+      city: result.city,
+      state: result.state,
+      district: result.district,
+      localBody: result.localBody,
+      ward: result.ward,
+      zipCode: result.zipCode,
+      lat: result.latitude,
+      lng: result.longitude,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Address selected from map successfully!'),
+        backgroundColor: Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   // ================= STEP 1: LOCATION DETAILS (Images 4 & 5) =================
   Widget _buildLocationStep(BuildContext context, BookingViewModel vm) {
     return Column(
@@ -465,15 +500,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
 
         // Locate on Map Card
         GestureDetector(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Locate on Map selected. GPS pinpoint active.'),
-                behavior: SnackBarBehavior.floating,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
+          onTap: () => _openMapLocationPicker(vm),
           behavior: HitTestBehavior.opaque,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

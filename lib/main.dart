@@ -58,7 +58,7 @@ class MyApp extends StatelessWidget {
           AppConfig.designHeight.toDouble(),
         ),
         builder: (context, child) => AdaptiveTheme(
-          initial: AdaptiveThemeMode.dark,
+          initial: AdaptiveThemeMode.system,
           light: appLightTheme,
           dark: appDarkTheme,
           builder: (theme, darkTheme) {
@@ -78,11 +78,11 @@ class MyApp extends StatelessWidget {
                 Locale('ja', ''),
               ],
               theme: themedForLocale(
-                theme,
+                appLightTheme,
                 context.watch<LanguageProvider>().locale,
               ),
               darkTheme: themedForLocale(
-                darkTheme,
+                appDarkTheme,
                 context.watch<LanguageProvider>().locale,
               ),
               locale: context.watch<LanguageProvider>().locale,

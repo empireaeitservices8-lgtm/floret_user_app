@@ -79,6 +79,49 @@ class BookingViewModel extends ViewModel {
   String? _selectedWard;
   String? get selectedWard => _selectedWard;
 
+  double? _latitude;
+  double? get latitude => _latitude;
+
+  double? _longitude;
+  double? get longitude => _longitude;
+
+  void setMapLocation({
+    required String address,
+    required String city,
+    String? state,
+    String? district,
+    String? localBody,
+    String? ward,
+    String? zipCode,
+    double? lat,
+    double? lng,
+  }) {
+    if (address.isNotEmpty) {
+      pickupAddressController.text = address;
+    }
+    if (city.isNotEmpty) {
+      cityController.text = city;
+    }
+    if (state != null && state.isNotEmpty) {
+      _selectedState = state;
+    }
+    if (district != null && district.isNotEmpty) {
+      _selectedDistrict = district;
+    }
+    if (localBody != null && localBody.isNotEmpty) {
+      _selectedLocalBody = localBody;
+    }
+    if (ward != null && ward.isNotEmpty) {
+      _selectedWard = ward;
+    }
+    if (zipCode != null && zipCode.isNotEmpty) {
+      zipCodeController.text = zipCode;
+    }
+    _latitude = lat;
+    _longitude = lng;
+    notifyListeners();
+  }
+
   bool _saveToProfile = true; // Image 5 shows switch ON
   bool get saveToProfile => _saveToProfile;
 
