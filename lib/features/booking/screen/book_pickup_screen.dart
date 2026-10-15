@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/services/api_client.dart';
+import 'package:floret_app/services/api_endpoints.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import '../viewmodel/booking_view_model.dart';
 import '../repos/booking_repository.dart';
 import 'receipt_ticket_screen.dart';
@@ -1250,12 +1254,6 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                           setState(() {
                             _isConfirming = true;
                           });
-                          await Future.delayed(
-                              const Duration(milliseconds: 1500));
-                          if (!mounted || !context.mounted) return;
-                          setState(() {
-                            _isConfirming = false;
-                          });
 
                           final selectedCategories = vm.categories
                               .where((c) => c.isSelected)
@@ -1268,16 +1266,75 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                   .join(', ')
                               : 'Sanitary waste';
 
+                          final scheduledDate =
+                              _selectedDate ?? DateTime.now();
+                          final formattedDate =
+                              '${scheduledDate.year.toString().padLeft(4, '0')}-${scheduledDate.month.toString().padLeft(2, '0')}-${scheduledDate.day.toString().padLeft(2, '0')}';
+                          final displayDate =
+                              '${scheduledDate.day.toString().padLeft(2, '0')}-${scheduledDate.month.toString().padLeft(2, '0')}-${scheduledDate.year.toString()}';
+
+                          debugPrint(
+                              ' Selected Date Slot: $displayDate, Time Slot: 9:00 AM – 12:00 PM');
+                          debugPrint(
+                              '[AddressScreen] Submitting Booking with Pickup Date: $formattedDate');
+
+                          final email =
+                              await SpHelper.getString(sp_keys.keyEmail) ??
+                                  await SpHelper.getString('email') ??
+                                  '';
+
+                          final requestData = <String, dynamic>{
+                            'full_name': vm.fullNameController.text.trim(),
+                            'email': email,
+                            'contact_number':
+                                vm.contactNumberController.text.trim(),
+                            'street': vm.pickupAddressController.text.trim(),
+                            'city': vm.cityController.text.trim(),
+                            'zip_code': vm.zipCodeController.text.trim(),
+                            'state': (vm.selectedState != null &&
+                                    vm.selectedState!.isNotEmpty)
+                                ? vm.selectedState!
+                                : 'Kerala',
+                            'district': vm.selectedDistrict ?? '',
+                            'localbody': vm.selectedLocalBody ?? '',
+                            'ward_name': vm.selectedWard ?? '',
+                            'pickup_date': formattedDate,
+                            'pickup_time_slot': '9:00 AM – 12:00 PM',
+                            'items_description': _collectorNotesController
+                                    .text.trim().isNotEmpty
+                                ? _collectorNotesController.text.trim()
+                                : 'General household waste',
+                            'waste_type': wasteTypeText,
+                            'landmark': _landmarkController.text.trim(),
+                          };
+
+                          dynamic backendId;
+                          try {
+                            final response = await ApiClient().post(
+                              ApiEndpoints.pickups,
+                              data: requestData,
+                            );
+                            if (response.data is Map) {
+                              backendId = response.data['id'];
+                            }
+                          } catch (e) {
+                            debugPrint('[BookPickupScreen] Error creating pickup: $e');
+                          }
+
+                          if (!mounted || !context.mounted) return;
+                          setState(() {
+                            _isConfirming = false;
+                          });
+
                           // Save order so it appears in Order History
-                          final bookingId =
-                              OrderStore.instance.generateBookingId();
+                          final bookingId = backendId != null
+                              ? 'WC-$backendId'
+                              : OrderStore.instance.generateBookingId();
                           final addr = vm.pickupAddressController.text.trim();
                           final city = vm.cityController.text.trim();
                           final shortAddress = [addr, city]
                               .where((s) => s.isNotEmpty)
                               .join(', ');
-                          final scheduledDate =
-                              _selectedDate ?? DateTime.now();
 
                           OrderStore.instance.addOrder(
                             OrderModel(
