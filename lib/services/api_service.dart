@@ -15,6 +15,8 @@ class ApiService {
   static const String walletBalanceEndpoint = '/api/wallet/balance/';
   static const String walletTransactionsEndpoint = '/api/wallet/transactions/';
   static const String walletTopupEndpoint = '/api/wallet/topup/';
+  static const String walletVerifyPaymentEndpoint =
+      '/api/wallet/topup/verify-payment/';
   static const String rewardPointsEndpoint = '/api/reward-points/';
   static const String rewardPointsTransactionsEndpoint =
       '/api/reward-points/transactions/';
@@ -415,6 +417,100 @@ class ApiService {
     }
   }
 
+  /// Generic authenticated POST request with complete debugging and error handling
+  Future<Response> _authenticatedPost({
+    required String endpoint,
+    required String requestName,
+    Map<String, dynamic>? data,
+    String? token,
+  }) async {
+    final String fullUrl = '$baseUrl$endpoint';
+    final authToken = await _resolveAuthToken(token);
+
+    final Map<String, dynamic> headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (authToken != null && authToken.isNotEmpty) {
+      headers['Authorization'] = 'Token $authToken';
+    }
+
+    debugPrint('================================================================');
+    debugPrint('🚀 [$requestName API REQUEST]');
+    debugPrint('URL: $fullUrl');
+    debugPrint('Method: POST');
+    debugPrint('Headers: $headers');
+    debugPrint('Payload:');
+    try {
+      debugPrint(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (_) {
+      debugPrint('$data');
+    }
+    debugPrint('================================================================');
+
+    try {
+      final response = await _dio.post(
+        endpoint,
+        data: data,
+        options: Options(headers: headers),
+      );
+
+      debugPrint('================================================================');
+      debugPrint('✅ [$requestName API RESPONSE]');
+      debugPrint('URL: $fullUrl');
+      debugPrint(
+          'Status Code: ${response.statusCode} ${response.statusMessage ?? ""}');
+      debugPrint('Response Body (JSON):');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
+      } catch (_) {
+        debugPrint('${response.data}');
+      }
+      debugPrint('================================================================');
+
+      return response;
+    } on DioException catch (dioError) {
+      debugPrint('================================================================');
+      debugPrint('❌ [$requestName API ERROR]');
+      debugPrint('Status Code: ${dioError.response?.statusCode}');
+      debugPrint('Response Data: ${dioError.response?.data}');
+      debugPrint('Error Type: ${dioError.type}');
+      debugPrint('Error Message: ${dioError.message}');
+      debugPrint('================================================================');
+
+      if (dioError.response?.statusCode == 401) {
+        rethrow;
+      }
+      final errorMessage = parseDioError(dioError);
+      throw Exception(errorMessage);
+    } catch (e) {
+      if (e is DioException) rethrow;
+      debugPrint('================================================================');
+      debugPrint('❌ [$requestName UNEXPECTED ERROR]: $e');
+      debugPrint('================================================================');
+      throw Exception('An error occurred during $requestName: $e');
+    }
+  }
+
+  /// Sends a POST request to /api/wallet/topup/verify-payment/
+  Future<Response> verifyPayment({
+    String razorpayOrderId = 'order_123',
+    String razorpayPaymentId = 'pay_123',
+    String razorpaySignature = 'signature_123',
+    String? token,
+  }) async {
+    return _authenticatedPost(
+      endpoint: walletVerifyPaymentEndpoint,
+      requestName: 'VERIFY PAYMENT',
+      data: {
+        'razorpay_order_id': razorpayOrderId,
+        'razorpay_payment_id': razorpayPaymentId,
+        'razorpay_signature': razorpaySignature,
+      },
+      token: token,
+    );
+  }
+
   /// Sends a GET request to /api/home/
   Future<Response> getHome({String? token}) async {
     return _authenticatedGet(
@@ -447,6 +543,21 @@ class ApiService {
     return _authenticatedGet(
       endpoint: walletTopupEndpoint,
       requestName: 'GET WALLET TOPUP',
+      token: token,
+    );
+  }
+
+  /// Sends a POST request to /api/wallet/topup/ with amount
+  Future<Response> createWalletTopupOrder({
+    required double amount,
+    String? token,
+  }) async {
+    return _authenticatedPost(
+      endpoint: walletTopupEndpoint,
+      requestName: 'CREATE WALLET TOPUP ORDER',
+      data: {
+        'amount': amount,
+      },
       token: token,
     );
   }

@@ -377,4 +377,26 @@ class HomeDataBundle {
         const RewardPointsTransactionsResponseModel(),
     this.pickups = const [],
   });
+
+  HomeDataBundle copyWith({
+    HomeOverviewModel? homeOverview,
+    WalletBalanceDataModel? walletBalance,
+    WalletTransactionsResponseModel? walletTransactions,
+    WalletTopupConfigModel? walletTopupConfig,
+    RewardPointsDataModel? rewardPoints,
+    RewardPointsTransactionsResponseModel? rewardPointsTransactions,
+    List<PickupItemDataModel>? pickups,
+  }) {
+    return HomeDataBundle(
+      homeOverview: homeOverview ?? this.homeOverview,
+      walletBalance: walletBalance ?? this.walletBalance,
+      walletTransactions: walletTransactions ?? this.walletTransactions,
+      walletTopupConfig: walletTopupConfig ?? this.walletTopupConfig,
+      rewardPoints: rewardPoints ?? this.rewardPoints,
+      rewardPointsTransactions:
+          rewardPointsTransactions ?? this.rewardPointsTransactions,
+      pickups: pickups ?? this.pickups,
+    );
+  }
 }
+

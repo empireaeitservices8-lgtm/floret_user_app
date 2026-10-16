@@ -89,7 +89,7 @@ class ProfileRepository {
     }
 
     // 2. Resolve authenticated user's ID
-    final uid = await SpHelper.getString(sp_keys.keyUserId) ??
+    String uid = await SpHelper.getString(sp_keys.keyUserId) ??
         await SpHelper.getString('user_id') ??
         (await SharedPreferences.getInstance()).getString(sp_keys.keyUserId) ??
         (await SharedPreferences.getInstance()).getString('user_id') ??
@@ -119,19 +119,25 @@ class ProfileRepository {
       final map = Map<String, dynamic>.from(item);
 
       // Verify that this pickup record belongs to the signed-in user
-      final itemUserId =
-          (map['user'] ?? map['user_id'] ?? map['userId'])?.toString();
-      if (itemUserId != null && itemUserId.isNotEmpty && uid.isNotEmpty) {
-        if (itemUserId != uid) {
+      final dynamic rawUser = map['user'] ?? map['user_id'] ?? map['userId'];
+      final String? itemUserId = rawUser is Map
+          ? (rawUser['id'] ?? rawUser['user_id'])?.toString()
+          : rawUser?.toString().trim();
+
+      if (itemUserId != null && itemUserId.isNotEmpty) {
+        if (uid.isNotEmpty && itemUserId != uid) {
           // Belongs to another user - strictly do not show
           continue;
         }
-      } else if (uid.isEmpty && itemUserId != null) {
-        // User ID is unavailable - do not display other users' records
-        continue;
+        if (uid.isEmpty) {
+          // Cache the resolved user ID from authenticated session
+          uid = itemUserId;
+          SpHelper.saveString(sp_keys.keyUserId, itemUserId);
+          OrderStore.instance.loadForUser(itemUserId);
+        }
       }
 
-      orders.add(OrderModel.fromBackendJson(map, defaultUserId: uid));
+      orders.add(OrderModel.fromBackendJson(map, defaultUserId: uid.isNotEmpty ? uid : null));
     }
 
     return orders;

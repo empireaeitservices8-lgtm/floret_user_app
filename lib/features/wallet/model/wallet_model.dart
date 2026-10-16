@@ -143,6 +143,65 @@ class WalletTopupConfigModel {
       };
 }
 
+/// Model for POST /api/wallet/topup/ order creation response
+class WalletTopupOrderResponseModel {
+  final String? message;
+  final dynamic transactionId;
+  final String? razorpayOrderId;
+  final double amount;
+  final int? amountInPaise;
+  final String? currency;
+  final String? keyId;
+  final String? name;
+  final String? description;
+  final Map<String, dynamic>? prefill;
+
+  const WalletTopupOrderResponseModel({
+    this.message,
+    this.transactionId,
+    this.razorpayOrderId,
+    this.amount = 0.0,
+    this.amountInPaise,
+    this.currency,
+    this.keyId,
+    this.name,
+    this.description,
+    this.prefill,
+  });
+
+  factory WalletTopupOrderResponseModel.fromJson(Map<String, dynamic> json) {
+    return WalletTopupOrderResponseModel(
+      message: json['message'] as String?,
+      transactionId: json['transaction_id'],
+      razorpayOrderId: json['razorpay_order_id'] as String?,
+      amount: (json['amount'] is num)
+          ? (json['amount'] as num).toDouble()
+          : double.tryParse(json['amount']?.toString() ?? '') ?? 0.0,
+      amountInPaise: (json['amount_in_paise'] as num?)?.toInt(),
+      currency: json['currency'] as String?,
+      keyId: json['key_id'] as String?,
+      name: json['name'] as String?,
+      description: json['description'] as String?,
+      prefill: json['prefill'] is Map
+          ? Map<String, dynamic>.from(json['prefill'] as Map)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'message': message,
+        'transaction_id': transactionId,
+        'razorpay_order_id': razorpayOrderId,
+        'amount': amount,
+        'amount_in_paise': amountInPaise,
+        'currency': currency,
+        'key_id': keyId,
+        'name': name,
+        'description': description,
+        'prefill': prefill,
+      };
+}
+
 /// Model for single transaction item in GET /api/wallet/transactions/
 class WalletTransactionItemModel {
   final dynamic id;

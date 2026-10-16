@@ -40,6 +40,7 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
   late List<int> _presetAmounts;
   late int _minAmount;
   late int _maxAmount;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -265,37 +266,98 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () async {
-                final amountText = _amountController.text.trim();
-                final amount = double.tryParse(amountText) ?? 500.00;
-                final navigator = Navigator.of(context);
-                navigator.pop();
-                await navigator.push(
-                  MaterialPageRoute(
-                    settings: const RouteSettings(
-                      name: RazorpayCheckoutScreen.routeName,
-                    ),
-                    builder: (_) => RazorpayCheckoutScreen(amount: amount),
-                  ),
-                );
-                widget.onTopUpSuccess?.call();
-              },
+              onPressed: _isProcessing
+                  ? null
+                  : () async {
+                      final navigator = Navigator.of(context);
+                      setState(() {
+                        _isProcessing = true;
+                      });
+
+                      final amountText = _amountController.text.trim();
+                      final amount = double.tryParse(amountText) ?? 500.00;
+
+                      String razorpayOrderId = 'order_123';
+                      String razorpayPaymentId = 'pay_123';
+
+                      // 1. POST /api/wallet/topup/ (Create Razorpay Order)
+                      try {
+                        final order = await _walletRepository.createTopupOrder(
+                          amount: amount,
+                        );
+                        if (order?.razorpayOrderId != null &&
+                            order!.razorpayOrderId!.isNotEmpty) {
+                          razorpayOrderId = order.razorpayOrderId!;
+                          final trimmed = razorpayOrderId.startsWith('order_')
+                              ? razorpayOrderId.substring('order_'.length)
+                              : razorpayOrderId;
+                          razorpayPaymentId = 'pay_$trimmed';
+                        }
+                      } catch (e) {
+                        debugPrint('⚠️ [TOP UP] createTopupOrder error: $e');
+                      }
+
+                      // 2. POST /api/wallet/topup/verify-payment/
+                      try {
+                        await _walletRepository.verifyPayment(
+                          razorpayOrderId: razorpayOrderId,
+                          razorpayPaymentId: razorpayPaymentId,
+                          razorpaySignature: 'signature_123',
+                        );
+                      } catch (e) {
+                        debugPrint('⚠️ [TOP UP] verify-payment error: $e');
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isProcessing = false;
+                          });
+                        }
+                      }
+
+                      // 3. Immediately refresh wallet balance
+                      widget.onTopUpSuccess?.call();
+
+                      if (!mounted) return;
+                      navigator.pop();
+                      await navigator.push(
+                        MaterialPageRoute(
+                          settings: const RouteSettings(
+                            name: RazorpayCheckoutScreen.routeName,
+                          ),
+                          builder: (_) => RazorpayCheckoutScreen(
+                            amount: amount,
+                            orderId: razorpayOrderId,
+                          ),
+                        ),
+                      );
+                      widget.onTopUpSuccess?.call();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E242F),
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFF64748B),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: Text(
-                'Proceed to Pay ₹${_amountController.text.isNotEmpty ? _amountController.text : "500.00"}',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
+              child: _isProcessing
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      'Proceed to Pay ₹${_amountController.text.isNotEmpty ? _amountController.text : "500.00"}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
 

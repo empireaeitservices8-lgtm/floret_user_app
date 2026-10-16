@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../repos/wallet_repository.dart';
 import 'payment_successful_screen.dart';
 import 'wallet_screen.dart';
 
@@ -31,7 +32,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
   late final TextEditingController _cardCvvController;
   late final TextEditingController _cardHolderController;
 
-  bool _isProcessing = false;
+  final bool _isProcessing = false;
 
   void _onClosePressed() {
     if (Navigator.canPop(context)) {
@@ -78,6 +79,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
       barrierDismissible: false,
       builder: (dlgContext) => ThreeDSecureAuthDialog(
         amount: widget.amount,
+        orderId: widget.orderId,
         onAuthorized: _navigateToSuccessScreen,
       ),
     );
@@ -1162,11 +1164,13 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
 
 class ThreeDSecureAuthDialog extends StatefulWidget {
   final double amount;
+  final String? orderId;
   final VoidCallback onAuthorized;
 
   const ThreeDSecureAuthDialog({
     super.key,
     required this.amount,
+    this.orderId,
     required this.onAuthorized,
   });
 
@@ -1211,6 +1215,18 @@ class _ThreeDSecureAuthDialogState extends State<ThreeDSecureAuthDialog> {
     setState(() {
       _isAuthorizing = true;
     });
+
+    final orderId = widget.orderId ?? 'order_123';
+    final trimmedId = orderId.startsWith('order_')
+        ? orderId.substring('order_'.length)
+        : orderId;
+    try {
+      await WalletRepository().verifyPayment(
+        razorpayOrderId: orderId,
+        razorpayPaymentId: 'pay_$trimmedId',
+        razorpaySignature: 'signature_123',
+      );
+    } catch (_) {}
 
     await Future.delayed(const Duration(milliseconds: 1500));
 

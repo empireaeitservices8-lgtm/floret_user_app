@@ -124,12 +124,37 @@ class OrderModel {
     }
 
     // 5. Status
-    final rawStatus = (json['status'] ?? '').toString().toLowerCase().trim();
+    final rawStatus = (json['status'] ??
+            json['pickup_status'] ??
+            json['order_status'] ??
+            json['state'] ??
+            '')
+        .toString()
+        .toLowerCase()
+        .trim();
+
+    final bool isCompletedFlag = json['is_completed'] == true ||
+        json['completed'] == true ||
+        json['is_collected'] == true ||
+        json['collected'] == true ||
+        json['is_delivered'] == true ||
+        json['is_done'] == true;
+
     OrderStatus status = OrderStatus.pending;
-    if (rawStatus.contains('complete') || rawStatus.contains('deliver')) {
+    if (isCompletedFlag ||
+        rawStatus.contains('complete') ||
+        rawStatus.contains('deliver') ||
+        rawStatus.contains('collect') ||
+        rawStatus.contains('picked_up') ||
+        rawStatus.contains('pickedup') ||
+        rawStatus.contains('picked up') ||
+        rawStatus.contains('done') ||
+        rawStatus.contains('finish') ||
+        rawStatus.contains('success') ||
+        rawStatus.contains('closed')) {
       status = OrderStatus.completed;
       parsedCompletedDate ??= pickupDate;
-    } else if (rawStatus.contains('cancel')) {
+    } else if (rawStatus.contains('cancel') || json['is_cancelled'] == true) {
       status = OrderStatus.cancelled;
     } else if (rawStatus.contains('reschedul')) {
       status = OrderStatus.reschedule;
@@ -188,10 +213,14 @@ class OrderModel {
         'User';
 
     // 9. User ID
-    final userId = json['userId']?.toString() ??
-        json['user_id']?.toString() ??
-        json['user']?.toString() ??
-        defaultUserId;
+    final dynamic rawUser = json['userId'] ?? json['user_id'] ?? json['user'];
+    String? userId;
+    if (rawUser is Map) {
+      userId = (rawUser['id'] ?? rawUser['user_id'])?.toString();
+    } else if (rawUser != null) {
+      userId = rawUser.toString().trim();
+    }
+    userId ??= defaultUserId;
 
     return OrderModel(
       bookingId: bookingId,
@@ -277,6 +306,18 @@ class OrderStore {
         ),
       ];
 
+  static const Set<String> _kSampleBookingIds = {
+    'WC-158',
+    'WC-159',
+    'WC-160',
+    'WC-161',
+    'WC-165',
+    'WC-168',
+  };
+
+  static bool isSampleOrder(OrderModel order) =>
+      order.userId == null && _kSampleBookingIds.contains(order.bookingId);
+
   final ValueNotifier<List<OrderModel>> orders =
       ValueNotifier<List<OrderModel>>(_defaultOrders());
 
@@ -309,6 +350,12 @@ class OrderStore {
 
   Future<void> _init() async {
     _currentUserId = await _resolveCurrentUserId();
+    final token = await SpHelper.getString(sp_keys.keyToken) ??
+        await SpHelper.getString('token');
+    if (_currentUserId.isNotEmpty ||
+        (token != null && token.trim().isNotEmpty)) {
+      orders.value = [];
+    }
     await _loadFromStorage();
   }
 
@@ -336,6 +383,10 @@ class OrderStore {
           orders.value = decoded
               .map((e) =>
                   OrderModel.fromJson(Map<String, dynamic>.from(e as Map)))
+              .where((o) =>
+                  _currentUserId.isEmpty ||
+                  !isSampleOrder(o) &&
+                      (o.userId == null || o.userId == _currentUserId))
               .toList();
           for (final o in orders.value) {
             final match = RegExp(r'WC-(\d+)').firstMatch(o.bookingId);
@@ -349,13 +400,19 @@ class OrderStore {
           return;
         }
       }
-      if (_currentUserId.isNotEmpty) {
+      final token = await SpHelper.getString(sp_keys.keyToken) ??
+          await SpHelper.getString('token');
+      if (_currentUserId.isNotEmpty ||
+          (token != null && token.trim().isNotEmpty)) {
         orders.value = [];
       } else {
         orders.value = _defaultOrders();
       }
     } catch (_) {
-      if (_currentUserId.isNotEmpty) {
+      final token = await SpHelper.getString(sp_keys.keyToken) ??
+          await SpHelper.getString('token');
+      if (_currentUserId.isNotEmpty ||
+          (token != null && token.trim().isNotEmpty)) {
         orders.value = [];
       } else {
         orders.value = _defaultOrders();
@@ -424,6 +481,9 @@ class OrderStore {
       if (effectiveUserId.isNotEmpty &&
           local.userId != null &&
           local.userId != effectiveUserId) {
+        continue;
+      }
+      if (effectiveUserId.isNotEmpty && isSampleOrder(local)) {
         continue;
       }
       if (!remoteIds.contains(local.bookingId)) {

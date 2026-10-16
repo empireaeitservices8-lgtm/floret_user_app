@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _localProfileVm = ProfileViewModel();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _viewModel.fetchOrderHistory();
+      _viewModel.fetchWalletBalance();
       _localProfileVm.getProfile();
     });
   }
@@ -65,8 +66,13 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<HomeViewModel>.value(value: _viewModel),
+        ChangeNotifierProvider<ProfileViewModel>.value(
+          value: _getProfileViewModel(context, listen: false),
+        ),
+      ],
       child: Consumer<HomeViewModel>(
         builder: (context, vm, _) {
           return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -85,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onRefresh: () async {
                     await Future.wait([
                       vm.loadHomeData(isRefresh: true),
+                      vm.fetchWalletBalance(),
                       _getProfileViewModel(context, listen: false).getProfile(),
                     ]);
                   },
@@ -237,8 +244,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       .where((o) =>
                                           o.status == OrderStatus.completed)
                                       .length;
-                                  // Each completed pickup reduces ~0.5 kg CO₂
-                                  final co2 =
+
+                                  final co2Reduced =
                                       (completedCount * 0.5).toStringAsFixed(1);
                                   return Row(
                                     children: [
@@ -247,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           badgeText: 'CO₂',
                                           isBadgePill: true,
                                           title: 'CO₂ Reduced',
-                                          value: '$co2 kg',
+                                          value: '$co2Reduced kg',
                                           gradientColors: const [
                                             Color(0xFF0F9B58),
                                             Color(0xFF0A753F),
@@ -464,14 +471,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              'Sustainability Score',
-                              maxLines: 1,
-                              //   overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                            const Flexible(
+                              child: Text(
+                                'Sustainability Score',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),

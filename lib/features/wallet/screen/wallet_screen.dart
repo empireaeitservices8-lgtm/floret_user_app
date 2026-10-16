@@ -25,6 +25,9 @@ class _WalletScreenState extends State<WalletScreen> {
   void initState() {
     super.initState();
     _viewModel = WalletViewModel(initialPoints: widget.initialPoints);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _viewModel.fetchWalletBalance();
+    });
   }
 
   @override

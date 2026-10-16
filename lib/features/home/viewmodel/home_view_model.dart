@@ -173,6 +173,19 @@ class HomeViewModel extends ViewModel {
     }
   }
 
+  /// Fetches wallet balance directly from GET /api/wallet/balance/
+  Future<WalletBalanceDataModel> fetchWalletBalance() async {
+    try {
+      final balance = await _repository.fetchWalletBalance();
+      _homeBundle = _homeBundle.copyWith(walletBalance: balance);
+      notifyListeners();
+      return balance;
+    } catch (e) {
+      debugPrint('⚠️ [HOME VIEWMODEL] fetchWalletBalance error: $e');
+      return _homeBundle.walletBalance;
+    }
+  }
+
   Future<void> loadHomeData({bool isRefresh = false}) async {
     if (isRefresh) {
       _isRefreshing = true;
@@ -186,6 +199,16 @@ class HomeViewModel extends ViewModel {
       _userName = await _repository.getUserName();
       _pickupOptions = await _repository.getPickupOptions();
       _homeBundle = await _repository.fetchAllHomeData();
+
+      // Fetch wallet balance directly
+      try {
+        final bal = await _repository.fetchWalletBalance();
+        if (bal.id != null || bal.balance > 0) {
+          _homeBundle = _homeBundle.copyWith(walletBalance: bal);
+        }
+      } catch (balErr) {
+        debugPrint('⚠️ [HOME VIEWMODEL] walletBalance in loadHomeData error: $balErr');
+      }
 
       // Call order history API in parallel or immediately after home bundle
       try {

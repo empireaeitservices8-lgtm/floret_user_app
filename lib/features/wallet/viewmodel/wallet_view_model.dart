@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:floret_app/providers/view_model.dart';
 import '../model/wallet_model.dart';
 import '../repos/wallet_repository.dart';
@@ -108,6 +109,19 @@ class WalletViewModel extends ViewModel {
     }
   }
 
+  /// Fetches wallet balance directly from GET /api/wallet/balance/
+  Future<WalletBalanceDataModel> fetchWalletBalance() async {
+    try {
+      final balance = await _repository.fetchBalance();
+      _walletBundle = _walletBundle.copyWith(walletBalance: balance);
+      notifyListeners();
+      return balance;
+    } catch (e) {
+      debugPrint('⚠️ [WALLET VIEWMODEL] fetchWalletBalance error: $e');
+      return _walletBundle.walletBalance;
+    }
+  }
+
   Future<void> loadWalletData({bool isRefresh = false}) async {
     if (isRefresh) {
       _isRefreshing = true;
@@ -148,6 +162,15 @@ class WalletViewModel extends ViewModel {
         await loadWalletData(isRefresh: true);
       }
       return success;
+    } finally {
+      hideLoading();
+    }
+  }
+
+  Future<WalletTopupOrderResponseModel?> createTopupOrder(double amount) async {
+    showLoading();
+    try {
+      return await _repository.createTopupOrder(amount: amount);
     } finally {
       hideLoading();
     }
@@ -197,6 +220,27 @@ class WalletViewModel extends ViewModel {
     showLoading();
     try {
       final success = await _repository.redeemRewards(points);
+      if (success) {
+        await loadWalletData(isRefresh: true);
+      }
+      return success;
+    } finally {
+      hideLoading();
+    }
+  }
+
+  Future<bool> verifyPayment({
+    String razorpayOrderId = 'order_123',
+    String razorpayPaymentId = 'pay_123',
+    String razorpaySignature = 'signature_123',
+  }) async {
+    showLoading();
+    try {
+      final success = await _repository.verifyPayment(
+        razorpayOrderId: razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId,
+        razorpaySignature: razorpaySignature,
+      );
       if (success) {
         await loadWalletData(isRefresh: true);
       }
