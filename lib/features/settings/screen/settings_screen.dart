@@ -7,6 +7,10 @@ import '../../profile/screen/profile_screen.dart';
 import 'privacy_security_screen.dart';
 import 'notification_preferences_screen.dart';
 import 'help_support_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../helpers/sp_helper.dart';
+import '../viewmodel/settings_view_model.dart';
+import '../../profile/viewmodel/my_account_view_model.dart';
 import 'about_app_screen.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
 
@@ -47,7 +51,37 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
-  void _onLogoutPressed(BuildContext context) {
+  void _onLogoutPressed(BuildContext context) async {
+    ProfileViewModel? profileVm;
+    MyAccountViewModel? myAccountVm;
+    try {
+      profileVm = Provider.of<ProfileViewModel>(context, listen: false);
+    } catch (_) {}
+    try {
+      myAccountVm = Provider.of<MyAccountViewModel>(context, listen: false);
+    } catch (_) {}
+
+    try {
+      if (profileVm != null) {
+        await profileVm.logout();
+      }
+    } catch (_) {
+      print("logout success");
+    }
+    try {
+      myAccountVm?.clearProfile();
+    } catch (_) {
+      print("logout success");
+    }
+    try {
+      await SettingsViewModel().logout();
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      await SpHelper.clearAll();
+    } catch (_) {}
+    if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
       LoginScreen.routeName,
@@ -356,12 +390,23 @@ class SettingsScreen extends StatelessWidget {
             ),
             child: Consumer<ProfileViewModel>(
               builder: (context, vm, child) {
-                final firstName = vm.firstName.isNotEmpty
-                    ? vm.firstName
-                    : 'User';
+                MyAccountViewModel? accountVm;
+                try {
+                  accountVm = Provider.of<MyAccountViewModel>(context);
+                } catch (_) {}
 
-                final initial = firstName.isNotEmpty && firstName.toLowerCase() != 'user'
-                    ? firstName[0].toUpperCase()
+                final name = (accountVm != null &&
+                        accountVm.fullName.isNotEmpty &&
+                        accountVm.fullName.toLowerCase() != 'user')
+                    ? accountVm.fullName
+                    : ((accountVm != null &&
+                            accountVm.firstName.isNotEmpty &&
+                            accountVm.firstName.toLowerCase() != 'user')
+                        ? accountVm.firstName
+                        : (vm.firstName.isNotEmpty ? vm.firstName : 'User'));
+
+                final initial = name.isNotEmpty && name.toLowerCase() != 'user'
+                    ? name[0].toUpperCase()
                     : 'U';
 
                 return Row(
@@ -388,7 +433,7 @@ class SettingsScreen extends StatelessWidget {
                     const SizedBox(width: 14),
                     Expanded(
                       child: Text(
-                        firstName,
+                        name,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,

@@ -1,3 +1,5 @@
+import 'order_model.dart';
+
 class UserProfileModel {
   final String name;
   final String mobileNumber;
@@ -62,6 +64,17 @@ class OrderHistoryItemModel {
       category: json['category'] as String? ?? '',
       weight: json['weight'] as String? ?? '',
       status: json['status'] as String? ?? 'Completed',
+    );
+  }
+
+  factory OrderHistoryItemModel.fromOrderModel(OrderModel order) {
+    return OrderHistoryItemModel(
+      orderId: order.bookingId,
+      date:
+          '${order.pickupDate.day}/${order.pickupDate.month}/${order.pickupDate.year}',
+      category: order.wasteType,
+      weight: '',
+      status: order.status.name,
     );
   }
 }

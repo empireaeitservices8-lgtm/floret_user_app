@@ -1,16 +1,24 @@
 import 'package:floret_app/services/web_api_services.dart';
+import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../model/address_model.dart';
+import '../model/order_model.dart';
 import '../model/profile_model.dart';
 
 class ProfileRepository {
   final WebAPIService _webAPIService;
+  final ApiService _apiService;
 
-  ProfileRepository({WebAPIService? webAPIService})
-      : _webAPIService = webAPIService ?? WebAPIService();
+  ProfileRepository({
+    WebAPIService? webAPIService,
+    ApiService? apiService,
+  })  : _webAPIService = webAPIService ?? WebAPIService(),
+        _apiService = apiService ?? ApiService();
 
   WebAPIService get webAPIService => _webAPIService;
+  ApiService get apiService => _apiService;
 
   Future<UserProfileModel> getUserProfile() async {
     final firstName = await SpHelper.getString('first_name');
@@ -67,9 +75,74 @@ class ProfileRepository {
     return true;
   }
 
-  Future<List<OrderHistoryItemModel>> fetchOrderHistory() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return [];
+  /// Fetches the authenticated user's pickup bookings from GET /api/pickups/
+  Future<List<OrderModel>> fetchOrderHistory({String? token}) async {
+    // 1. Resolve authentication token
+    final authToken = token ??
+        await SpHelper.getString(sp_keys.keyToken) ??
+        await SpHelper.getString('token') ??
+        (await SharedPreferences.getInstance()).getString('token') ??
+        (await SharedPreferences.getInstance()).getString(sp_keys.keyToken);
+
+    if (authToken == null || authToken.trim().isEmpty) {
+      return [];
+    }
+
+    // 2. Resolve authenticated user's ID
+    final uid = await SpHelper.getString(sp_keys.keyUserId) ??
+        await SpHelper.getString('user_id') ??
+        (await SharedPreferences.getInstance()).getString(sp_keys.keyUserId) ??
+        (await SharedPreferences.getInstance()).getString('user_id') ??
+        (await SharedPreferences.getInstance()).getInt('user_id')?.toString() ??
+        '';
+
+    // 3. Perform authenticated GET request to /api/pickups/
+    final response = await _apiService.getPickups(token: authToken);
+
+    List rawList = [];
+    if (response.data is List) {
+      rawList = response.data as List;
+    } else if (response.data is Map) {
+      final map = response.data as Map;
+      if (map['results'] is List) {
+        rawList = map['results'] as List;
+      } else if (map['pickups'] is List) {
+        rawList = map['pickups'] as List;
+      } else if (map['data'] is List) {
+        rawList = map['data'] as List;
+      }
+    }
+
+    final List<OrderModel> orders = [];
+    for (final item in rawList) {
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+
+      // Verify that this pickup record belongs to the signed-in user
+      final itemUserId =
+          (map['user'] ?? map['user_id'] ?? map['userId'])?.toString();
+      if (itemUserId != null && itemUserId.isNotEmpty && uid.isNotEmpty) {
+        if (itemUserId != uid) {
+          // Belongs to another user - strictly do not show
+          continue;
+        }
+      } else if (uid.isEmpty && itemUserId != null) {
+        // User ID is unavailable - do not display other users' records
+        continue;
+      }
+
+      orders.add(OrderModel.fromBackendJson(map, defaultUserId: uid));
+    }
+
+    return orders;
+  }
+
+  /// Backward-compatible adapter for legacy OrderHistoryItemModel consumers
+  Future<List<OrderHistoryItemModel>> fetchOrderHistoryItems({
+    String? token,
+  }) async {
+    final list = await fetchOrderHistory(token: token);
+    return list.map((o) => OrderHistoryItemModel.fromOrderModel(o)).toList();
   }
 
   Future<bool> submitSupportTicket({

@@ -32,7 +32,13 @@ class SpHelper {
   }
 
   static Future<bool?> clearAll() async {
-    return await _sp?.clear();
+    final sp = await getSP();
+    try {
+      await _secureInstance().deleteAll();
+    } catch (_) {}
+    final result = await sp.clear();
+    _sp = null;
+    return result;
   }
 
   ///

@@ -324,13 +324,10 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(sp_keys.keyToken);
-    await prefs.remove('token');
-    await prefs.remove('user_id');
-    await prefs.remove('username');
-    await prefs.remove('phone_number');
-    await prefs.remove('account_type');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (_) {}
     await SpHelper.clearAll();
     OrderStore.instance.resetForLogout();
   }

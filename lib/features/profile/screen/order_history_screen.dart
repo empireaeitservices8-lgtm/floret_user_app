@@ -1,24 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../home/screen/home_screen.dart';
 import '../../settings/screen/settings_screen.dart';
 import 'profile_screen.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
+import '../../../helpers/sp_helper.dart';
+import '../../../utils/sp_keys.dart' as sp_keys;
 import '../model/order_model.dart';
+import '../repos/profile_repository.dart';
 import '../../booking/screen/receipt_ticket_screen.dart';
 import 'pickup_bill_bottom_sheet.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   static const String routeName = '/order_history';
+  final ProfileRepository? repository;
 
-  const OrderHistoryScreen({super.key});
+  const OrderHistoryScreen({super.key, this.repository});
 
   @override
   State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
 }
 
 class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
+  late final ProfileRepository _profileRepository;
   int _selectedFilterIndex = 0;
   String _currentUserId = '';
+  bool _isLoading = false;
+  String? _errorMessage;
 
   final List<String> _filters = const [
     'All',
@@ -31,6 +39,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _profileRepository = widget.repository ?? ProfileRepository();
     _loadUserOrders();
   }
 
@@ -40,6 +49,59 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       setState(() {
         _currentUserId = OrderStore.instance.currentUserId;
       });
+    }
+    await _fetchOrdersFromApi();
+  }
+
+  Future<void> _fetchOrdersFromApi() async {
+    final token = await SpHelper.getString(sp_keys.keyToken) ??
+        await SpHelper.getString('token') ??
+        (await SharedPreferences.getInstance()).getString('token') ??
+        (await SharedPreferences.getInstance()).getString(sp_keys.keyToken);
+
+    if ((token == null || token.trim().isEmpty) && widget.repository == null) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final remoteOrders = await _profileRepository.fetchOrderHistory();
+      OrderStore.instance.mergeRemoteOrders(remoteOrders);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        final cleanMsg = e.toString().replaceFirst('Exception: ', '');
+        setState(() {
+          _isLoading = false;
+          _errorMessage = cleanMsg;
+        });
+        final effectiveUserId = _currentUserId.isNotEmpty
+            ? _currentUserId
+            : OrderStore.instance.currentUserId;
+        final hasCached = OrderStore.instance.orders.value.any((o) =>
+            effectiveUserId.isNotEmpty
+                ? o.userId == effectiveUserId || o.userId == null
+                : o.userId == null);
+        if (hasCached) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to refresh orders: $cleanMsg'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -67,10 +129,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
           const SizedBox(height: 16),
 
-          // 2. Horizontal Filter Pills (All, Completed, Pending, Reschedule)
+          // 2. Horizontal Filter Pills (All, Completed, Pending, Reschedule, Cancelled)
           _buildFilterTabs(),
 
-          // 3. Orders list, or empty state when there are none
+          // 3. Orders list, or empty/error/loading state
           Expanded(
             child: ValueListenableBuilder<List<OrderModel>>(
               valueListenable: OrderStore.instance.orders,
@@ -80,19 +142,57 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     : OrderStore.instance.currentUserId;
                 final userOrders = orders.where((order) {
                   if (effectiveUserId.isNotEmpty) {
-                    return order.userId == effectiveUserId;
+                    return order.userId == effectiveUserId ||
+                        order.userId == null;
                   }
-                  return true;
+                  return order.userId == null;
                 }).toList();
 
+                if (_isLoading && userOrders.isEmpty) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF186A3E),
+                    ),
+                  );
+                }
+
+                if (_errorMessage != null && userOrders.isEmpty) {
+                  return _buildErrorState(_errorMessage!);
+                }
+
                 final filtered = _filterOrders(userOrders);
-                if (filtered.isEmpty) return _buildEmptyState();
-                return ListView.separated(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
-                  itemBuilder: (context, i) => _buildOrderCard(filtered[i]),
+                if (filtered.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _fetchOrdersFromApi,
+                    color: const Color(0xFF186A3E),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) =>
+                          SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight),
+                          child: _buildEmptyState(),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: _fetchOrdersFromApi,
+                  color: const Color(0xFF186A3E),
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (context, i) =>
+                        _buildOrderCard(filtered[i]),
+                  ),
                 );
               },
             ),
@@ -263,6 +363,81 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 fontSize: 14,
                 color: Color(0xFFB0B7C3),
                 height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 3b. Center Error State: "Unable to Load Orders"
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFDC2626),
+                  size: 42,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Unable to Load Orders',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E242F),
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message.isNotEmpty
+                  ? message
+                  : 'An error occurred while retrieving your bookings.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF64748B),
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _fetchOrdersFromApi,
+              icon: const Icon(Icons.refresh_rounded,
+                  size: 18, color: Colors.white),
+              label: const Text(
+                'Retry',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E293B),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 40),

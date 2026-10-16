@@ -296,11 +296,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _getTimeBasedGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) {
-      return 'Good morning 🌅';
+      return 'Good morning 🌤️';
     } else if (hour >= 12 && hour < 17) {
       return 'Good afternoon 🌤️';
     } else if (hour >= 17 && hour < 21) {
-      return 'Good evening 🌆';
+      return 'Good evening 🌙';
     } else {
       return 'Good night 🌙';
     }
@@ -345,7 +345,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         final name = displayName.isNotEmpty ? displayName : '';
                         final greeting = _getTimeBasedGreeting();
                         // Extract greeting text and emoji
-                        final parts = greeting.split(RegExp(r'(?=[\u{1F300}-\u{1F9FF}])', unicode: true));
+                        final parts = greeting.split(RegExp(
+                            r'(?=[\u{1F300}-\u{1F9FF}])',
+                            unicode: true));
                         final greetText = parts.first.trim();
                         final emoji = parts.length > 1 ? parts.last.trim() : '';
                         final combinedGreeting = name.isNotEmpty

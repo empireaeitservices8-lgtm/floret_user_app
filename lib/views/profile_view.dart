@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../features/auth/screen/login_screen.dart';
+import '../features/profile/viewmodel/my_account_view_model.dart';
+import '../helpers/sp_helper.dart';
 import '../models/profile_model.dart';
 import '../viewmodels/profile_viewmodel.dart';
 
@@ -312,7 +315,32 @@ class _ProfileViewState extends State<ProfileView> {
                     // Logout Button
                     OutlinedButton.icon(
                       onPressed: () async {
-                        await viewModel.logout();
+                        ProfileViewModel? pVm;
+                        MyAccountViewModel? aVm;
+                        try {
+                          pVm = Provider.of<ProfileViewModel>(context, listen: false);
+                        } catch (_) {}
+                        try {
+                          aVm = Provider.of<MyAccountViewModel>(context, listen: false);
+                        } catch (_) {}
+
+                        try {
+                          if (pVm != null) {
+                            await pVm.logout();
+                          } else {
+                            await viewModel.logout();
+                          }
+                        } catch (_) {
+                          await viewModel.logout();
+                        }
+                        try {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.clear();
+                          await SpHelper.clearAll();
+                        } catch (_) {}
+                        try {
+                          aVm?.clearProfile();
+                        } catch (_) {}
                         if (!context.mounted) return;
                         Navigator.pushNamedAndRemoveUntil(
                           context,

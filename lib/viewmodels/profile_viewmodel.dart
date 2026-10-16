@@ -2,9 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/sp_helper.dart';
-import '../utils/sp_keys.dart' as sp_keys;
 import '../models/profile_model.dart';
 import '../repositories/profile_repository.dart';
+
+import '../features/profile/model/order_model.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final ProfileRepository _profileRepository;
@@ -125,26 +126,22 @@ class ProfileViewModel extends ChangeNotifier {
   Future<void> _clearSavedAuth() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('token');
-      await prefs.remove('user_id');
-      await prefs.remove('username');
-      await prefs.remove('phone_number');
-      await prefs.remove('account_type');
-      await prefs.remove('mou_status');
-      await prefs.remove('can_access_app');
-      await prefs.remove('first_name');
-      await prefs.remove('last_name');
-      await prefs.remove('user_name');
-      await prefs.remove(sp_keys.keyUserName);
-      await SpHelper.saveString('first_name', '');
-      await SpHelper.saveString('last_name', '');
-      await SpHelper.saveString('username', '');
-      await SpHelper.saveString('user_name', '');
-      await SpHelper.saveString(sp_keys.keyUserName, '');
-      debugPrint('🧹 [PROFILE VIEWMODEL] Local authentication cache cleared.');
+      await prefs.clear();
+      await SpHelper.clearAll();
+      OrderStore.instance.resetForLogout();
+      debugPrint('🧹 [PROFILE VIEWMODEL] SharedPreferences completely cleared.');
     } catch (e) {
       debugPrint('⚠️ [PROFILE VIEWMODEL] Error clearing shared preferences: $e');
     }
+  }
+
+  /// Clears the loaded profile section data
+  void clearProfile() {
+    _profile = null;
+    _cachedFirstName = '';
+    _errorMessage = null;
+    _isUnauthorized = false;
+    notifyListeners();
   }
 
   /// Explicit logout action

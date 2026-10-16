@@ -35,15 +35,17 @@ class NotificationsViewModel extends ViewModel {
     }
   }
 
+  final Set<String> _readIds = {};
+
   void _onOrdersChanged() {
-    _buildNotificationsFromOrders();
+    _buildNotificationsFromOrders(_readIds);
     notifyListeners();
   }
 
   /// Converts each booked order into a [NotificationItemModel].
-  /// pending  → category 'Upcoming'
-  /// completed → category 'Delivered'
-  void _buildNotificationsFromOrders() {
+  /// pending/reschedule → category 'Upcoming'
+  /// completed          → category 'Delivered'
+  void _buildNotificationsFromOrders([Set<String>? persistedReadIds]) {
     final currentUserId = OrderStore.instance.currentUserId;
     final allOrders = OrderStore.instance.orders.value;
 
@@ -52,7 +54,7 @@ class NotificationsViewModel extends ViewModel {
       if (currentUserId.isNotEmpty) {
         return order.userId == currentUserId;
       }
-      return true;
+      return order.userId == null;
     }).toList();
 
     final months = [
@@ -88,17 +90,27 @@ class NotificationsViewModel extends ViewModel {
 
       final title = isCancelled
           ? 'Pickup Cancelled • ${order.bookingId}'
-          : isUpcoming
-              ? 'Pickup Scheduled • ${order.bookingId}'
-              : 'Pickup Delivered • ${order.bookingId}';
+          : order.status == OrderStatus.reschedule
+              ? 'Pickup Rescheduled • ${order.bookingId}'
+              : isUpcoming
+                  ? 'Pickup Scheduled • ${order.bookingId}'
+                  : 'Pickup Delivered • ${order.bookingId}';
 
       final description = isCancelled
           ? 'Your ${order.wasteType} pickup scheduled for $scheduledDateStr was cancelled.'
-          : isUpcoming
-              ? 'Your ${order.wasteType} pickup is scheduled for $scheduledDateStr. '
-                'Address: ${order.address}.'
-              : 'Your ${order.wasteType} pickup on $actualDateStr has been delivered. '
-                'Thank you for recycling!';
+          : order.status == OrderStatus.reschedule
+              ? 'Your ${order.wasteType} pickup has been rescheduled for $scheduledDateStr. Address: ${order.address}.'
+              : isUpcoming
+                  ? 'Your ${order.wasteType} pickup is scheduled for $scheduledDateStr. '
+                    'Address: ${order.address}.'
+                  : 'Your ${order.wasteType} pickup on $actualDateStr has been delivered. '
+                    'Thank you for recycling!';
+
+      final isMarkedRead = (persistedReadIds != null &&
+              persistedReadIds.contains(order.bookingId)) ||
+          _readIds.contains(order.bookingId) ||
+          order.status == OrderStatus.completed ||
+          order.status == OrderStatus.cancelled;
 
       return NotificationItemModel(
         id: order.bookingId,
@@ -106,8 +118,7 @@ class NotificationsViewModel extends ViewModel {
         description: description,
         time: actualDateStr,
         category: category,
-        isRead: order.status == OrderStatus.completed ||
-            order.status == OrderStatus.cancelled,
+        isRead: isMarkedRead,
         userId: order.userId,
       );
     }).toList();
@@ -116,10 +127,13 @@ class NotificationsViewModel extends ViewModel {
   Future<void> loadNotifications() async {
     showLoading();
     try {
-      // Build from local OrderStore (real bookings for authenticated user)
-      _buildNotificationsFromOrders();
+      final persisted = await _repository.getReadNotificationIds();
+      _readIds.addAll(persisted);
 
-      // Optionally merge with remote notifications
+      // Build from local OrderStore (real bookings for authenticated user)
+      _buildNotificationsFromOrders(_readIds);
+
+      // Optionally merge with remote notifications if provided
       final remote = await _repository.fetchNotifications();
       if (remote.isNotEmpty) {
         final uid = OrderStore.instance.currentUserId.isNotEmpty
@@ -129,7 +143,7 @@ class NotificationsViewModel extends ViewModel {
           if (uid.isNotEmpty) {
             return n.userId == uid;
           }
-          return true;
+          return false;
         }).toList();
         _notifications = [..._notifications, ...userRemote];
       }
@@ -139,6 +153,7 @@ class NotificationsViewModel extends ViewModel {
   }
 
   Future<void> markAsRead(String id) async {
+    _readIds.add(id);
     await _repository.markAsRead(id);
     final idx = _notifications.indexWhere((n) => n.id == id);
     if (idx != -1) {

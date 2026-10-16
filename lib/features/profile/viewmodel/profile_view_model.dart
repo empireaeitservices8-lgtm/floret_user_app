@@ -1,4 +1,5 @@
 import 'package:floret_app/providers/view_model.dart';
+import '../model/order_model.dart';
 import '../model/profile_model.dart';
 import '../repos/profile_repository.dart';
 
@@ -44,16 +45,23 @@ class OrderHistoryViewModel extends ViewModel {
     'Completed',
     'Pending',
     'Reschedule',
+    'Cancelled',
   ];
-  List<OrderHistoryItemModel> _orders = [];
+  List<OrderModel> _orders = [];
 
   int get selectedFilterIndex => _selectedFilterIndex;
-  List<OrderHistoryItemModel> get orders => _orders;
+  List<OrderModel> get orders => _orders;
 
-  List<OrderHistoryItemModel> get filteredOrders {
+  List<OrderModel> get filteredOrders {
     if (_selectedFilterIndex == 0) return _orders;
-    final f = filters[_selectedFilterIndex];
-    return _orders.where((o) => o.status == f).toList();
+    final f = filters[_selectedFilterIndex].toLowerCase();
+    return _orders.where((o) {
+      if (f == 'completed') return o.status == OrderStatus.completed;
+      if (f == 'pending') return o.status == OrderStatus.pending;
+      if (f == 'reschedule') return o.status == OrderStatus.reschedule;
+      if (f == 'cancelled') return o.status == OrderStatus.cancelled;
+      return true;
+    }).toList();
   }
 
   void setFilterIndex(int index) {
@@ -67,6 +75,7 @@ class OrderHistoryViewModel extends ViewModel {
     showLoading();
     try {
       _orders = await _repository.fetchOrderHistory();
+      notifyListeners();
     } finally {
       hideLoading();
     }

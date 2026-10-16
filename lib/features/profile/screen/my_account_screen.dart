@@ -17,17 +17,20 @@ class MyAccountScreen extends StatefulWidget {
 }
 
 class _MyAccountScreenState extends State<MyAccountScreen> {
-  late final MyAccountViewModel _viewModel;
+  MyAccountViewModel? _localViewModel;
 
-  @override
-  void initState() {
-    super.initState();
-    _viewModel = MyAccountViewModel();
+  MyAccountViewModel _getViewModel(BuildContext context) {
+    try {
+      return Provider.of<MyAccountViewModel>(context, listen: false);
+    } catch (_) {
+      _localViewModel ??= MyAccountViewModel();
+      return _localViewModel!;
+    }
   }
 
   @override
   void dispose() {
-    _viewModel.dispose();
+    _localViewModel?.dispose();
     super.dispose();
   }
 
@@ -138,8 +141,9 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final vm = _getViewModel(context);
     return ChangeNotifierProvider.value(
-      value: _viewModel,
+      value: vm,
       child: Scaffold(
         backgroundColor: const Color(0xFFF1EFF6),
         body: Column(

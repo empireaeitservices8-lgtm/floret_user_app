@@ -3,6 +3,8 @@ import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:floret_app/providers/view_model.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:floret_app/viewmodels/profile_viewmodel.dart';
 import 'package:floret_app/repositories/profile_repository.dart' as api_repo;
 import '../repos/profile_repository.dart';
 
@@ -11,9 +13,9 @@ class MyAccountViewModel extends ViewModel {
   final api_repo.ProfileRepository _apiProfileRepository;
 
   bool _isEditing = false;
-  String _fullName = 'demo pr';
+  String _fullName = '';
   String _firstName = '';
-  String _phoneNumber = '+917306929058';
+  String _phoneNumber = '';
 
   final int _totalPickups = 0;
   final double _wasteCollected = 0.0;
@@ -119,7 +121,11 @@ class MyAccountViewModel extends ViewModel {
 
   bool get isEditing => _isEditing;
   String get fullName => _fullName.isNotEmpty ? _fullName : _firstName;
-  String get firstName => _firstName.isNotEmpty ? _firstName : (_fullName.split(' ').firstWhere((s) => s.isNotEmpty, orElse: () => 'User'));
+  String get firstName => _firstName.isNotEmpty
+      ? _firstName
+      : (_fullName
+          .split(' ')
+          .firstWhere((s) => s.isNotEmpty, orElse: () => 'User'));
   String get phoneNumber => _phoneNumber;
   int get totalPickups => _totalPickups;
   double get wasteCollected => _wasteCollected;
@@ -130,7 +136,7 @@ class MyAccountViewModel extends ViewModel {
 
   String get avatarInitial {
     final name = _firstName.isNotEmpty ? _firstName : _fullName.trim();
-    if (name.isEmpty || name.toLowerCase() == 'user') return 'U';
+    if (name.isEmpty || name.toLowerCase() == 'user') return 'User';
     return name[0].toUpperCase();
   }
 
@@ -139,9 +145,14 @@ class MyAccountViewModel extends ViewModel {
       // Save changes
       if (nameController.text.trim().isNotEmpty) {
         _fullName = nameController.text.trim();
+        final parts = _fullName.split(' ').where((s) => s.isNotEmpty).toList();
+        _firstName = parts.isNotEmpty ? parts.first : _fullName;
+        SpHelper.saveString('first_name', _firstName);
+        SpHelper.saveString(sp_keys.keyUserName, _fullName);
       }
       if (phoneController.text.trim().isNotEmpty) {
         _phoneNumber = phoneController.text.trim();
+        SpHelper.saveString(sp_keys.keyUseMobile, _phoneNumber);
       }
       _repository.updateProfile(
         name: _fullName,
@@ -158,6 +169,18 @@ class MyAccountViewModel extends ViewModel {
     }
   }
 
+  void clearProfile() {
+    _fullName = '';
+    _firstName = '';
+    _phoneNumber = '';
+    _defaultAddress = 'No saved address. Tap Manage to add.';
+    _city = '—';
+    _pincode = '—';
+    nameController.text = '';
+    phoneController.text = '';
+    notifyListeners();
+  }
+
   void cancelEdit() {
     nameController.text = _fullName;
     phoneController.text = _phoneNumber;
@@ -171,6 +194,14 @@ class MyAccountViewModel extends ViewModel {
     hideLoading();
 
     if (context.mounted) {
+      try {
+        await Provider.of<ProfileViewModel>(context, listen: false).logout();
+      } catch (_) {}
+      try {
+        clearProfile();
+        await SpHelper.clearAll();
+      } catch (_) {}
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Account deleted successfully.'),

@@ -682,7 +682,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               ? 'Select Local Body first'
               : 'Select Ward',
           onTap: () {
-            if (vm.selectedLocalBody == null) {
+            if (vm.selectedLocalBody == null ||
+                vm.selectedLocalBody!.trim().isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Please select local body first'),
@@ -691,11 +692,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               );
               return;
             }
-            _showSelectionSheet(
-              title: 'Select Ward',
-              items: _repo.getWards(vm.selectedLocalBody!),
-              onSelect: (ward) => vm.setWardSelection(ward),
-            );
+            _showWardSelectionSheet(vm);
           },
         ),
         const SizedBox(height: 18),
@@ -1679,4 +1676,115 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     ),
   );
 }
+
+  void _showWardSelectionSheet(BookingViewModel vm) {
+    final localBody = vm.selectedLocalBody!;
+    final future = _repo.fetchWards(localBody);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      builder: (sheetContext) => Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Select Ward',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E242F),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: FutureBuilder<List<String>>(
+                  future: future,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(
+                        height: 180,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      );
+                    }
+                    final items = snapshot.data ?? _repo.getWards(localBody);
+                    if (items.isEmpty) {
+                      return const SizedBox(
+                        height: 120,
+                        child: Center(
+                          child: Text(
+                            'No wards available',
+                            style: TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return ListTile(
+                          title: Text(
+                            item,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1E242F),
+                            ),
+                          ),
+                          onTap: () {
+                            vm.setWardSelection(item);
+                            Navigator.pop(sheetContext);
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

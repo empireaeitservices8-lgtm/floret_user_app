@@ -43,6 +43,13 @@ class OrderModel {
       };
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('pickup_date') ||
+        json.containsKey('waste_type') ||
+        json.containsKey('street') ||
+        json.containsKey('bags_used')) {
+      return OrderModel.fromBackendJson(json);
+    }
+
     final completedDateRaw = json['completedDate'] ??
         json['completed_date'] ??
         json['completed_at'] ??
@@ -73,6 +80,129 @@ class OrderModel {
       userId: json['userId']?.toString() ??
           json['user_id']?.toString() ??
           json['user']?.toString(),
+    );
+  }
+
+  factory OrderModel.fromBackendJson(
+    Map<String, dynamic> json, {
+    String? defaultUserId,
+  }) {
+    // 1. Booking ID (support numeric ID, booking_id, or formatted WC-xxx)
+    final rawId = json['booking_id'] ?? json['bookingId'] ?? json['id'];
+    String bookingId = 'WC-161';
+    if (rawId != null) {
+      final s = rawId.toString().trim();
+      bookingId = s.toUpperCase().startsWith('WC-') ? s : 'WC-$s';
+    }
+
+    // 2. Waste Type / Category
+    final wasteType = json['waste_type'] as String? ??
+        json['wasteType'] as String? ??
+        json['items_description'] as String? ??
+        'Sanitary waste';
+
+    // 3. Pickup Date
+    final rawDate =
+        json['pickup_date'] ?? json['pickupDate'] ?? json['created_at'];
+    DateTime pickupDate = DateTime(2026, 10, 15);
+    if (rawDate is String && rawDate.isNotEmpty) {
+      pickupDate = DateTime.tryParse(rawDate) ?? pickupDate;
+    } else if (rawDate is DateTime) {
+      pickupDate = rawDate;
+    }
+
+    // 4. Completed Date
+    final completedDateRaw = json['completed_date'] ??
+        json['completedDate'] ??
+        json['completed_at'] ??
+        json['delivered_at'];
+    DateTime? parsedCompletedDate;
+    if (completedDateRaw is String && completedDateRaw.isNotEmpty) {
+      parsedCompletedDate = DateTime.tryParse(completedDateRaw);
+    } else if (completedDateRaw is DateTime) {
+      parsedCompletedDate = completedDateRaw;
+    }
+
+    // 5. Status
+    final rawStatus = (json['status'] ?? '').toString().toLowerCase().trim();
+    OrderStatus status = OrderStatus.pending;
+    if (rawStatus.contains('complete') || rawStatus.contains('deliver')) {
+      status = OrderStatus.completed;
+      parsedCompletedDate ??= pickupDate;
+    } else if (rawStatus.contains('cancel')) {
+      status = OrderStatus.cancelled;
+    } else if (rawStatus.contains('reschedul')) {
+      status = OrderStatus.reschedule;
+    } else {
+      status = OrderStatus.pending;
+    }
+
+    // 6. Address
+    String address = json['address'] as String? ?? '';
+    if (address.isEmpty) {
+      final parts = [
+        json['street']?.toString().trim(),
+        json['city']?.toString().trim(),
+        json['district']?.toString().trim(),
+      ].where((s) => s != null && s.isNotEmpty).toList();
+      address = parts.isNotEmpty ? parts.join(', ') : 'Kerala, India';
+    }
+
+    // 7. Full Address
+    String fullAddress = json['fullAddress'] as String? ??
+        json['full_address'] as String? ??
+        '';
+    if (fullAddress.isEmpty) {
+      final line1 = [
+        json['street']?.toString().trim(),
+        json['landmark']?.toString().trim(),
+      ].where((s) => s != null && s.isNotEmpty).join(', ');
+
+      final line2Parts = [
+        json['city']?.toString().trim(),
+        json['district']?.toString().trim(),
+        json['state']?.toString().trim(),
+      ].where((s) => s != null && s.isNotEmpty).toList();
+
+      final zip = json['zip_code']?.toString().trim() ?? '';
+      String line2 = line2Parts.join(', ');
+      if (zip.isNotEmpty) {
+        line2 = line2.isNotEmpty ? '$line2 - $zip' : zip;
+      }
+
+      if (line1.isNotEmpty && line2.isNotEmpty) {
+        fullAddress = '$line1,\n$line2';
+      } else if (line1.isNotEmpty) {
+        fullAddress = line1;
+      } else if (line2.isNotEmpty) {
+        fullAddress = line2;
+      } else {
+        fullAddress = address;
+      }
+    }
+
+    // 8. Contact
+    final contact = json['contact'] as String? ??
+        json['full_name'] as String? ??
+        json['contact_number'] as String? ??
+        'User';
+
+    // 9. User ID
+    final userId = json['userId']?.toString() ??
+        json['user_id']?.toString() ??
+        json['user']?.toString() ??
+        defaultUserId;
+
+    return OrderModel(
+      bookingId: bookingId,
+      wasteType: wasteType,
+      pickupDate: pickupDate,
+      completedDate: parsedCompletedDate,
+      address: address,
+      fullAddress: fullAddress,
+      contact: contact,
+      status: status,
+      userId: userId,
     );
   }
 }
@@ -272,6 +402,36 @@ class OrderStore {
       if (o.bookingId == bookingId) o.status = status;
     }
     orders.value = List<OrderModel>.from(orders.value);
+    _saveToStorage();
+  }
+
+  /// Merges remote orders retrieved from backend API into local store.
+  /// Remote orders take precedence for updated statuses and details,
+  /// while local bookings not yet present on remote are preserved.
+  /// Duplicate records sharing the same bookingId are never created.
+  void mergeRemoteOrders(List<OrderModel> remoteOrders) {
+    final effectiveUserId = _currentUserId;
+    final List<OrderModel> filteredRemote = effectiveUserId.isNotEmpty
+        ? remoteOrders
+            .where((o) => o.userId == null || o.userId == effectiveUserId)
+            .toList()
+        : remoteOrders;
+
+    final remoteIds = filteredRemote.map((o) => o.bookingId).toSet();
+    final List<OrderModel> merged = [...filteredRemote];
+
+    for (final local in orders.value) {
+      if (effectiveUserId.isNotEmpty &&
+          local.userId != null &&
+          local.userId != effectiveUserId) {
+        continue;
+      }
+      if (!remoteIds.contains(local.bookingId)) {
+        merged.add(local);
+      }
+    }
+
+    orders.value = merged;
     _saveToStorage();
   }
 }

@@ -205,18 +205,9 @@ class AuthRepository {
     await prefs.remove(sp_keys.keyToken);
     await prefs.remove(sp_keys.keyUserName);
     await prefs.remove(sp_keys.keyUseMobile);
-    await prefs.remove(sp_keys.keyEmail);
-    await prefs.remove(sp_keys.keyUserId);
-    await prefs.remove('token');
-    await prefs.remove('user_id');
-    await prefs.remove('username');
-    await prefs.remove('phone_number');
-    await prefs.remove('account_type');
-    await prefs.remove('mou_status');
-    await prefs.remove('can_access_app');
-    await prefs.remove('first_name');
-    await prefs.remove('last_name');
-    await prefs.remove('user_name');
+    try {
+      await prefs.clear();
+    } catch (_) {}
     await SpHelper.clearAll();
     OrderStore.instance.resetForLogout();
     debugPrint('🧹 [AUTH REPOSITORY] Cleared local authentication cache.');
