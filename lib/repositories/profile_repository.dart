@@ -56,10 +56,10 @@ class ProfileRepository {
     // 4. Cache user's first name and last name for persistent display across app
     final firstName = profileModel.displayFirstName;
     if (firstName.isNotEmpty) {
-      await SpHelper.saveString('first_name', firstName);
-      await SpHelper.saveString(sp_keys.keyUserName, firstName);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('first_name', firstName);
+      await SpHelper.saveUserName(firstName);
+    } else if (profileModel.fullName.isNotEmpty &&
+        profileModel.fullName.toLowerCase() != 'user') {
+      await SpHelper.saveUserName(profileModel.fullName);
     }
     final lastName = (profileModel.user?.lastName ?? profileModel.lastName ?? '').trim();
     if (lastName.isNotEmpty) {

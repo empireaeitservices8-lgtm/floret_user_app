@@ -44,6 +44,7 @@ class LoginViewModel extends ChangeNotifier {
       await prefs.setString('KEY_TOKEN', response.token);
       await prefs.setInt('user_id', response.userId);
       await prefs.setString('username', response.username);
+      await SpHelper.saveUserName(response.username);
       await prefs.setString('phone_number', response.phoneNumber);
       await prefs.setString('account_type', response.accountType);
       await prefs.setString('mou_status', response.mouStatus);

@@ -2,52 +2,35 @@ import 'package:flutter/foundation.dart';
 import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/services/web_api_services.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
-import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
+import '../../profile/model/order_model.dart';
+import '../../profile/repos/profile_repository.dart';
 import '../model/home_model.dart';
 
 class HomeRepository {
   final WebAPIService _webAPIService;
   final ApiService _apiService;
+  final ProfileRepository _profileRepository;
 
   HomeRepository({
     WebAPIService? webAPIService,
     ApiService? apiService,
+    ProfileRepository? profileRepository,
   })  : _webAPIService = webAPIService ?? WebAPIService(),
-        _apiService = apiService ?? ApiService();
+        _apiService = apiService ?? ApiService(),
+        _profileRepository = profileRepository ?? ProfileRepository();
 
   WebAPIService get webAPIService => _webAPIService;
   ApiService get apiService => _apiService;
+  ProfileRepository get profileRepository => _profileRepository;
+
+  /// Fetches authenticated user's order history from GET /api/pickups/
+  Future<List<OrderModel>> fetchOrderHistory({String? token}) async {
+    return _profileRepository.fetchOrderHistory(token: token);
+  }
 
   /// Retrieves the cached or local user first name
   Future<String> getUserName() async {
-    final firstName = await SpHelper.getString('first_name');
-    if (firstName != null &&
-        firstName.trim().isNotEmpty &&
-        firstName.trim().toLowerCase() != 'user' &&
-        firstName.trim().toLowerCase() != 'null' &&
-        !firstName.trim().startsWith('+') &&
-        !RegExp(r'^[0-9]+$').hasMatch(firstName.trim())) {
-      return firstName.trim();
-    }
-    final name = await SpHelper.getString(sp_keys.keyUserName);
-    if (name != null &&
-        name.trim().isNotEmpty &&
-        name.trim().toLowerCase() != 'user' &&
-        name.trim().toLowerCase() != 'null' &&
-        !name.trim().startsWith('+') &&
-        !RegExp(r'^[0-9]+$').hasMatch(name.trim())) {
-      return name.trim();
-    }
-    final raw = await SpHelper.getString('user_name');
-    if (raw != null &&
-        raw.trim().isNotEmpty &&
-        raw.trim().toLowerCase() != 'user' &&
-        raw.trim().toLowerCase() != 'null' &&
-        !raw.trim().startsWith('+') &&
-        !RegExp(r'^[0-9]+$').hasMatch(raw.trim())) {
-      return raw.trim();
-    }
-    return '';
+    return await SpHelper.getUserName();
   }
 
   /// 1. GET /api/home/

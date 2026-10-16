@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../features/auth/screen/login_screen.dart';
 import '../features/profile/viewmodel/my_account_view_model.dart';
 import '../helpers/sp_helper.dart';
@@ -334,9 +333,7 @@ class _ProfileViewState extends State<ProfileView> {
                           await viewModel.logout();
                         }
                         try {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.clear();
-                          await SpHelper.clearAll();
+                          await SpHelper.clearUserData();
                         } catch (_) {}
                         try {
                           aVm?.clearProfile();

@@ -9,6 +9,7 @@ import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:floret_app/services/api_service.dart';
 import '../../profile/model/order_model.dart';
 import '../model/auth_model.dart';
+import 'package:floret_app/services/api_client.dart';
 
 class AuthRepository {
   final WebAPIService _webAPIService;
@@ -81,7 +82,7 @@ class AuthRepository {
         await prefs.setString(sp_keys.keyToken, token);
         await prefs.setString('token', token);
       }
-      await SpHelper.saveString(sp_keys.keyUserName, username);
+      await SpHelper.saveUserName(username);
       await SpHelper.saveString(sp_keys.keyUseMobile, formattedPhone);
       if (userId.isNotEmpty) {
         await SpHelper.saveString(sp_keys.keyUserId, userId);
@@ -324,11 +325,56 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-    } catch (_) {}
-    await SpHelper.clearAll();
+    await SpHelper.clearUserData();
     OrderStore.instance.resetForLogout();
+  }
+
+  /// Fetches wards for a selected local body.
+  /// For Varkala Municipality, calls /api/wards/?local_body&local_body_id=2&local_body_id=3
+  Future<List<String>> fetchWards(String localBody) async {
+    final lb = localBody.toLowerCase().trim();
+    int? localBodyId;
+    if (lb.contains('nedumangad')) {
+      localBodyId = 2;
+    } else if (lb.contains('varkala')) {
+      localBodyId = 3;
+    }
+
+    try {
+      String endpoint = '${ApiEndpoints.wards}?local_body';
+      if (lb.contains('varkala')) {
+        endpoint = '${ApiEndpoints.wards}?local_body&local_body_id=2&local_body_id=3';
+      } else if (localBodyId != null) {
+        endpoint = '${ApiEndpoints.wards}?local_body&local_body_id=$localBodyId';
+      }
+
+      debugPrint('🚀 [AUTH REPOSITORY] Fetching wards for $localBody from: $endpoint');
+      final response = await ApiClient()
+          .get(endpoint)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.data is List) {
+        final List<String> list = [];
+        for (final item in response.data) {
+          if (item is Map) {
+            final wardNum = item['ward_number'];
+            final wardName = item['ward_name'];
+            if (wardNum != null && wardName != null) {
+              list.add('$wardNum - $wardName');
+            } else if (wardName != null) {
+              list.add(wardName.toString());
+            }
+          }
+        }
+        if (list.isNotEmpty) {
+          debugPrint('✅ [AUTH REPOSITORY] Fetched ${list.length} wards for $localBody');
+          return list;
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ [AUTH REPOSITORY] Error fetching wards: $e');
+    }
+
+    return [];
   }
 }

@@ -7,7 +7,6 @@ import '../../profile/screen/profile_screen.dart';
 import 'privacy_security_screen.dart';
 import 'notification_preferences_screen.dart';
 import 'help_support_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../helpers/sp_helper.dart';
 import '../viewmodel/settings_view_model.dart';
 import '../../profile/viewmodel/my_account_view_model.dart';
@@ -77,9 +76,7 @@ class SettingsScreen extends StatelessWidget {
       await SettingsViewModel().logout();
     } catch (_) {}
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-      await SpHelper.clearAll();
+      await SpHelper.clearUserData();
     } catch (_) {}
     if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(
@@ -395,7 +392,7 @@ class SettingsScreen extends StatelessWidget {
                   accountVm = Provider.of<MyAccountViewModel>(context);
                 } catch (_) {}
 
-                final name = (accountVm != null &&
+                final currentName = (accountVm != null &&
                         accountVm.fullName.isNotEmpty &&
                         accountVm.fullName.toLowerCase() != 'user')
                     ? accountVm.fullName
@@ -403,70 +400,85 @@ class SettingsScreen extends StatelessWidget {
                             accountVm.firstName.isNotEmpty &&
                             accountVm.firstName.toLowerCase() != 'user')
                         ? accountVm.firstName
-                        : (vm.firstName.isNotEmpty ? vm.firstName : 'User'));
+                        : (vm.firstName.isNotEmpty ? vm.firstName : ''));
 
-                final initial = name.isNotEmpty && name.toLowerCase() != 'user'
-                    ? name[0].toUpperCase()
-                    : 'U';
+                if (currentName.isNotEmpty) {
+                  return _buildUserCardContent(currentName);
+                }
 
-                return Row(
-                  children: [
-                    // Avatar circle with first letter of username
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          initial,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E242F),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2E3A52),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Text(
-                        'Active',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFE2E8F0),
-                        ),
-                      ),
-                    ),
-                  ],
+                return FutureBuilder<String>(
+                  future: SpHelper.getUserName(),
+                  builder: (context, snapshot) {
+                    final name = (snapshot.hasData && snapshot.data!.isNotEmpty)
+                        ? snapshot.data!
+                        : 'User';
+                    return _buildUserCardContent(name);
+                  },
                 );
               },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUserCardContent(String name) {
+    final initial = name.isNotEmpty && name.toLowerCase() != 'user'
+        ? name[0].toUpperCase()
+        : 'U';
+    return Row(
+      children: [
+        // Avatar circle with first letter of username
+        Container(
+          width: 48,
+          height: 48,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              initial,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E242F),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            name,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2E3A52),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Text(
+            'Active',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFE2E8F0),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -10,6 +10,7 @@ import '../services/web_api_services.dart';
 import '../helpers/sp_helper.dart';
 import '../utils/sp_keys.dart' as sp_keys;
 import '../features/profile/model/order_model.dart';
+import 'profile_repository.dart';
 
 class AuthRepository {
   final ApiService _apiService;
@@ -70,7 +71,8 @@ class AuthRepository {
       await prefs.setString(sp_keys.keyToken, loginModel.token);
       await prefs.setString('token', loginModel.token);
     }
-    await SpHelper.saveString(sp_keys.keyUserName, loginModel.username);
+    // Persist user name to SharedPreferences across all standard keys
+    await SpHelper.saveUserName(loginModel.username);
     await SpHelper.saveString(sp_keys.keyUseMobile, loginModel.phoneNumber);
     if (loginModel.userId > 0) {
       await SpHelper.saveString(sp_keys.keyUserId, loginModel.userId.toString());
@@ -101,6 +103,21 @@ class AuthRepository {
 
     await WebAPIService().initTokenToHeader();
     debugPrint('💾 [AUTH REPOSITORY] Stored login token and configured API headers: ${loginModel.token}');
+
+    // Immediately fetch & cache user profile so real first name / full name is in SharedPreferences
+    try {
+      final profile = await ProfileRepository(apiService: _apiService)
+          .getProfile(token: loginModel.token);
+      final resolvedName = profile.displayFirstName.isNotEmpty
+          ? profile.displayFirstName
+          : (profile.fullName.isNotEmpty &&
+                  profile.fullName.toLowerCase() != 'user'
+              ? profile.fullName
+              : loginModel.username);
+      if (resolvedName.isNotEmpty) {
+        await SpHelper.saveUserName(resolvedName);
+      }
+    } catch (_) {}
   }
 
   /// Sends OTP to the provided phone number via ApiService and converts response to SendOtpModel
@@ -201,14 +218,7 @@ class AuthRepository {
 
   /// Clears stored authentication credentials when logging out or session expires
   Future<void> clearSavedAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(sp_keys.keyToken);
-    await prefs.remove(sp_keys.keyUserName);
-    await prefs.remove(sp_keys.keyUseMobile);
-    try {
-      await prefs.clear();
-    } catch (_) {}
-    await SpHelper.clearAll();
+    await SpHelper.clearUserData();
     OrderStore.instance.resetForLogout();
     debugPrint('🧹 [AUTH REPOSITORY] Cleared local authentication cache.');
   }

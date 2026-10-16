@@ -61,6 +61,13 @@ class MyAccountViewModel extends ViewModel {
       if (cachedPhone != null && cachedPhone.trim().isNotEmpty) {
         _phoneNumber = cachedPhone.trim();
       }
+      if (_firstName.isEmpty && _fullName.isEmpty) {
+        final fallback = await SpHelper.getUserName();
+        if (fallback.isNotEmpty) {
+          _firstName = fallback;
+          _fullName = fallback;
+        }
+      }
       if (!_isEditing) {
         nameController.text = _fullName.isNotEmpty ? _fullName : _firstName;
         phoneController.text = _phoneNumber;
@@ -76,10 +83,12 @@ class MyAccountViewModel extends ViewModel {
       final fName = profile.displayFirstName;
       if (fName.isNotEmpty) {
         _firstName = fName;
+        await SpHelper.saveUserName(fName);
       }
       if (profile.fullName.trim().isNotEmpty &&
           profile.fullName.trim().toLowerCase() != 'user') {
         _fullName = profile.fullName;
+        await SpHelper.saveUserName(profile.fullName);
       }
       if (profile.phoneNumber != null &&
           profile.phoneNumber!.trim().isNotEmpty) {
@@ -147,6 +156,7 @@ class MyAccountViewModel extends ViewModel {
         _fullName = nameController.text.trim();
         final parts = _fullName.split(' ').where((s) => s.isNotEmpty).toList();
         _firstName = parts.isNotEmpty ? parts.first : _fullName;
+        SpHelper.saveUserName(_fullName);
         SpHelper.saveString('first_name', _firstName);
         SpHelper.saveString(sp_keys.keyUserName, _fullName);
       }

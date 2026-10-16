@@ -1,20 +1,44 @@
+import 'package:flutter/foundation.dart';
 import 'package:floret_app/providers/view_model.dart';
 import '../model/home_model.dart';
 import '../repos/home_repository.dart';
+import '../../profile/model/order_model.dart';
+import '../../profile/repos/profile_repository.dart';
 
 class HomeViewModel extends ViewModel {
   final HomeRepository _repository;
 
-  HomeViewModel({HomeRepository? repository})
-      : _repository = repository ?? HomeRepository() {
+  HomeViewModel({
+    HomeRepository? repository,
+    ProfileRepository? profileRepository,
+  })  : _repository = repository ??
+            HomeRepository(profileRepository: profileRepository) {
+    _initUserName();
     loadHomeData();
+  }
+
+  Future<void> _initUserName() async {
+    final cached = await _repository.getUserName();
+    if (cached.isNotEmpty) {
+      _userName = cached;
+      notifyListeners();
+    }
+  }
+
+  void clear() {
+    _userName = '';
+    _homeBundle = const HomeDataBundle();
+    _orderHistory = const [];
+    notifyListeners();
   }
 
   String _userName = '';
   int _selectedNavIndex = 0;
   HomeDataBundle _homeBundle = const HomeDataBundle();
   List<PickupOptionModel> _pickupOptions = const [];
+  List<OrderModel> _orderHistory = const [];
   bool _isRefreshing = false;
+  bool _isLoadingOrders = false;
 
   String get userName {
     if (_userName.isNotEmpty &&
@@ -126,6 +150,29 @@ class HomeViewModel extends ViewModel {
   int get ecoPoints => _homeBundle.rewardPoints.availablePoints;
   double get walletAmount => _homeBundle.walletBalance.balance;
 
+  List<OrderModel> get orderHistory => _orderHistory;
+  bool get isLoadingOrders => _isLoadingOrders;
+
+  /// Fetches order history from backend API, updates local state,
+  /// and synchronizes OrderStore so all home metrics react immediately.
+  Future<List<OrderModel>> fetchOrderHistory() async {
+    _isLoadingOrders = true;
+    notifyListeners();
+    try {
+      await OrderStore.instance.loadForUser();
+      final remoteOrders = await _repository.fetchOrderHistory();
+      _orderHistory = remoteOrders;
+      OrderStore.instance.mergeRemoteOrders(remoteOrders);
+      return remoteOrders;
+    } catch (e) {
+      debugPrint('⚠️ [HOME VIEWMODEL] fetchOrderHistory error: $e');
+      return [];
+    } finally {
+      _isLoadingOrders = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadHomeData({bool isRefresh = false}) async {
     if (isRefresh) {
       _isRefreshing = true;
@@ -135,9 +182,19 @@ class HomeViewModel extends ViewModel {
     }
 
     try {
+      await OrderStore.instance.loadForUser();
       _userName = await _repository.getUserName();
       _pickupOptions = await _repository.getPickupOptions();
       _homeBundle = await _repository.fetchAllHomeData();
+
+      // Call order history API in parallel or immediately after home bundle
+      try {
+        final remoteOrders = await _repository.fetchOrderHistory();
+        _orderHistory = remoteOrders;
+        OrderStore.instance.mergeRemoteOrders(remoteOrders);
+      } catch (orderErr) {
+        debugPrint('⚠️ [HOME VIEWMODEL] orderHistory in loadHomeData error: $orderErr');
+      }
     } catch (e) {
       // Retain previous state on error
     } finally {

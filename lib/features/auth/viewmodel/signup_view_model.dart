@@ -351,20 +351,45 @@ class SignupViewModel extends ViewModel {
   ];
 
   static const List<String> varkalaWards = [
-    '1 - MAITHANAM',
-    '2 - TEMPLE WARD',
-    '3 - HELIPAD',
-    '4 - CLIFF WARD',
-    '5 - JANARDHANAPURAM',
-    '6 - PUNNAMOODU',
-    '7 - CHILAKKOOR',
-    '8 - ODAYAM',
-    '9 - KURAKKANI',
-    '10 - NADAYARA',
-    '11 - PALACHIRA',
-    '12 - KALLAMBALAM ROAD',
-    '13 - AYIROOR ROAD',
-    '14 - SIVAGIRI',
+    '1 - Vilakkulam',
+    '2 - Idapparambu',
+    '3 - Janathamukku',
+    '4 - Karunilakode',
+    '5 - Kallazhi',
+    '6 - Pullannikode',
+    '7 - Ayanikkuzhivila',
+    '8 - Kannamba',
+    '9 - Nadayara',
+    '10 - Kanwasramam',
+    '11 - Chaluvila',
+    '12 - Kallamkonam',
+    '13 - Cherukunnam',
+    '14 - Sivagiri',
+    '15 - Teachers Colony',
+    '16 - Raghunathapuram',
+    '17 - Puthenchantha',
+    '18 - Thachankonam',
+    '19 - Ramanthali',
+    '20 - Panayil',
+    '21 - Vallakkadavu',
+    '22 - Perumkulam',
+    '23 - Kottumoola',
+    '24 - Maithanam',
+    '25 - Municipal Office',
+    '26 - Hospital',
+    '27 - Temple',
+    '28 - Janardhanapuram',
+    '29 - Mundayil',
+    '30 - Jawahar Park',
+    '31 - Punnamoodu',
+    '32 - Parayil',
+    '33 - Papanasam',
+    '34 - Kurakkanni',
+    '35 - Edava Grama Panchayat',
+    '36 - Cherunniyoor Grama Panchayat',
+    '37 - Chemmaruthy Grama Panchayat',
+    '38 - Vettoor Grama Panchayat',
+    '39 - Manamboor Grama Panchayat',
   ];
 
   static const List<String> alappuzhaWards = [
@@ -377,6 +402,12 @@ class SignupViewModel extends ViewModel {
     '7 - SANATHANAPURAM',
     '8 - KANJIRAMCHIRA',
   ];
+
+  bool _isLoadingWards = false;
+  bool get isLoadingWards => _isLoadingWards;
+
+  final Map<String, List<String>> _wardsCache = {};
+  List<String> _dynamicWards = [];
 
   List<String> get availableStates => keralaOnlyState;
 
@@ -397,6 +428,14 @@ class SignupViewModel extends ViewModel {
   }
 
   List<String> get availableWards {
+    if (_selectedLocalBody != null &&
+        _wardsCache.containsKey(_selectedLocalBody) &&
+        _wardsCache[_selectedLocalBody]!.isNotEmpty) {
+      return _wardsCache[_selectedLocalBody]!;
+    }
+    if (_dynamicWards.isNotEmpty) {
+      return _dynamicWards;
+    }
     if (_selectedLocalBody == 'Nedumangadu Municipality') {
       return nedumangaduWards;
     } else if (_selectedLocalBody == 'Varkala Municipality') {
@@ -414,6 +453,7 @@ class SignupViewModel extends ViewModel {
     _selectedDistrict = null;
     _selectedLocalBody = null;
     _selectedWard = null;
+    _dynamicWards = [];
     _step3ErrorMessage = null;
     notifyListeners();
   }
@@ -422,15 +462,47 @@ class SignupViewModel extends ViewModel {
     _selectedDistrict = district;
     _selectedLocalBody = null;
     _selectedWard = null;
+    _dynamicWards = [];
     _step3ErrorMessage = null;
     notifyListeners();
   }
 
-  void setLocalBodySelection(String localBody) {
+  Future<void> setLocalBodySelection(String localBody) async {
     _selectedLocalBody = localBody;
     _selectedWard = null;
     _step3ErrorMessage = null;
+    _dynamicWards = [];
     notifyListeners();
+
+    await fetchWardsForLocalBody(localBody);
+  }
+
+  Future<List<String>> fetchWardsForLocalBody(String localBody) async {
+    if (_wardsCache.containsKey(localBody) && _wardsCache[localBody]!.isNotEmpty) {
+      _dynamicWards = _wardsCache[localBody]!;
+      notifyListeners();
+      return _dynamicWards;
+    }
+
+    _isLoadingWards = true;
+    notifyListeners();
+
+    try {
+      final wards = await _authRepository.fetchWards(localBody);
+      if (wards.isNotEmpty) {
+        _wardsCache[localBody] = wards;
+        _dynamicWards = wards;
+      } else {
+        _dynamicWards = availableWards;
+      }
+    } catch (e) {
+      debugPrint('[SignupViewModel] Error fetching wards: $e');
+      _dynamicWards = availableWards;
+    } finally {
+      _isLoadingWards = false;
+      notifyListeners();
+    }
+    return _dynamicWards;
   }
 
   void setWardSelection(String ward) {

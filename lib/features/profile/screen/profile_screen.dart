@@ -342,27 +342,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Consumer<ProfileViewModel>(
                       builder: (context, vm, child) {
                         final displayName = vm.firstName;
-                        final name = displayName.isNotEmpty ? displayName : '';
-                        final greeting = _getTimeBasedGreeting();
-                        // Extract greeting text and emoji
-                        final parts = greeting.split(RegExp(
-                            r'(?=[\u{1F300}-\u{1F9FF}])',
-                            unicode: true));
-                        final greetText = parts.first.trim();
-                        final emoji = parts.length > 1 ? parts.last.trim() : '';
-                        final combinedGreeting = name.isNotEmpty
-                            ? '$greetText, $name $emoji'.trim()
-                            : greeting;
-                        return Text(
-                          combinedGreeting,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: -0.4,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        if (displayName.isNotEmpty) {
+                          return _buildGreetingTitle(displayName);
+                        }
+                        return FutureBuilder<String>(
+                          future: SpHelper.getUserName(),
+                          builder: (context, snapshot) {
+                            final name = (snapshot.hasData && snapshot.data!.isNotEmpty)
+                                ? snapshot.data!
+                                : '';
+                            return _buildGreetingTitle(name);
+                          },
                         );
                       },
                     ),
@@ -601,6 +591,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGreetingTitle(String name) {
+    final greeting = _getTimeBasedGreeting();
+    final parts =
+        greeting.split(RegExp(r'(?=[\u{1F300}-\u{1F9FF}])', unicode: true));
+    final greetText = parts.first.trim();
+    final emoji = parts.length > 1 ? parts.last.trim() : '';
+    final combinedGreeting =
+        name.isNotEmpty ? '$greetText, $name $emoji'.trim() : greeting;
+    return Text(
+      combinedGreeting,
+      style: const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        color: Colors.white,
+        letterSpacing: -0.4,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 

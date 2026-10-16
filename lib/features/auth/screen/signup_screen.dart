@@ -1446,7 +1446,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 8),
                   _buildDropdownButton(
-                    text: vm.selectedLocalBody ?? 'Select Dis...',
+                    text: vm.selectedLocalBody ?? 'Select Local Body',
                     hasValue: vm.selectedLocalBody != null,
                     onTap: () {
                       if (vm.selectedDistrict == null) {
@@ -1484,8 +1484,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 8),
                   _buildDropdownButton(
-                    text: vm.selectedWard ?? 'Select Lo...',
+                    text: vm.isLoadingWards
+                        ? 'Loading wards...'
+                        : (vm.selectedWard ?? 'Select Ward'),
                     hasValue: vm.selectedWard != null,
+                    isLoading: vm.isLoadingWards,
                     onTap: () {
                       if (vm.selectedLocalBody == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1758,9 +1761,10 @@ class _SignupScreenState extends State<SignupScreen> {
     required String text,
     required VoidCallback onTap,
     bool hasValue = false,
+    bool isLoading = false,
   }) {
     return InkWell(
-      onTap: onTap,
+      onTap: isLoading ? null : onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         height: 50,
@@ -1790,11 +1794,21 @@ class _SignupScreenState extends State<SignupScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 20,
-              color: Color(0xFF64748B),
-            ),
+            if (isLoading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF1E242F),
+                ),
+              )
+            else
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: Color(0xFF64748B),
+              ),
           ],
         ),
       ),

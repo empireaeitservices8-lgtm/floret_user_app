@@ -5,12 +5,14 @@ import '../../../viewmodels/profile_viewmodel.dart';
 import '../../auth/screen/safai_logo_widget.dart';
 import '../../settings/screen/settings_screen.dart';
 import '../../profile/screen/profile_screen.dart';
+import '../../profile/screen/order_history_screen.dart';
 import '../../notifications/screen/notifications_screen.dart';
 import '../../wallet/screen/wallet_screen.dart';
 import '../viewmodel/home_view_model.dart';
 import 'select_pickup_bottom_sheet.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
 import '../../profile/model/order_model.dart';
+import '../../../helpers/sp_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   static const String routeName = '/home';
@@ -35,9 +37,14 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _viewModel = HomeViewModel();
     _localProfileVm = ProfileViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _viewModel.fetchOrderHistory();
+      _localProfileVm.getProfile();
+    });
   }
 
-  ProfileViewModel _getProfileViewModel(BuildContext context, {bool listen = true}) {
+  ProfileViewModel _getProfileViewModel(BuildContext context,
+      {bool listen = true}) {
     try {
       return Provider.of<ProfileViewModel>(context, listen: listen);
     } catch (_) {
@@ -100,11 +107,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           valueListenable: OrderStore.instance.orders,
                           builder: (context, orders, _) {
                             final activeCount = orders
-                                .where((o) => o.status == OrderStatus.pending)
+                                .where((o) =>
+                                    o.status == OrderStatus.pending ||
+                                    o.status == OrderStatus.reschedule)
                                 .length;
-                            final pendingCount = orders
-                                .where((o) => o.status == OrderStatus.pending)
-                                .length;
+                            final pendingCount = vm.pendingBillsCount > 0
+                                ? vm.pendingBillsCount
+                                : orders
+                                    .where(
+                                        (o) => o.status == OrderStatus.pending)
+                                    .length;
                             return Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 16),
@@ -115,6 +127,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       icon: Icons.receipt_long_outlined,
                                       title: 'Pending Bills',
                                       count: '$pendingCount',
+                                      onTap: () {
+                                        Navigator.pushNamed(context,
+                                            OrderHistoryScreen.routeName);
+                                      },
                                     ),
                                   ),
                                   const SizedBox(width: 14),
@@ -123,6 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       icon: Icons.local_shipping_outlined,
                                       title: 'Active Pickups',
                                       count: '$activeCount',
+                                      onTap: () {
+                                        Navigator.pushNamed(context,
+                                            OrderHistoryScreen.routeName);
+                                      },
                                     ),
                                   ),
                                 ],
@@ -323,16 +343,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      vm.getGreeting(name: profileVm.firstName),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: -0.4,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Consumer<ProfileViewModel>(
+                      builder: (context, pVm, _) {
+                        final pName = pVm.firstName.isNotEmpty
+                            ? pVm.firstName
+                            : vm.displayName;
+                        if (pName.isNotEmpty) {
+                          return Text(
+                            vm.getGreeting(name: pName),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.4,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        }
+                        return FutureBuilder<String>(
+                          future: SpHelper.getUserName(),
+                          builder: (context, snapshot) {
+                            final fallbackName =
+                                (snapshot.hasData && snapshot.data!.isNotEmpty)
+                                    ? snapshot.data!
+                                    : '';
+                            return Text(
+                              vm.getGreeting(name: fallbackName),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.4,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -500,66 +549,74 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String title,
     required String count,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: const Color(0xFF5A6275),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                    height: 1.25,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  count,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E242F),
-                  ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: const Color(0xFF5A6275),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF64748B),
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      count,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E242F),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

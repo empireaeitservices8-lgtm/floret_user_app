@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/sp_helper.dart';
 import '../models/profile_model.dart';
 import '../repositories/profile_repository.dart';
@@ -44,12 +43,9 @@ class ProfileViewModel extends ChangeNotifier {
   /// Loads cached first name from SpHelper
   Future<void> _loadCachedFirstName() async {
     try {
-      final cached = await SpHelper.getString('first_name');
-      if (cached != null &&
-          cached.trim().isNotEmpty &&
-          cached.trim().toLowerCase() != 'user' &&
-          cached.trim().toLowerCase() != 'null') {
-        _cachedFirstName = cached.trim();
+      final cached = await SpHelper.getUserName();
+      if (cached.isNotEmpty) {
+        _cachedFirstName = cached;
         notifyListeners();
       }
     } catch (_) {}
@@ -75,6 +71,11 @@ class ProfileViewModel extends ChangeNotifier {
       final fName = fetchedProfile.displayFirstName;
       if (fName.isNotEmpty) {
         _cachedFirstName = fName;
+        await SpHelper.saveUserName(fName);
+      } else if (fetchedProfile.fullName.isNotEmpty &&
+          fetchedProfile.fullName.toLowerCase() != 'user') {
+        _cachedFirstName = fetchedProfile.fullName;
+        await SpHelper.saveUserName(fetchedProfile.fullName);
       }
       _errorMessage = null;
       _isUnauthorized = false;
@@ -122,12 +123,9 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
-  /// Clears saved authentication credentials upon 401 or logout
   Future<void> _clearSavedAuth() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-      await SpHelper.clearAll();
+      await SpHelper.clearUserData();
       OrderStore.instance.resetForLogout();
       debugPrint('🧹 [PROFILE VIEWMODEL] SharedPreferences completely cleared.');
     } catch (e) {
