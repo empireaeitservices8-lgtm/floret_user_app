@@ -7,6 +7,7 @@ import '../utils/sp_keys.dart' as sp_keys;
 
 class ApiService {
   static const String baseUrl = 'https://florettechuser.pythonanywhere.com';
+  static const String registerEndpoint = '/api/register/';
   static const String loginEndpoint = '/api/login/';
   static const String sendOtpEndpoint = '/api/otp/send/';
   static const String verifyOtpEndpoint = '/api/otp/verify/';
@@ -24,6 +25,8 @@ class ApiService {
   static const String receiveBillEndpoint = '/api/receive-bill/';
 
   final Dio _dio;
+
+  Dio get dio => _dio;
 
   ApiService({Dio? dio})
       : _dio = dio ??
@@ -70,6 +73,57 @@ class ApiService {
         },
       ),
     );
+  }
+ 
+  /// Sends a POST request to /api/register/ with user registration details
+  Future<Response> register(dynamic data, {Options? options}) async {
+    final String fullUrl = '$baseUrl$registerEndpoint';
+    debugPrint('================================================================');
+    debugPrint('🚀 [REGISTER API REQUEST]');
+    debugPrint('URL: $fullUrl');
+    debugPrint('Method: POST');
+    debugPrint('Headers: ${_dio.options.headers}');
+    debugPrint('Payload:');
+    try {
+      debugPrint(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (_) {
+      debugPrint('$data');
+    }
+    debugPrint('================================================================');
+
+    try {
+      final response = await _dio.post(
+        registerEndpoint,
+        data: data,
+        options: options,
+      );
+      debugPrint('================================================================');
+      debugPrint('✅ [REGISTER API RESPONSE]');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Data:');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
+      } catch (_) {
+        debugPrint('${response.data}');
+      }
+      debugPrint('================================================================');
+      return response;
+    } on DioException catch (dioError) {
+      debugPrint('================================================================');
+      debugPrint('❌ [REGISTER API ERROR]');
+      debugPrint('Status Code: ${dioError.response?.statusCode}');
+      debugPrint('Response Data: ${dioError.response?.data}');
+      debugPrint('Error Type: ${dioError.type}');
+      debugPrint('Error Message: ${dioError.message}');
+      debugPrint('================================================================');
+      final errorMessage = _parseDioError(dioError);
+      throw Exception(errorMessage);
+    } catch (e) {
+      debugPrint('================================================================');
+      debugPrint('❌ [REGISTER UNEXPECTED ERROR]: $e');
+      debugPrint('================================================================');
+      throw Exception('An unexpected error occurred during registration: $e');
+    }
   }
 
   /// Sends a POST request to login endpoint with phone_number and otp

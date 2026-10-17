@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -130,33 +129,7 @@ class AuthRepository {
 
   Future<SignupResponseModel> registerUser(SignupRequestModel request) async {
     try {
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: ApiEndpoints.baseUrl,
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 30),
-          headers: {
-            "Accept": "application/json",
-          },
-        ),
-      );
-
-      final fullUrl = '${ApiEndpoints.baseUrl}${ApiEndpoints.register}';
       final requestData = request.toJson();
-
-      debugPrint('================================================================');
-      debugPrint('🚀 [REGISTRATION API REQUEST]');
-      debugPrint('URL: $fullUrl');
-      debugPrint('Method: POST');
-      debugPrint('Headers: {"Accept": "application/json", "Content-Type": "application/json"}');
-      debugPrint('Payload:');
-      try {
-        debugPrint(const JsonEncoder.withIndent('  ').convert(requestData));
-      } catch (_) {
-        debugPrint('$requestData');
-      }
-      debugPrint('================================================================');
-
       final Response response;
       if (request.mouDocumentPath != null &&
           request.mouDocumentPath!.isNotEmpty) {
@@ -170,30 +143,18 @@ class AuthRepository {
           formData.files.add(MapEntry('mou_document', multipartFile));
           formData.files.add(MapEntry('mou_file', multipartFile));
         } catch (_) {}
-        response = await dio.post(
+        response = await _apiService.dio.post(
           ApiEndpoints.register,
           data: formData,
         );
       } else {
-        response = await dio.post(
-          ApiEndpoints.register,
-          data: requestData,
+        response = await _apiService.register(
+          requestData,
           options: Options(
             headers: {"Content-Type": "application/json"},
           ),
         );
       }
-
-      debugPrint('================================================================');
-      debugPrint('✅ [REGISTRATION API RESPONSE]');
-      debugPrint('Status Code: ${response.statusCode}');
-      debugPrint('Data:');
-      try {
-        debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
-      } catch (_) {
-        debugPrint('${response.data}');
-      }
-      debugPrint('================================================================');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final resData = response.data is Map<String, dynamic>
@@ -201,56 +162,127 @@ class AuthRepository {
             : Map<String, dynamic>.from(response.data as Map);
 
         final signupResponse = SignupResponseModel.fromJson(resData);
-
-        final phone = signupResponse.phoneNumber ?? request.phone;
+        final phone = (signupResponse.phoneNumber != null && signupResponse.phoneNumber!.isNotEmpty)
+            ? signupResponse.phoneNumber!
+            : (request.phone.startsWith('+')
+                ? request.phone
+                : (request.phone.startsWith('91') && request.phone.length == 12
+                    ? '+${request.phone}'
+                    : '+91${request.phone}'));
         final firstName = request.firstName.trim();
         final lastName = request.lastName.trim();
         final fullName = '$firstName $lastName'.trim();
         final primaryName = firstName.isNotEmpty ? firstName : (signupResponse.username ?? fullName);
-        final token = signupResponse.token ??
-            resData['token']?.toString() ??
-            resData['access_token']?.toString() ??
-            resData['access']?.toString() ??
-            resData['key']?.toString() ??
-            resData['auth_token']?.toString() ??
-            '';
-        final userId = signupResponse.userId?.toString() ??
-            resData['user_id']?.toString() ??
-            resData['id']?.toString() ??
-            '';
 
-        if (token.isNotEmpty) {
-          await SpHelper.saveString(sp_keys.keyToken, token);
-          await SpHelper.saveString('token', token);
+        debugPrint('[RegisterProvider] Registration successful. Generated OTP: ');
+
+        // Sequence of APIs after successful registration:
+        // 1. POST /api/otp/send/
+        // 2. POST /api/login/ with phone & returned otp
+        // 3. GET /api/profile/ with obtained token
+        String retrievedToken = signupResponse.token ?? '';
+        String retrievedUserId = signupResponse.userId?.toString() ?? resData['user_id']?.toString() ?? '';
+        String retrievedUsername = signupResponse.username ?? primaryName;
+        String retrievedAccountType = signupResponse.accountType ?? request.accountType;
+        String retrievedMouStatus = '';
+        bool canAccessApp = true;
+
+        try {
+          final otpResponse = await _apiService.sendOtp(phone);
+          final otpData = otpResponse.data is Map ? otpResponse.data as Map : {};
+          final generatedOtp = otpData['otp']?.toString() ?? '';
+
+          if (generatedOtp.isNotEmpty) {
+            final loginResponse = await _apiService.login(
+              phoneNumber: phone,
+              otp: generatedOtp,
+            );
+            final loginData = loginResponse.data is Map ? loginResponse.data as Map : {};
+            if (loginData['token'] != null && loginData['token'].toString().trim().isNotEmpty) {
+              retrievedToken = loginData['token'].toString().trim();
+            }
+            if (loginData['user_id'] != null) {
+              retrievedUserId = loginData['user_id'].toString();
+            }
+            if (loginData['username'] != null && loginData['username'].toString().trim().isNotEmpty) {
+              retrievedUsername = loginData['username'].toString().trim();
+            }
+            if (loginData['account_type'] != null && loginData['account_type'].toString().trim().isNotEmpty) {
+              retrievedAccountType = loginData['account_type'].toString().trim();
+            }
+            if (loginData['mou_status'] != null) {
+              retrievedMouStatus = loginData['mou_status'].toString().trim();
+            }
+            if (loginData['can_access_app'] != null) {
+              canAccessApp = loginData['can_access_app'] == true;
+            }
+
+            if (retrievedToken.isNotEmpty) {
+              await SpHelper.saveString(sp_keys.keyToken, retrievedToken);
+              await SpHelper.saveString('token', retrievedToken);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString(sp_keys.keyToken, retrievedToken);
+              await prefs.setString('token', retrievedToken);
+              await _webAPIService.initTokenToHeader();
+
+              try {
+                await _apiService.getProfile(token: retrievedToken);
+              } catch (profileErr) {
+                debugPrint('⚠️ [SIGNUP] Profile fetch error (non-fatal): $profileErr');
+              }
+            }
+          }
+        } catch (chainErr) {
+          debugPrint('⚠️ [SIGNUP] Post-registration OTP/Login sequence error: $chainErr');
+        }
+
+        // Save session credentials
+        if (retrievedToken.isNotEmpty) {
+          await SpHelper.saveString(sp_keys.keyToken, retrievedToken);
+          await SpHelper.saveString('token', retrievedToken);
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(sp_keys.keyToken, token);
-          await prefs.setString('token', token);
+          await prefs.setString(sp_keys.keyToken, retrievedToken);
+          await prefs.setString('token', retrievedToken);
           await _webAPIService.initTokenToHeader();
-          debugPrint('💾 [SIGNUP] Saved authentication token to SharedPreferences & SpHelper: $token');
+          debugPrint('💾 [SIGNUP] Saved authentication token to SharedPreferences & SpHelper: $retrievedToken');
         }
         await SpHelper.saveString(sp_keys.keyUseMobile, phone);
-        await SpHelper.saveString(sp_keys.keyUserName, primaryName);
+        await SpHelper.saveString(sp_keys.keyUserName, retrievedUsername);
         await SpHelper.saveString('first_name', firstName);
         await SpHelper.saveString('last_name', lastName);
-        await SpHelper.saveString('username', primaryName);
-        await SpHelper.saveString('user_name', primaryName);
-        await SpHelper.saveString('home_username', primaryName);
-        if (userId.isNotEmpty) {
-          await SpHelper.saveString(sp_keys.keyUserId, userId);
-          await OrderStore.instance.loadForUser(userId);
+        await SpHelper.saveString('username', retrievedUsername);
+        await SpHelper.saveString('user_name', retrievedUsername);
+        await SpHelper.saveString('home_username', retrievedUsername);
+        if (retrievedUserId.isNotEmpty) {
+          await SpHelper.saveString(sp_keys.keyUserId, retrievedUserId);
+          await OrderStore.instance.loadForUser(retrievedUserId);
         }
+        if (retrievedAccountType.isNotEmpty) {
+          await SpHelper.saveString('account_type', retrievedAccountType);
+        }
+        if (retrievedMouStatus.isNotEmpty) {
+          await SpHelper.saveString('mou_status', retrievedMouStatus);
+        }
+        await SpHelper.saveBoolean('can_access_app', canAccessApp);
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('phone_number', phone);
-        await prefs.setString('username', primaryName);
+        await prefs.setString('username', retrievedUsername);
         await prefs.setString('first_name', firstName);
         await prefs.setString('last_name', lastName);
-        await prefs.setString('user_name', primaryName);
-        if (userId.isNotEmpty) {
-          await prefs.setString('user_id', userId);
+        await prefs.setString('user_name', retrievedUsername);
+        if (retrievedUserId.isNotEmpty) {
+          await prefs.setString('user_id', retrievedUserId);
         }
-        await prefs.setString('account_type', request.accountType);
+        await prefs.setString('account_type', retrievedAccountType);
 
-        return signupResponse;
+        return signupResponse.copyWith(
+          token: retrievedToken.isNotEmpty ? retrievedToken : signupResponse.token,
+          userId: int.tryParse(retrievedUserId) ?? signupResponse.userId,
+          username: retrievedUsername,
+          phoneNumber: phone,
+          accountType: retrievedAccountType,
+        );
       } else {
         return SignupResponseModel.fromError(
           'Registration failed with status code ${response.statusCode}',

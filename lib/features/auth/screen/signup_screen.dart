@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
+import 'package:floret_app/services/web_api_services.dart';
 import '../viewmodel/signup_view_model.dart';
 import 'safai_logo_widget.dart';
 import 'login_screen.dart';
-import '../../home/screen/home_screen.dart';
 import '../../map/screen/location_picker_map_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -195,6 +198,18 @@ class _SignupScreenState extends State<SignupScreen> {
   // -------------------------------------------------------------
   void _onRegistrationSuccess() {
     if (!mounted) return;
+    final token = _viewModel.registrationResponse?.token;
+    if (token != null && token.trim().isNotEmpty) {
+      final trimmedToken = token.trim();
+      SpHelper.saveString(sp_keys.keyToken, trimmedToken);
+      SpHelper.saveString('token', trimmedToken);
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString(sp_keys.keyToken, trimmedToken);
+        prefs.setString('token', trimmedToken);
+      });
+      WebAPIService().initTokenToHeader();
+      debugPrint('💾 [SIGNUP SCREEN] Saved authentication token: $trimmedToken');
+    }
     final message = _viewModel.registrationResponse?.message ??
         'Registration completed successfully! Welcome to Safai 365.';
     ScaffoldMessenger.of(context).showSnackBar(
@@ -206,10 +221,13 @@ class _SignupScreenState extends State<SignupScreen> {
     );
     Navigator.pushNamedAndRemoveUntil(
       context,
-      HomeScreen.routeName,
+      LoginScreen.routeName,
       (route) => false,
     );
   }
+
+  @visibleForTesting
+  void onRegistrationSuccess() => _onRegistrationSuccess();
 
   // -------------------------------------------------------------
   // BUILD SCREEN

@@ -6,8 +6,11 @@ import 'package:floret_app/repositories/auth_repository.dart';
 import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/features/splashscreen/screen/splashscreen.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
+import 'package:floret_app/features/auth/screen/signup_screen.dart';
 import 'package:floret_app/features/home/screen/home_screen.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
+import 'package:floret_app/features/auth/model/auth_model.dart';
 import 'package:dio/dio.dart';
 
 class MockApiService extends ApiService {
@@ -216,6 +219,83 @@ void main() {
       expect(navigatedRoute, equals(LoginScreen.routeName));
       expect(find.text('Login Screen'), findsOneWidget);
       expect(find.text('Home Screen'), findsNothing);
+    });
+  });
+
+  group('Signup Registration Navigation Tests', () {
+    testWidgets('Completed registration navigates to LoginScreen and not HomeScreen', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      String? navigatedRoute;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          initialRoute: SignupScreen.routeName,
+          routes: {
+            SignupScreen.routeName: (context) => const SignupScreen(),
+            LoginScreen.routeName: (context) {
+              navigatedRoute = LoginScreen.routeName;
+              return const Scaffold(body: Text('Login Screen'));
+            },
+            HomeScreen.routeName: (context) {
+              navigatedRoute = HomeScreen.routeName;
+              return const Scaffold(body: Text('Home Screen'));
+            },
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final state = tester.state(find.byType(SignupScreen));
+      (state as dynamic).onRegistrationSuccess();
+      await tester.pumpAndSettle();
+
+      expect(navigatedRoute, equals(LoginScreen.routeName));
+      expect(find.text('Login Screen'), findsOneWidget);
+      expect(find.text('Home Screen'), findsNothing);
+    });
+
+    test('SignupResponseModel extracts token from various response formats', () {
+      final resDirect = SignupResponseModel.fromJson({
+        'message': 'Success',
+        'token': 'token_direct_abc',
+      });
+      expect(resDirect.token, equals('token_direct_abc'));
+
+      final resNestedTokens = SignupResponseModel.fromJson({
+        'message': 'Success',
+        'tokens': {
+          'access': 'token_nested_access_xyz',
+        },
+      });
+      expect(resNestedTokens.token, equals('token_nested_access_xyz'));
+
+      final resNestedData = SignupResponseModel.fromJson({
+        'message': 'Success',
+        'data': {
+          'token': 'token_nested_data_123',
+        },
+      });
+      expect(resNestedData.token, equals('token_nested_data_123'));
+    });
+
+    test('Saved registration token persists in SpHelper and SharedPreferences', () async {
+      const testToken = 'registration_test_token_999';
+      await SpHelper.saveString(sp_keys.keyToken, testToken);
+      await SpHelper.saveString('token', testToken);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(sp_keys.keyToken, testToken);
+      await prefs.setString('token', testToken);
+
+      final tokenFromSp = await SpHelper.getString(sp_keys.keyToken);
+      final tokenFromPrefs = prefs.getString(sp_keys.keyToken);
+      final rawTokenFromPrefs = prefs.getString('token');
+
+      expect(tokenFromSp, equals(testToken));
+      expect(tokenFromPrefs, equals(testToken));
+      expect(rawTokenFromPrefs, equals(testToken));
     });
   });
 }

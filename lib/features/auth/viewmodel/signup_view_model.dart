@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:floret_app/providers/view_model.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
+import 'package:floret_app/services/web_api_services.dart';
 import '../model/auth_model.dart';
 import '../repos/auth_repository.dart';
 
@@ -630,6 +634,17 @@ class SignupViewModel extends ViewModel {
       final response = await _authRepository.registerUser(request);
       if (response.success) {
         _registrationResponse = response;
+        final token = response.token;
+        if (token != null && token.trim().isNotEmpty) {
+          final trimmedToken = token.trim();
+          await SpHelper.saveString(sp_keys.keyToken, trimmedToken);
+          await SpHelper.saveString('token', trimmedToken);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(sp_keys.keyToken, trimmedToken);
+          await prefs.setString('token', trimmedToken);
+          await WebAPIService().initTokenToHeader();
+          debugPrint('💾 [SIGNUP VIEWMODEL] Saved authentication token: $trimmedToken');
+        }
         notifyListeners();
         onSuccess();
         return true;

@@ -102,27 +102,45 @@ class SignupResponseModel {
   });
 
   factory SignupResponseModel.fromJson(Map<String, dynamic> json) {
-    String? extractedToken = json['token']?.toString() ??
-        json['access_token']?.toString() ??
-        json['access']?.toString() ??
-        json['key']?.toString() ??
-        json['auth_token']?.toString();
+    String? extractTokenFromMap(Map? map) {
+      if (map == null) return null;
+      final candidates = [
+        map['token'],
+        map['access_token'],
+        map['accessToken'],
+        map['access'],
+        map['key'],
+        map['auth_token'],
+        map['authToken'],
+        map['jwt'],
+      ];
+      for (final candidate in candidates) {
+        if (candidate != null && candidate.toString().trim().isNotEmpty) {
+          return candidate.toString().trim();
+        }
+      }
+      return null;
+    }
+
+    String? extractedToken = extractTokenFromMap(json);
 
     if (extractedToken == null && json['data'] is Map) {
-      final dataMap = json['data'] as Map;
-      extractedToken = dataMap['token']?.toString() ??
-          dataMap['access_token']?.toString() ??
-          dataMap['access']?.toString() ??
-          dataMap['key']?.toString() ??
-          dataMap['auth_token']?.toString();
+      extractedToken = extractTokenFromMap(json['data'] as Map);
     }
     if (extractedToken == null && json['user'] is Map) {
-      final userMap = json['user'] as Map;
-      extractedToken = userMap['token']?.toString() ??
-          userMap['access_token']?.toString() ??
-          userMap['access']?.toString() ??
-          userMap['key']?.toString() ??
-          userMap['auth_token']?.toString();
+      extractedToken = extractTokenFromMap(json['user'] as Map);
+    }
+    if (extractedToken == null && json['tokens'] is Map) {
+      extractedToken = extractTokenFromMap(json['tokens'] as Map);
+    }
+    if (extractedToken == null && json['result'] is Map) {
+      extractedToken = extractTokenFromMap(json['result'] as Map);
+    }
+    if (extractedToken == null && json['response'] is Map) {
+      extractedToken = extractTokenFromMap(json['response'] as Map);
+    }
+    if (extractedToken == null && json['auth'] is Map) {
+      extractedToken = extractTokenFromMap(json['auth'] as Map);
     }
 
     return SignupResponseModel(
@@ -143,6 +161,30 @@ class SignupResponseModel {
       requiresPayment: json['requires_payment'] as bool? ?? false,
       totalAmount: json['total_amount'] as num? ?? 0,
       token: extractedToken,
+    );
+  }
+
+  SignupResponseModel copyWith({
+    bool? success,
+    String? message,
+    int? userId,
+    String? username,
+    String? phoneNumber,
+    String? accountType,
+    bool? requiresPayment,
+    num? totalAmount,
+    String? token,
+  }) {
+    return SignupResponseModel(
+      success: success ?? this.success,
+      message: message ?? this.message,
+      userId: userId ?? this.userId,
+      username: username ?? this.username,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      accountType: accountType ?? this.accountType,
+      requiresPayment: requiresPayment ?? this.requiresPayment,
+      totalAmount: totalAmount ?? this.totalAmount,
+      token: token ?? this.token,
     );
   }
 
@@ -208,18 +250,25 @@ class SignupRequestModel {
   });
 
   Map<String, dynamic> toJson() {
+    final cleanPhone = phone.startsWith('+')
+        ? phone
+        : (phone.startsWith('91') && phone.length == 12
+            ? '+$phone'
+            : '+91$phone');
     final fullName = '$firstName $lastName'.trim();
-    final uname = fullName.isNotEmpty ? fullName : phone;
     final accType = accountType.toLowerCase();
 
     return {
-      'username': uname,
-      'phone_number': phone,
-      'phone': phone,
+      'username': cleanPhone,
+      'email': '$cleanPhone@floret.com',
+      'phone_number': cleanPhone,
+      'password': cleanPhone,
+      'phone': cleanPhone,
+      'account_type': accType,
       'first_name': firstName,
       'last_name': lastName,
       'name': fullName,
-      'account_type': accType,
+      'street': streetAddress,
       'street_address': streetAddress,
       'address': streetAddress,
       'city': city,
@@ -230,6 +279,8 @@ class SignupRequestModel {
       'zip_code': zipCode,
       'pincode': zipCode,
       'postal_code': zipCode,
+      'otp': '',
+      'mou_document': '',
       'terms_accepted': termsAccepted,
       'registration_fee': accType == 'commercial' ? 1000 : 0,
       if (latitude != null) 'latitude': latitude,
