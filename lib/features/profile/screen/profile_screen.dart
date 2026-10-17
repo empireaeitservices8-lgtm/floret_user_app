@@ -408,9 +408,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             valueListenable: OrderStore.instance.orders,
             builder: (context, orders, _) {
               final pickupsCount = orders.length;
-              final completedCount =
-                  orders.where((o) => o.status == OrderStatus.completed).length;
-              final carbonSaved = (completedCount * 0.5).toStringAsFixed(1);
+              final completed = orders
+                  .where((o) => o.status == OrderStatus.completed)
+                  .toList();
+              final valid = orders
+                  .where((o) => o.status != OrderStatus.cancelled)
+                  .toList();
+              final targetList = completed.isNotEmpty ? completed : valid;
+              final carbonSaved = (targetList.length * 14.3).toStringAsFixed(1);
+              final completedCount = completed.length;
               final displayPoints = _ecoPoints > 0
                   ? _ecoPoints
                   : (completedCount > 0 ? completedCount * 50 : 250);

@@ -153,6 +153,31 @@ class HomeViewModel extends ViewModel {
   List<OrderModel> get orderHistory => _orderHistory;
   bool get isLoadingOrders => _isLoadingOrders;
 
+  /// Calculates total pickup weight for the user in kg (5kg per pickup)
+  double getUserPickupWeight([List<OrderModel>? ordersList]) {
+    final list = ordersList ??
+        (OrderStore.instance.orders.value.isNotEmpty
+            ? OrderStore.instance.orders.value
+            : _orderHistory);
+    if (list.isNotEmpty) {
+      final completed =
+          list.where((o) => o.status == OrderStatus.completed).toList();
+      final valid =
+          list.where((o) => o.status != OrderStatus.cancelled).toList();
+      final target = completed.isNotEmpty ? completed : valid;
+      return target.fold<double>(
+        0.0,
+        (sum, o) => sum + o.effectiveWeight,
+      );
+    }
+
+    if (_homeBundle.pickups.isNotEmpty) {
+      return _homeBundle.pickups.length * 5.0;
+    }
+
+    return 0.0;
+  }
+
   /// Fetches order history from backend API, updates local state,
   /// and synchronizes OrderStore so all home metrics react immediately.
   Future<List<OrderModel>> fetchOrderHistory() async {

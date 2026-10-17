@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/services/api_client.dart';
+import 'package:floret_app/services/api_endpoints.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:flutter/material.dart';
 import '../model/booking_model.dart';
@@ -109,6 +110,8 @@ class BookingRepository {
     if (district == 'Alappuzha') {
       return const [
         'Alappuzha Municipality',
+        'Cherthala Municipality',
+        'Kayamkulam Municipality',
       ];
     }
     return [];
@@ -134,7 +137,9 @@ class BookingRepository {
 
     if (localBodyId != null) {
       try {
-        final endpoint = '/api/wards/?local_body&local_body_id=$localBodyId';
+        final endpoint = lb.contains('varkala')
+            ? '${ApiEndpoints.wards}?local_body&local_body_id=2&local_body_id=3'
+            : '${ApiEndpoints.wards}?local_body&local_body_id=$localBodyId';
         final response = await ApiClient()
             .get(endpoint)
             .timeout(const Duration(seconds: 10));

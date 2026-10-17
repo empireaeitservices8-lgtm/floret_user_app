@@ -16,6 +16,8 @@ class OrderModel {
   final String contact;
   OrderStatus status;
   final String? userId;
+  final double? weight;
+  final int? bagsUsed;
 
   OrderModel({
     required this.bookingId,
@@ -27,7 +29,16 @@ class OrderModel {
     required this.contact,
     this.status = OrderStatus.pending,
     this.userId,
+    this.weight,
+    this.bagsUsed,
   });
+
+  /// Returns the effective pickup weight in kg (5.0 kg per pickup)
+  double get effectiveWeight {
+    if (weight != null && weight! > 0) return weight!;
+    if (bagsUsed != null && bagsUsed! > 0) return bagsUsed! * 5.0;
+    return 5.0;
+  }
 
   Map<String, dynamic> toJson() => {
         'bookingId': bookingId,
@@ -40,6 +51,8 @@ class OrderModel {
         'contact': contact,
         'status': status.name,
         if (userId != null) 'userId': userId,
+        if (weight != null) 'weight': weight,
+        if (bagsUsed != null) 'bagsUsed': bagsUsed,
       };
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -80,6 +93,10 @@ class OrderModel {
       userId: json['userId']?.toString() ??
           json['user_id']?.toString() ??
           json['user']?.toString(),
+      weight: (json['weight'] as num?)?.toDouble() ??
+          (json['pickup_weight'] as num?)?.toDouble(),
+      bagsUsed: (json['bagsUsed'] as num?)?.toInt() ??
+          (json['bags_used'] as num?)?.toInt(),
     );
   }
 
@@ -222,6 +239,43 @@ class OrderModel {
     }
     userId ??= defaultUserId;
 
+    // 10. Weight & Bags Used
+    final rawWeight = json['weight'] ??
+        json['pickup_weight'] ??
+        json['waste_weight'] ??
+        json['actual_weight'] ??
+        json['collected_weight'] ??
+        json['total_weight'] ??
+        json['net_weight'];
+    double? parsedWeight;
+    if (rawWeight is num) {
+      parsedWeight = rawWeight.toDouble();
+    } else if (rawWeight is String && rawWeight.trim().isNotEmpty) {
+      final clean = rawWeight.replaceAll(RegExp(r'[^0-9.]'), '');
+      parsedWeight = double.tryParse(clean);
+    }
+
+    final rawBags = json['bags_used'] ?? json['bagsUsed'] ?? json['bags'];
+    int? parsedBags;
+    if (rawBags is num) {
+      parsedBags = rawBags.toInt();
+    } else if (rawBags is String) {
+      parsedBags = int.tryParse(rawBags);
+    }
+
+    if (parsedWeight == null && parsedBags != null && parsedBags > 0) {
+      parsedWeight = parsedBags * 5.0;
+    }
+    if (parsedWeight == null) {
+      final desc =
+          (json['items_description'] ?? json['waste_type'] ?? '').toString();
+      final match = RegExp(r'(\d+(?:\.\d+)?)\s*kg', caseSensitive: false)
+          .firstMatch(desc);
+      if (match != null) {
+        parsedWeight = double.tryParse(match.group(1) ?? '');
+      }
+    }
+
     return OrderModel(
       bookingId: bookingId,
       wasteType: wasteType,
@@ -232,6 +286,8 @@ class OrderModel {
       contact: contact,
       status: status,
       userId: userId,
+      weight: parsedWeight,
+      bagsUsed: parsedBags,
     );
   }
 }
@@ -257,6 +313,7 @@ class OrderStore {
           fullAddress: 'KRAA/11, Paruthippara,\nThiruvananthapuram - 695015',
           contact: 'User',
           status: OrderStatus.completed,
+          weight: 5.0,
         ),
         OrderModel(
           bookingId: 'WC-165',
@@ -266,6 +323,7 @@ class OrderStore {
           fullAddress: 'TC 14/1250, Pattom,\nThiruvananthapuram - 695004',
           contact: 'User',
           status: OrderStatus.pending,
+          weight: 5.0,
         ),
         OrderModel(
           bookingId: 'WC-161',
@@ -275,6 +333,7 @@ class OrderStore {
           fullAddress: 'KRAA/11, Paruthippara,\nThiruvananthapuram - 695015',
           contact: 'User',
           status: OrderStatus.pending,
+          weight: 5.0,
         ),
         OrderModel(
           bookingId: 'WC-160',
@@ -285,6 +344,7 @@ class OrderStore {
           fullAddress: 'TC 14/1250, Pattom,\nThiruvananthapuram - 695004',
           contact: 'User',
           status: OrderStatus.completed,
+          weight: 5.0,
         ),
         OrderModel(
           bookingId: 'WC-159',
@@ -294,6 +354,7 @@ class OrderStore {
           fullAddress: 'Plot 42, Kowdiar Avenue,\nThiruvananthapuram - 695003',
           contact: 'User',
           status: OrderStatus.reschedule,
+          weight: 5.0,
         ),
         OrderModel(
           bookingId: 'WC-158',
@@ -303,6 +364,7 @@ class OrderStore {
           fullAddress: 'House 8B, Sasthamangalam,\nThiruvananthapuram - 695010',
           contact: 'User',
           status: OrderStatus.cancelled,
+          weight: 5.0,
         ),
       ];
 

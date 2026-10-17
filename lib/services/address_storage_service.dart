@@ -5,51 +5,68 @@ import '../features/profile/model/address_model.dart';
 class AddressStorageService {
   static const String _kSavedAddressesKey = 'user_saved_addresses';
 
-  static List<AddressModel> get _defaultSeedAddresses => [
-        AddressModel(
-          id: '1792210679721',
-          type: 'Address #1792210679721',
-          addressLine: 'lll',
-          city: 'yy',
-          state: 'Kerala',
-          pincode: '123456',
-          isDefault: false,
-        ),
-        AddressModel(
-          id: '1792210679722',
-          type: 'Home',
-          addressLine: 'Sunset Blvd',
-          city: 'Thiruvananthapuram',
-          district: 'Thiruvananthapuram',
-          state: 'Kerala',
-          localBody: 'Thiruvananthapuram Corp',
-          ward: 'Ward 1',
-          pincode: '695001',
-          isDefault: true,
-        ),
-      ];
 
   /// Retrieves saved addresses from SharedPreferences.
-  /// If no addresses exist, it initializes with default seed data.
+  /// If no addresses exist, it initializes with user's registration address if available.
   static Future<List<AddressModel>> getSavedAddresses() async {
     try {
       final sp = await SharedPreferences.getInstance();
       final raw = sp.getString(_kSavedAddressesKey);
       if (raw != null && raw.trim().isNotEmpty) {
         final decoded = jsonDecode(raw);
-        if (decoded is List) {
+        if (decoded is List && decoded.isNotEmpty) {
           return decoded
               .map((e) => AddressModel.fromJson(Map<String, dynamic>.from(e)))
               .toList();
         }
       }
 
-      // If empty or never set, populate with default seed
-      final seeds = _defaultSeedAddresses;
-      await saveAddresses(seeds);
-      return seeds;
+      // Check for user's registration address in SharedPreferences
+      final regStreet = sp.getString('registration_street') ??
+          sp.getString('street') ??
+          sp.getString('registration_address');
+      if (regStreet != null && regStreet.trim().isNotEmpty) {
+        final regCity = sp.getString('registration_city') ?? sp.getString('city') ?? '';
+        final regState = sp.getString('registration_state') ?? sp.getString('state') ?? 'Kerala';
+        final regDistrict = sp.getString('registration_district') ?? sp.getString('district');
+        final regLocalBody = sp.getString('registration_local_body') ?? sp.getString('local_body');
+        final regWard = sp.getString('registration_ward') ?? sp.getString('ward');
+        final regPin = sp.getString('registration_zip_code') ?? sp.getString('pincode') ?? sp.getString('zip_code') ?? '';
+
+        final regAddress = AddressModel(
+          id: 'reg_user_addr',
+          type: 'Home',
+          addressLine: regStreet.trim(),
+          city: regCity.trim(),
+          state: regState.trim(),
+          district: regDistrict?.trim(),
+          localBody: regLocalBody?.trim(),
+          ward: regWard?.trim(),
+          pincode: regPin.trim(),
+          isDefault: true,
+        );
+        await saveAddresses([regAddress]);
+        return [regAddress];
+      }
+
+      final defaultSeeds = [
+        AddressModel(
+          id: '1792210679721',
+          type: 'Home',
+          addressLine: 'Sunset Blvd',
+          city: 'Thiruvananthapuram Corp',
+          state: 'Kerala',
+          district: 'Thiruvananthapuram',
+          localBody: 'Thiruvananthapuram Corporation',
+          ward: 'Ward 1',
+          pincode: '695001',
+          isDefault: true,
+        ),
+      ];
+      await saveAddresses(defaultSeeds);
+      return defaultSeeds;
     } catch (_) {
-      return _defaultSeedAddresses;
+      return [];
     }
   }
 

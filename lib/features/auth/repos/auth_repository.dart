@@ -7,6 +7,8 @@ import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:floret_app/services/api_service.dart';
 import '../../profile/model/order_model.dart';
+import '../../profile/model/address_model.dart';
+import '../../../services/address_storage_service.dart';
 import '../model/auth_model.dart';
 import 'package:floret_app/services/api_client.dart';
 
@@ -275,6 +277,65 @@ class AuthRepository {
           await prefs.setString('user_id', retrievedUserId);
         }
         await prefs.setString('account_type', retrievedAccountType);
+
+        // Save registration address to SpHelper, SharedPreferences and AddressStorageService
+        final regStreet = request.streetAddress.trim();
+        final regCity = request.city.trim();
+        final regState = request.state.trim().isNotEmpty ? request.state.trim() : 'Kerala';
+        final regDistrict = request.district.trim();
+        final regLocalBody = request.localBody.trim();
+        final regWard = request.ward.trim();
+        final regZip = request.zipCode.trim();
+
+        if (regStreet.isNotEmpty || regCity.isNotEmpty) {
+          final regParts = [
+            regStreet,
+            regWard,
+            regLocalBody,
+            regCity,
+            regDistrict,
+            regState,
+            regZip,
+          ].where((s) => s.isNotEmpty).toList();
+          final formattedReg = regParts.join(', ');
+
+          await SpHelper.saveString('registration_address', formattedReg);
+          await SpHelper.saveString('registration_street', regStreet);
+          await SpHelper.saveString('registration_city', regCity);
+          await SpHelper.saveString('registration_state', regState);
+          await SpHelper.saveString('registration_district', regDistrict);
+          await SpHelper.saveString('registration_local_body', regLocalBody);
+          await SpHelper.saveString('registration_ward', regWard);
+          await SpHelper.saveString('registration_zip_code', regZip);
+
+          await prefs.setString('registration_address', formattedReg);
+          await prefs.setString('registration_street', regStreet);
+          await prefs.setString('registration_city', regCity);
+          await prefs.setString('registration_state', regState);
+          await prefs.setString('registration_district', regDistrict);
+          await prefs.setString('registration_local_body', regLocalBody);
+          await prefs.setString('registration_ward', regWard);
+          await prefs.setString('registration_zip_code', regZip);
+          await prefs.setString('street', regStreet);
+          await prefs.setString('city', regCity);
+          await prefs.setString('pincode', regZip);
+          await prefs.setString('zip_code', regZip);
+
+          // Save as default address in AddressStorageService
+          final defaultAddrModel = AddressModel(
+            id: 'reg_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'Home',
+            addressLine: regStreet,
+            city: regCity,
+            district: regDistrict.isNotEmpty ? regDistrict : null,
+            state: regState,
+            localBody: regLocalBody.isNotEmpty ? regLocalBody : null,
+            ward: regWard.isNotEmpty ? regWard : null,
+            pincode: regZip,
+            isDefault: true,
+          );
+          await AddressStorageService.addAddress(defaultAddrModel);
+        }
 
         return signupResponse.copyWith(
           token: retrievedToken.isNotEmpty ? retrievedToken : signupResponse.token,

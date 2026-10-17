@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:floret_app/viewmodels/profile_viewmodel.dart';
 import 'package:floret_app/repositories/profile_repository.dart' as api_repo;
 import '../repos/profile_repository.dart';
+import '../model/order_model.dart';
+import 'package:floret_app/services/address_storage_service.dart';
 
 class MyAccountViewModel extends ViewModel {
   final ProfileRepository _repository;
@@ -17,7 +19,7 @@ class MyAccountViewModel extends ViewModel {
   String _firstName = '';
   String _phoneNumber = '';
 
-  final int _totalPickups = 0;
+  int _totalPickups = 0;
   final double _wasteCollected = 0.0;
   final int _treesEquiv = 0;
 
@@ -36,9 +38,15 @@ class MyAccountViewModel extends ViewModel {
             apiProfileRepository ?? api_repo.ProfileRepository() {
     nameController = TextEditingController(text: _fullName);
     phoneController = TextEditingController(text: _phoneNumber);
+    OrderStore.instance.orders.addListener(_onOrdersChanged);
     _loadFromCache();
     loadProfile();
   }
+
+  void _onOrdersChanged() {
+    notifyListeners();
+  }
+
 
   Future<void> _loadFromCache() async {
     try {
@@ -73,6 +81,78 @@ class MyAccountViewModel extends ViewModel {
         phoneController.text = _phoneNumber;
         notifyListeners();
       }
+      await loadAddressDetails();
+    } catch (_) {}
+  }
+
+  Future<void> loadAddressDetails() async {
+    try {
+      // 1. Try AddressStorageService saved addresses for default
+      final savedAddresses = await AddressStorageService.getSavedAddresses();
+      if (savedAddresses.isNotEmpty) {
+        final def = savedAddresses.firstWhere(
+          (a) => a.isDefault,
+          orElse: () => savedAddresses.first,
+        );
+        if (def.addressLine.isNotEmpty) {
+          final parts = [
+            def.addressLine,
+            if (def.ward != null && def.ward!.isNotEmpty) def.ward!,
+            if (def.localBody != null && def.localBody!.isNotEmpty) def.localBody!,
+            def.city,
+            if (def.district != null && def.district!.isNotEmpty) def.district!,
+            if (def.state != null && def.state!.isNotEmpty) def.state!,
+            def.pincode,
+          ].where((s) => s.isNotEmpty).toList();
+
+          _defaultAddress = parts.isNotEmpty ? parts.join(', ') : def.addressLine;
+          if (def.city.isNotEmpty) _city = def.city;
+          if (def.pincode.isNotEmpty) _pincode = def.pincode;
+          notifyListeners();
+          return;
+        }
+      }
+
+      // 2. Try SharedPreferences registration address
+      final regAddr = await SpHelper.getString('registration_address');
+      final regStreet = await SpHelper.getString('registration_street') ??
+          await SpHelper.getString('street');
+      final regCity = await SpHelper.getString('registration_city') ??
+          await SpHelper.getString('city');
+      final regPin = await SpHelper.getString('registration_zip_code') ??
+          await SpHelper.getString('zip_code') ??
+          await SpHelper.getString('pincode');
+      final regWard = await SpHelper.getString('registration_ward') ??
+          await SpHelper.getString('ward');
+      final regLocalBody = await SpHelper.getString('registration_local_body') ??
+          await SpHelper.getString('local_body');
+      final regDistrict = await SpHelper.getString('registration_district') ??
+          await SpHelper.getString('district');
+      final regState = await SpHelper.getString('registration_state') ??
+          await SpHelper.getString('state');
+
+      if (regAddr != null && regAddr.trim().isNotEmpty) {
+        _defaultAddress = regAddr.trim();
+      } else if (regStreet != null && regStreet.trim().isNotEmpty) {
+        final parts = [
+          regStreet,
+          regWard,
+          regLocalBody,
+          regCity,
+          regDistrict,
+          regState,
+          regPin,
+        ].where((s) => s != null && s.trim().isNotEmpty).map((s) => s!.trim()).toList();
+        _defaultAddress = parts.isNotEmpty ? parts.join(', ') : regStreet;
+      }
+
+      if (regCity != null && regCity.trim().isNotEmpty) {
+        _city = regCity.trim();
+      }
+      if (regPin != null && regPin.trim().isNotEmpty) {
+        _pincode = regPin.trim();
+      }
+      notifyListeners();
     } catch (_) {}
   }
 
@@ -98,14 +178,20 @@ class MyAccountViewModel extends ViewModel {
         nameController.text = _fullName.isNotEmpty ? _fullName : _firstName;
         phoneController.text = _phoneNumber;
       }
-      if (profile.street != null && profile.street!.isNotEmpty) {
-        _defaultAddress = profile.formattedAddress;
+      final fullAddr = profile.formattedAddress;
+      if (fullAddr.isNotEmpty && fullAddr != 'Not provided') {
+        _defaultAddress = fullAddr;
+      } else if (profile.street != null && profile.street!.isNotEmpty) {
+        _defaultAddress = profile.street!;
       }
       if (profile.city != null && profile.city!.isNotEmpty) {
         _city = profile.city!;
       }
       if (profile.zipCode != null && profile.zipCode!.isNotEmpty) {
         _pincode = profile.zipCode!;
+      }
+      if (_defaultAddress == 'No saved address. Tap Manage to add.') {
+        await loadAddressDetails();
       }
       notifyListeners();
     } catch (_) {
@@ -117,10 +203,14 @@ class MyAccountViewModel extends ViewModel {
         if (local.mobileNumber.trim().isNotEmpty) {
           _phoneNumber = local.mobileNumber;
         }
+        if (local.totalCollections > 0) {
+          _totalPickups = local.totalCollections;
+        }
         if (!_isEditing) {
           nameController.text = _fullName;
           phoneController.text = _phoneNumber;
         }
+        await loadAddressDetails();
         notifyListeners();
       } catch (_) {}
     } finally {
@@ -136,7 +226,15 @@ class MyAccountViewModel extends ViewModel {
           .split(' ')
           .firstWhere((s) => s.isNotEmpty, orElse: () => 'User'));
   String get phoneNumber => _phoneNumber;
-  int get totalPickups => _totalPickups;
+  int getTotalPickups([List<OrderModel>? ordersList]) {
+    final list = ordersList ?? OrderStore.instance.orders.value;
+    if (list.isNotEmpty) {
+      return list.length;
+    }
+    return _totalPickups;
+  }
+
+  int get totalPickups => getTotalPickups();
   double get wasteCollected => _wasteCollected;
   int get treesEquiv => _treesEquiv;
   String get defaultAddress => _defaultAddress;
@@ -230,6 +328,7 @@ class MyAccountViewModel extends ViewModel {
 
   @override
   void dispose() {
+    OrderStore.instance.orders.removeListener(_onOrdersChanged);
     nameController.dispose();
     phoneController.dispose();
     super.dispose();

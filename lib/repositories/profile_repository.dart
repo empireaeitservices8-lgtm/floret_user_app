@@ -5,6 +5,8 @@ import '../helpers/sp_helper.dart';
 import '../utils/sp_keys.dart' as sp_keys;
 import '../models/profile_model.dart';
 import '../features/profile/model/order_model.dart';
+import '../features/profile/model/address_model.dart';
+import '../services/address_storage_service.dart';
 import '../services/api_service.dart';
 
 class ProfileRepository {
@@ -76,6 +78,74 @@ class ProfileRepository {
       await prefs.setString(sp_keys.keyUserId, uId);
       await prefs.setString('user_id', uId);
       await OrderStore.instance.loadForUser(uId);
+    }
+
+    // Persist registration/profile address for My Account and Saved Addresses
+    final prefs = await SharedPreferences.getInstance();
+    if (profileModel.formattedAddress.isNotEmpty &&
+        profileModel.formattedAddress != 'Not provided') {
+      await SpHelper.saveString('registration_address', profileModel.formattedAddress);
+      await prefs.setString('registration_address', profileModel.formattedAddress);
+    }
+    if (profileModel.street != null && profileModel.street!.isNotEmpty) {
+      await SpHelper.saveString('registration_street', profileModel.street!);
+      await prefs.setString('registration_street', profileModel.street!);
+      await prefs.setString('street', profileModel.street!);
+    }
+    if (profileModel.city != null && profileModel.city!.isNotEmpty) {
+      await SpHelper.saveString('registration_city', profileModel.city!);
+      await prefs.setString('registration_city', profileModel.city!);
+      await prefs.setString('city', profileModel.city!);
+    }
+    if (profileModel.district != null && profileModel.district!.isNotEmpty) {
+      await SpHelper.saveString('registration_district', profileModel.district!);
+      await prefs.setString('registration_district', profileModel.district!);
+      await prefs.setString('district', profileModel.district!);
+    }
+    if (profileModel.state != null && profileModel.state!.isNotEmpty) {
+      await SpHelper.saveString('registration_state', profileModel.state!);
+      await prefs.setString('registration_state', profileModel.state!);
+      await prefs.setString('state', profileModel.state!);
+    }
+    if (profileModel.localBody != null && profileModel.localBody!.isNotEmpty) {
+      await SpHelper.saveString('registration_local_body', profileModel.localBody!);
+      await prefs.setString('registration_local_body', profileModel.localBody!);
+      await prefs.setString('local_body', profileModel.localBody!);
+    }
+    if (profileModel.ward != null && profileModel.ward!.isNotEmpty) {
+      await SpHelper.saveString('registration_ward', profileModel.ward!);
+      await prefs.setString('registration_ward', profileModel.ward!);
+      await prefs.setString('ward', profileModel.ward!);
+    }
+    if (profileModel.zipCode != null && profileModel.zipCode!.isNotEmpty) {
+      await SpHelper.saveString('registration_zip_code', profileModel.zipCode!);
+      await prefs.setString('registration_zip_code', profileModel.zipCode!);
+      await prefs.setString('zip_code', profileModel.zipCode!);
+      await prefs.setString('pincode', profileModel.zipCode!);
+    }
+
+    if ((profileModel.street != null && profileModel.street!.isNotEmpty) ||
+        (profileModel.city != null && profileModel.city!.isNotEmpty)) {
+      final existingAddrs = await AddressStorageService.getSavedAddresses();
+      if (existingAddrs.isEmpty || !existingAddrs.any((a) => a.isDefault)) {
+        final regModel = AddressModel(
+          id: 'profile_addr_${DateTime.now().millisecondsSinceEpoch}',
+          type: 'Home',
+          addressLine: profileModel.street?.trim().isNotEmpty == true
+              ? profileModel.street!.trim()
+              : (profileModel.formattedAddress.isNotEmpty
+                  ? profileModel.formattedAddress
+                  : 'Home Address'),
+          city: profileModel.city?.trim() ?? '',
+          district: profileModel.district?.trim(),
+          state: profileModel.state?.trim() ?? 'Kerala',
+          localBody: profileModel.localBody?.trim(),
+          ward: profileModel.ward?.trim(),
+          pincode: profileModel.zipCode?.trim() ?? '',
+          isDefault: true,
+        );
+        await AddressStorageService.addAddress(regModel);
+      }
     }
 
     return profileModel;

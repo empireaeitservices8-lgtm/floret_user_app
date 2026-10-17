@@ -240,13 +240,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               ValueListenableBuilder<List<OrderModel>>(
                                 valueListenable: OrderStore.instance.orders,
                                 builder: (context, orders, _) {
-                                  final completedCount = orders
+                                  final completed = orders
                                       .where((o) =>
                                           o.status == OrderStatus.completed)
-                                      .length;
+                                      .toList();
+                                  final valid = orders
+                                      .where((o) =>
+                                          o.status != OrderStatus.cancelled)
+                                      .toList();
+                                  final targetList =
+                                      completed.isNotEmpty ? completed : valid;
 
-                                  final co2Reduced =
-                                      (completedCount * 0.5).toStringAsFixed(1);
+                                  final co2Reduced = (targetList.length * 14.3)
+                                      .toStringAsFixed(1);
                                   return Row(
                                     children: [
                                       Expanded(
@@ -291,7 +297,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         // 6. Recycle Progress Card
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _buildRecycleProgressCard(),
+                          child: ValueListenableBuilder<List<OrderModel>>(
+                            valueListenable: OrderStore.instance.orders,
+                            builder: (context, orders, _) {
+                              return _buildRecycleProgressCard(
+                                vm: vm,
+                                orders: orders,
+                              );
+                            },
+                          ),
                         ),
 
                         const SizedBox(height: 24),
@@ -876,7 +890,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // 6. Recycle Progress Card
-  Widget _buildRecycleProgressCard() {
+  Widget _buildRecycleProgressCard(
+      {HomeViewModel? vm, List<OrderModel>? orders}) {
+    const double targetWeight = 50.0;
+    final double userWeight = vm?.getUserPickupWeight(orders) ??
+        (() {
+          final list = orders ?? OrderStore.instance.orders.value;
+          final completed =
+              list.where((o) => o.status == OrderStatus.completed).toList();
+          final valid =
+              list.where((o) => o.status != OrderStatus.cancelled).toList();
+          final target = completed.isNotEmpty ? completed : valid;
+          return target.fold<double>(0.0, (sum, o) => sum + o.effectiveWeight);
+        })();
+
+    final double progressFraction = (userWeight / targetWeight).clamp(0.0, 1.0);
+    final int percentDone = ((userWeight / targetWeight) * 100).round();
+    final String weightDisplay =
+        '${userWeight.toStringAsFixed(1)} kg / ${targetWeight.toInt()} kg';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -893,7 +925,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title + 0% Done Badge
+          // Title + % Done Badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -914,9 +946,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: const Color(0xFFEDE9FE),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  '0% Done',
-                  style: TextStyle(
+                child: Text(
+                  '$percentDone% Done',
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF7C3AED),
@@ -940,10 +972,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 18),
 
           // Monthly Total
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Monthly Total',
                 style: TextStyle(
                   fontSize: 13.5,
@@ -952,8 +984,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Text(
-                '0.0 kg / 50 kg',
-                style: TextStyle(
+                weightDisplay,
+                style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1E242F),
@@ -964,35 +996,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 10),
 
-          // Horizontal Progress Capsule
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Container(
-              width: 38,
-              height: 8,
-              decoration: BoxDecoration(
-                color: const Color(0xFF5A4D3B),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              alignment: Alignment.centerLeft,
-              child: Container(
-                width: 18,
+          // Horizontal Progress Bar
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final totalWidth = constraints.maxWidth;
+              final fillWidth =
+                  (totalWidth * progressFraction).clamp(0.0, totalWidth);
+              return Container(
+                width: totalWidth,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC5A059),
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(4),
                 ),
-              ),
-            ),
+                alignment: Alignment.centerLeft,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutCubic,
+                  width: fillWidth,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC5A059),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 16),
 
           // Bottom indicators
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Live sync active',
                 style: TextStyle(
                   fontSize: 12,
@@ -1002,15 +1040,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.star_rounded,
                     color: Color(0xFFF59E0B),
                     size: 16,
                   ),
-                  SizedBox(width: 4),
+                  const SizedBox(width: 4),
                   Text(
-                    'Keep going!',
-                    style: TextStyle(
+                    percentDone >= 100 ? 'Goal Achieved! 🎉' : 'Keep going!',
+                    style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1E242F),

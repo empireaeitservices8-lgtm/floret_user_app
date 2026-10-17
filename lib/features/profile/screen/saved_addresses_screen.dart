@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../booking/repos/booking_repository.dart';
 import '../viewmodel/address_view_model.dart';
 
 class SavedAddressesScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class SavedAddressesScreen extends StatefulWidget {
 
 class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   late final AddressViewModel _viewModel;
+  final BookingRepository _bookingRepo = BookingRepository();
 
   @override
   void initState() {
@@ -27,117 +29,140 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
     super.dispose();
   }
 
-  static const List<String> _kStates = [
-    'Kerala',
-    'Tamil Nadu',
-    'Karnataka',
-    'Maharashtra',
-    'Delhi',
-    'Andhra Pradesh',
-    'Telangana',
-    'Gujarat',
-  ];
-
-  static const Map<String, List<String>> _kDistricts = {
-    'Kerala': [
-      'Alappuzha',
-      'Ernakulam',
-      'Idukki',
-      'Kannur',
-      'Kasaragod',
-      'Kollam',
-      'Kottayam',
-      'Kozhikode',
-      'Malappuram',
-      'Palakkad',
-      'Pathanamthitta',
-      'Thiruvananthapuram',
-      'Thrissur',
-      'Wayanad',
-    ],
-    'Tamil Nadu': [
-      'Chennai',
-      'Coimbatore',
-      'Madurai',
-      'Salem',
-      'Tiruchirappalli',
-    ],
-    'Karnataka': [
-      'Bengaluru Urban',
-      'Bengaluru Rural',
-      'Mysuru',
-      'Mangaluru',
-      'Hubballi',
-    ],
-  };
-
-  static const Map<String, List<String>> _kLocalBodies = {
-    'Ernakulam': [
-      'Kochi Municipal Corporation',
-      'Tripunithura Municipality',
-      'Kalamassery Municipality',
-      'Aluva Municipality',
-      'Maradu Municipality',
-      'Angamaly Municipality',
-      'Gram Panchayat',
-    ],
-    'Thiruvananthapuram': [
-      'Thiruvananthapuram Corporation',
-      'Nedumangad Municipality',
-      'Neyyattinkara Municipality',
-      'Attingal Municipality',
-      'Varkala Municipality',
-    ],
-    'Kozhikode': [
-      'Kozhikode Corporation',
-      'Vadakara Municipality',
-      'Koyilandy Municipality',
-      'Ramanattukara Municipality',
-    ],
-  };
-
-  static const Map<String, List<String>> _kWards = {
-    'Kochi Municipal Corporation': [
-      'Ward 1 - Fort Kochi',
-      'Ward 2 - Mattancherry',
-      'Ward 3 - Marine Drive',
-      'Ward 4 - Palarivattom',
-      'Ward 5 - Edappally',
-      'Ward 6 - Kakkanad',
-      'Ward 7 - Kaloor',
-      'Ward 8 - Vyttila',
-      'Ward 9 - Panampilly Nagar',
-      'Ward 10 - Kadavanthra',
-    ],
-  };
-
-  List<String> _getDistrictsForState(String state) {
-    return _kDistricts[state] ?? [
-      'Central District',
-      'North District',
-      'South District',
-      'East District',
-      'West District',
-    ];
-  }
-
-  List<String> _getLocalBodiesForDistrict(String district) {
-    return _kLocalBodies[district] ?? [
-      'Municipal Corporation',
-      'Municipality',
-      'Town Panchayat',
-      'Gram Panchayat',
-    ];
-  }
-
-  List<String> _getWardsForLocalBody(String localBody) {
-    return _kWards[localBody] ?? [
-      'Ward 1 - Fort',
-      'Ward 2 - Central',
-      'Ward 3 - North Zone',
-      'Ward 4 - South Zone',
-      'Ward 5 - East Zone',
-    ];
+  Future<String?> _showWardPicker({
+    required BuildContext context,
+    required String localBody,
+    String? selectedWard,
+  }) async {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (pickerContext) {
+        return Material(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.65,
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Select Ward',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1E242F),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF64748B),
+                      size: 20,
+                    ),
+                    onPressed: () => Navigator.pop(pickerContext),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: FutureBuilder<List<String>>(
+                  future: _bookingRepo.fetchWards(localBody),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Color(0xFF1E242F),
+                          ),
+                        ),
+                      );
+                    }
+                    final items =
+                        snapshot.data ?? _bookingRepo.getWards(localBody);
+                    if (items.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No wards available',
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 14,
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const Divider(
+                        height: 1,
+                        color: Color(0xFFF1F5F9),
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        final isSelected = item == selectedWard;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
+                          ),
+                          title: Text(
+                            item,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? const Color(0xFF1E242F)
+                                  : const Color(0xFF475569),
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  color: Color(0xFF1E242F),
+                                  size: 20,
+                                )
+                              : null,
+                          onTap: () => Navigator.pop(pickerContext, item),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+    );
   }
 
   Future<String?> _showSelectionPicker({
@@ -151,15 +176,14 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (pickerContext) {
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.55,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        return Material(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.55,
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,8 +265,9 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
               ),
             ],
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 
@@ -390,7 +415,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                               final picked = await _showSelectionPicker(
                                 context: context,
                                 title: 'Select State',
-                                items: _kStates,
+                                items: _bookingRepo.getAvailableStates(),
                                 selectedItem: selectedState,
                               );
                               if (picked != null) {
@@ -424,7 +449,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                                 return;
                               }
                               final districts =
-                                  _getDistrictsForState(selectedState!);
+                                  _bookingRepo.getDistrictsForState(selectedState!);
                               final picked = await _showSelectionPicker(
                                 context: context,
                                 title: 'Select District',
@@ -462,7 +487,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                                 return;
                               }
                               final localBodies =
-                                  _getLocalBodiesForDistrict(selectedDistrict!);
+                                  _bookingRepo.getLocalBodies(selectedDistrict!);
                               final picked = await _showSelectionPicker(
                                 context: context,
                                 title: 'Select Local Body',
@@ -483,7 +508,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                           _buildDropdownField(
                             label: selectedWard ??
                                 (selectedLocalBody != null
-                                    ? 'Ward / Locality'
+                                    ? 'Ward'
                                     : 'Select Local Body first'),
                             isSelected: selectedWard != null,
                             onTap: () async {
@@ -498,13 +523,10 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                                 );
                                 return;
                               }
-                              final wards =
-                                  _getWardsForLocalBody(selectedLocalBody!);
-                              final picked = await _showSelectionPicker(
+                              final picked = await _showWardPicker(
                                 context: context,
-                                title: 'Select Ward / Locality',
-                                items: wards,
-                                selectedItem: selectedWard,
+                                localBody: selectedLocalBody!,
+                                selectedWard: selectedWard,
                               );
                               if (picked != null) {
                                 setSheetState(() {

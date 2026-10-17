@@ -283,11 +283,13 @@ class BookingViewModel extends ViewModel {
   void proceedToLocation() {
     _currentStep = 1;
     _locationCompleted = true; // Tick mark on Location as requested
+    _scheduleCompleted = false;
     notifyListeners();
   }
 
   void proceedToSchedule() {
     _currentStep = 2;
+    _locationCompleted = true;
     _scheduleCompleted = true;
     notifyListeners();
   }
@@ -295,8 +297,8 @@ class BookingViewModel extends ViewModel {
   void goToStep(int step) {
     if (step >= 0 && step <= 2) {
       _currentStep = step;
-      if (step >= 1) _locationCompleted = true;
-      if (step >= 2) _scheduleCompleted = true;
+      _locationCompleted = step >= 1;
+      _scheduleCompleted = step >= 2;
       notifyListeners();
     }
   }
@@ -304,6 +306,8 @@ class BookingViewModel extends ViewModel {
   void goBackStep() {
     if (_currentStep > 0) {
       _currentStep--;
+      if (_currentStep < 2) _scheduleCompleted = false;
+      if (_currentStep < 1) _locationCompleted = false;
       notifyListeners();
     }
   }

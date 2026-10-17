@@ -5,6 +5,7 @@ import '../../settings/screen/settings_screen.dart';
 import 'profile_screen.dart';
 import 'saved_addresses_screen.dart';
 import '../viewmodel/my_account_view_model.dart';
+import '../model/order_model.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
 
 class MyAccountScreen extends StatefulWidget {
@@ -332,37 +333,43 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
 
   // 3 Metric Cards: Total Pickups, Waste Collected, Trees Equiv.
   Widget _buildSummaryMetrics(MyAccountViewModel vm) {
-    return Row(
-      children: [
-        // Total Pickups
-        Expanded(
-          child: _buildMetricItem(
-            icon: Icons.recycling_rounded,
-            value: '${vm.totalPickups}',
-            label: 'Total Pickups',
-          ),
-        ),
-        const SizedBox(width: 12),
+    return ValueListenableBuilder<List<OrderModel>>(
+      valueListenable: OrderStore.instance.orders,
+      builder: (context, orders, _) {
+        final totalPickupsCount = vm.getTotalPickups(orders);
+        return Row(
+          children: [
+            // Total Pickups
+            Expanded(
+              child: _buildMetricItem(
+                icon: Icons.recycling_rounded,
+                value: '$totalPickupsCount',
+                label: 'Total Pickups',
+              ),
+            ),
+            const SizedBox(width: 12),
 
-        // Waste Collected
-        Expanded(
-          child: _buildMetricItem(
-            icon: Icons.scale_rounded,
-            value: '${vm.wasteCollected.toStringAsFixed(1)} kg',
-            label: 'Waste\nCollected',
-          ),
-        ),
-        const SizedBox(width: 12),
+            // Waste Collected
+            Expanded(
+              child: _buildMetricItem(
+                icon: Icons.scale_rounded,
+                value: '${vm.wasteCollected.toStringAsFixed(1)} kg',
+                label: 'Waste\nCollected',
+              ),
+            ),
+            const SizedBox(width: 12),
 
-        // Trees Equiv.
-        Expanded(
-          child: _buildMetricItem(
-            icon: Icons.eco_rounded,
-            value: '${vm.treesEquiv}',
-            label: 'Trees Equiv.',
-          ),
-        ),
-      ],
+            // Trees Equiv.
+            Expanded(
+              child: _buildMetricItem(
+                icon: Icons.eco_rounded,
+                value: '${vm.treesEquiv}',
+                label: 'Trees Equiv.',
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -524,8 +531,11 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   // Manage Pill Button
   Widget _buildManageButton(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(context, SavedAddressesScreen.routeName);
+      onTap: () async {
+        await Navigator.pushNamed(context, SavedAddressesScreen.routeName);
+        if (context.mounted) {
+          _getViewModel(context).loadAddressDetails();
+        }
       },
       behavior: HitTestBehavior.opaque,
       child: Container(

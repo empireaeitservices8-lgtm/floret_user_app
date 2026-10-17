@@ -206,7 +206,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                 label: 'Contact',
                 isCompleted: true,
                 stepNumber: '1',
-                isActive: true,
+                isActive: vm.currentStep == 0,
               ),
 
               // Divider
@@ -220,9 +220,9 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               // Step 2: Location (has tick mark when on or past Location step as per Image 4)
               _buildStepIndicator(
                 label: 'Location',
-                isCompleted: vm.locationCompleted || vm.currentStep >= 1,
+                isCompleted: vm.currentStep >= 1,
                 stepNumber: '2',
-                isActive: vm.currentStep >= 1,
+                isActive: vm.currentStep == 1,
               ),
 
               // Divider
@@ -233,10 +233,10 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                 color: const Color(0xFFE2E8F0),
               ),
 
-              // Step 3: Schedule
+              // Step 3: Schedule (has tick mark when on Schedule step as per Image 5)
               _buildStepIndicator(
                 label: 'Schedule',
-                isCompleted: vm.scheduleCompleted || vm.currentStep == 2,
+                isCompleted: vm.currentStep >= 2,
                 stepNumber: '3',
                 isActive: vm.currentStep == 2,
               ),
@@ -290,8 +290,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           label,
           style: TextStyle(
             fontSize: 13,
-            fontWeight: showTick || isActive ? FontWeight.w700 : FontWeight.w500,
-            color: showTick || isActive
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            color: isActive
                 ? const Color(0xFF1E242F)
                 : const Color(0xFF94A3B8),
           ),
@@ -1148,11 +1148,16 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
             .join(', ')
         : 'Sanitary waste';
 
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final bool isDateInvalid = _hasSubmittedDate &&
+        (_selectedDate == null || _selectedDate!.isBefore(today));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Error / Alert banner matching Image (shown when date is not yet selected)
-        if (_selectedDate == null) ...[
+        // Error / Alert banner matching Image (shown when date is not yet selected or before today)
+        if (_selectedDate == null || _selectedDate!.isBefore(today)) ...[
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1223,10 +1228,18 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         // Date Picker field
         GestureDetector(
           onTap: () async {
+            final pickerNow = DateTime.now();
+            final pickerToday =
+                DateTime(pickerNow.year, pickerNow.month, pickerNow.day);
+            final initial = (_selectedDate != null &&
+                    !_selectedDate!.isBefore(pickerToday))
+                ? _selectedDate!
+                : pickerToday;
+
             final picked = await showDatePicker(
               context: context,
-              initialDate: _selectedDate ?? DateTime.now(),
-              firstDate: DateTime(2020),
+              initialDate: initial,
+              firstDate: pickerToday,
               lastDate: DateTime(2035),
               builder: (context, child) {
                 return Theme(
@@ -1261,7 +1274,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: (_hasSubmittedDate && _selectedDate == null)
+                color: isDateInvalid
                     ? const Color(0xFFE05368)
                     : const Color(0xFF182236),
                 width: 1.5,
@@ -1293,7 +1306,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
             ),
           ),
         ),
-        if (_hasSubmittedDate && _selectedDate == null) ...[
+        if (isDateInvalid) ...[
           const SizedBox(height: 6),
           const Padding(
             padding: EdgeInsets.only(left: 4),
@@ -1595,8 +1608,12 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                           }
                           vm.proceedToSchedule();
                         } else {
-                          // Validation: ensure pickup date is selected before confirming
-                          if (_selectedDate == null) {
+                          // Validation: ensure pickup date is selected and not before today before confirming
+                          final submitNow = DateTime.now();
+                          final submitToday = DateTime(
+                              submitNow.year, submitNow.month, submitNow.day);
+                          if (_selectedDate == null ||
+                              _selectedDate!.isBefore(submitToday)) {
                             setState(() {
                               _hasSubmittedDate = true;
                             });
@@ -1654,6 +1671,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                   await SpHelper.getString('email') ??
                                   '';
 
+                          const calculatedWeight = 5.0;
+
                           final requestData = <String, dynamic>{
                             'full_name': vm.fullNameController.text.trim(),
                             'email': email,
@@ -1676,6 +1695,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                 ? _collectorNotesController.text.trim()
                                 : 'General household waste',
                             'waste_type': wasteTypeText,
+                            'weight': calculatedWeight,
                             'landmark': _landmarkController.text.trim(),
                           };
 
@@ -1712,6 +1732,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                               bookingId: bookingId,
                               wasteType: wasteTypeText,
                               pickupDate: scheduledDate,
+                              weight: calculatedWeight,
                               address: shortAddress.isNotEmpty
                                   ? shortAddress
                                   : 'Paruthippara, Thiruvananthapuram',
