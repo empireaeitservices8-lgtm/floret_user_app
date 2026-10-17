@@ -1,4 +1,5 @@
 import 'package:floret_app/providers/view_model.dart';
+import 'package:floret_app/services/address_storage_service.dart';
 import '../model/address_model.dart';
 import '../repos/profile_repository.dart';
 
@@ -6,7 +7,16 @@ class AddressViewModel extends ViewModel {
   final ProfileRepository _repository;
 
   AddressViewModel({ProfileRepository? repository})
-      : _repository = repository ?? ProfileRepository();
+      : _repository = repository ?? ProfileRepository() {
+    loadAddresses();
+  }
+
+  Future<void> loadAddresses() async {
+    final list = await _repository.fetchAddresses();
+    _addresses.clear();
+    _addresses.addAll(list);
+    notifyListeners();
+  }
 
   final List<AddressModel> _addresses = [];
 
@@ -80,6 +90,7 @@ class AddressViewModel extends ViewModel {
         isDefault: _addresses[i].id == id,
       );
     }
+    AddressStorageService.setDefaultAddress(id);
     notifyListeners();
   }
 }

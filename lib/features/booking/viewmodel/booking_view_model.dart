@@ -1,5 +1,7 @@
 import 'package:floret_app/providers/view_model.dart';
 import 'package:flutter/material.dart';
+import '../../profile/model/address_model.dart';
+import '../../../services/address_storage_service.dart';
 import '../model/booking_model.dart';
 import '../repos/booking_repository.dart';
 
@@ -15,6 +17,7 @@ class BookingViewModel extends ViewModel {
     cityController = TextEditingController();
     zipCodeController = TextEditingController();
     _loadUserContact();
+    loadSavedAddresses();
   }
 
   Future<void> _loadUserContact() async {
@@ -66,6 +69,71 @@ class BookingViewModel extends ViewModel {
   // Tab: 0 = Saved Addresses, 1 = New Address (Image 4 defaults to New Address)
   int _selectedAddressTab = 1;
   int get selectedAddressTab => _selectedAddressTab;
+
+  List<AddressModel> _savedAddresses = [];
+  List<AddressModel> get savedAddresses => _savedAddresses;
+
+  AddressModel? _selectedSavedAddress;
+  AddressModel? get selectedSavedAddress => _selectedSavedAddress;
+
+  Future<void> loadSavedAddresses() async {
+    _savedAddresses = await AddressStorageService.getSavedAddresses();
+    if (_savedAddresses.isNotEmpty) {
+      if (_selectedSavedAddress == null ||
+          !_savedAddresses.any((a) => a.id == _selectedSavedAddress!.id)) {
+        _selectedSavedAddress = _savedAddresses.firstWhere(
+          (a) => a.isDefault,
+          orElse: () => _savedAddresses.first,
+        );
+      }
+      if (_selectedAddressTab == 0 && _selectedSavedAddress != null) {
+        _applyAddressToControllers(_selectedSavedAddress!);
+      }
+    }
+    notifyListeners();
+  }
+
+  void selectSavedAddress(AddressModel address) {
+    _selectedSavedAddress = address;
+    _applyAddressToControllers(address);
+    notifyListeners();
+  }
+
+  void _applyAddressToControllers(AddressModel address) {
+    pickupAddressController.text = address.addressLine;
+    cityController.text = address.city;
+    zipCodeController.text = address.pincode;
+    _selectedState = address.state ?? 'Kerala';
+    _selectedDistrict = address.district;
+    _selectedLocalBody = address.localBody;
+    _selectedWard = address.ward;
+  }
+
+  Future<AddressModel?> saveCurrentAddressToProfile({String? type}) async {
+    final addr = pickupAddressController.text.trim();
+    final city = cityController.text.trim();
+    final zip = zipCodeController.text.trim();
+    if (addr.isEmpty || city.isEmpty) return null;
+
+    final newAddress = AddressModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      type: type ?? (_savedAddresses.isEmpty ? 'Home' : 'Address #${DateTime.now().millisecondsSinceEpoch}'),
+      addressLine: addr,
+      city: city,
+      pincode: zip.isNotEmpty ? zip : '695001',
+      state: _selectedState ?? 'Kerala',
+      district: _selectedDistrict,
+      localBody: _selectedLocalBody,
+      ward: _selectedWard,
+      isDefault: _savedAddresses.isEmpty,
+    );
+
+    await AddressStorageService.addAddress(newAddress);
+    await loadSavedAddresses();
+    _selectedSavedAddress = newAddress;
+    notifyListeners();
+    return newAddress;
+  }
 
   String? _selectedState;
   String? get selectedState => _selectedState;
@@ -175,6 +243,9 @@ class BookingViewModel extends ViewModel {
 
   void setAddressTab(int index) {
     _selectedAddressTab = index;
+    if (index == 0 && _selectedSavedAddress != null) {
+      _applyAddressToControllers(_selectedSavedAddress!);
+    }
     notifyListeners();
   }
 

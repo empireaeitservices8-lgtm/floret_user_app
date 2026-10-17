@@ -52,4 +52,36 @@ class AddressModel {
       isDefault: isDefault ?? this.isDefault,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type,
+      'addressLine': addressLine,
+      'area': area,
+      'city': city,
+      'pincode': pincode,
+      'state': state,
+      'district': district,
+      'localBody': localBody,
+      'ward': ward,
+      'isDefault': isDefault,
+    };
+  }
+
+  factory AddressModel.fromJson(Map<String, dynamic> json) {
+    return AddressModel(
+      id: json['id']?.toString() ?? '',
+      type: json['type']?.toString() ?? 'Home',
+      addressLine: json['addressLine']?.toString() ?? '',
+      area: json['area']?.toString() ?? '',
+      city: json['city']?.toString() ?? '',
+      pincode: json['pincode']?.toString() ?? '',
+      state: json['state']?.toString(),
+      district: json['district']?.toString(),
+      localBody: json['localBody']?.toString(),
+      ward: json['ward']?.toString(),
+      isDefault: json['isDefault'] == true,
+    );
+  }
 }

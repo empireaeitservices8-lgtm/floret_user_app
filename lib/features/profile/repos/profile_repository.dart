@@ -3,6 +3,7 @@ import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:floret_app/services/address_storage_service.dart';
 import '../model/address_model.dart';
 import '../model/order_model.dart';
 import '../model/profile_model.dart';
@@ -61,17 +62,16 @@ class ProfileRepository {
   }
 
   Future<List<AddressModel>> fetchAddresses() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return [];
+    return await AddressStorageService.getSavedAddresses();
   }
 
   Future<bool> saveAddress(AddressModel address) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await AddressStorageService.addAddress(address);
     return true;
   }
 
   Future<bool> deleteAddress(String id) async {
-    await Future.delayed(const Duration(milliseconds: 200));
+    await AddressStorageService.deleteAddress(id);
     return true;
   }
 

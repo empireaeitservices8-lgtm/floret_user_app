@@ -53,6 +53,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       _viewModel = BookingViewModel();
       _internalViewModel = true;
     }
+    _viewModel.loadSavedAddresses();
   }
 
   @override
@@ -365,6 +366,10 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       lat: result.latitude,
       lng: result.longitude,
     );
+    if (vm.saveToProfile) {
+      await vm.saveCurrentAddressToProfile();
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Address selected from map successfully!'),
@@ -405,24 +410,25 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    // Show SnackBar requested by user
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'no saved adress found.please add a new address',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        backgroundColor: Color(0xFF1E242F),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
                     vm.setAddressTab(0);
+                    if (vm.savedAddresses.isEmpty) {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'no saved adress found.please add a new address',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          backgroundColor: Color(0xFF1E242F),
+                          behavior: SnackBarBehavior.floating,
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    }
                   },
                   behavior: HitTestBehavior.opaque,
                   child: Container(
@@ -502,6 +508,277 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         ),
         const SizedBox(height: 18),
 
+        if (vm.selectedAddressTab == 0)
+          _buildSavedAddressesTab(context, vm)
+        else
+          _buildNewAddressTab(context, vm),
+      ],
+    );
+  }
+
+  Widget _buildSavedAddressesTab(BuildContext context, BookingViewModel vm) {
+    if (vm.savedAddresses.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 36),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.location_off_outlined,
+              size: 44,
+              color: Color(0xFF94A3B8),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No Saved Addresses Found',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E242F),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Add a new address to quickly reuse it here',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => vm.setAddressTab(1),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E242F),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Add New Address'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final selectedAddress = vm.selectedSavedAddress ?? vm.savedAddresses.first;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Horizontal list of saved address cards matching image
+        SizedBox(
+          height: 118,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: vm.savedAddresses.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              final address = vm.savedAddresses[index];
+              final isSelected = selectedAddress.id == address.id;
+
+              final isHome = address.type.trim().toLowerCase() == 'home';
+              final IconData icon = isHome
+                  ? Icons.home
+                  : Icons.location_on;
+
+              String title;
+              if (isHome) {
+                title = address.isDefault ? 'Home (Default)' : 'Home';
+              } else if (address.type.trim().toLowerCase() == 'work') {
+                title = address.isDefault ? 'Work (Default)' : 'Work';
+              } else if (address.type.trim().startsWith('Address #')) {
+                title = address.type.trim();
+              } else if (address.type.trim().isNotEmpty &&
+                  address.type.trim().toLowerCase() != 'other') {
+                title = address.isDefault
+                    ? '${address.type} (Default)'
+                    : address.type;
+              } else {
+                title = 'Address #${address.id}';
+              }
+
+              final parts = <String>[];
+              if (address.city.isNotEmpty) parts.add(address.city);
+              if (address.state != null && address.state!.isNotEmpty) {
+                parts.add(address.state!);
+              }
+              final locationSubtitle = parts.isNotEmpty
+                  ? '${parts.join(', ')} - ${address.pincode}'
+                  : address.pincode;
+
+              return GestureDetector(
+                onTap: () => vm.selectSavedAddress(address),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 220,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFF182236)
+                          : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.8 : 1.2,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF0F172A)
+                                  .withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            icon,
+                            size: 19,
+                            color: isSelected
+                                ? const Color(0xFF182236)
+                                : const Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E242F),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        address.addressLine,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF64748B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        locationSubtitle,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 22),
+
+        // Selected Destination Container (exact match to image)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Selected Destination',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(
+                color: Color(0xFF94A3B8),
+                height: 1,
+                thickness: 0.8,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                selectedAddress.addressLine,
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E242F),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${selectedAddress.city}, ${selectedAddress.district != null && selectedAddress.district!.isNotEmpty ? selectedAddress.district! : selectedAddress.city},\n${selectedAddress.state ?? "Kerala"} - ${selectedAddress.pincode}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF64748B),
+                  height: 1.4,
+                ),
+              ),
+              if (selectedAddress.localBody != null &&
+                  selectedAddress.localBody!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Local Body: ${selectedAddress.localBody}${selectedAddress.ward != null && selectedAddress.ward!.isNotEmpty ? " (Ward: ${selectedAddress.ward})" : ""}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF94A3B8),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildNewAddressTab(BuildContext context, BookingViewModel vm) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         // Locate on Map Card
         GestureDetector(
           onTap: () => _openMapLocationPicker(vm),
@@ -592,8 +869,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           controller: vm.cityController,
           hintText: 'Enter city',
           prefixIcon: Icons.location_city_outlined,
-          hasError: _hasSubmittedLocation &&
-              vm.cityController.text.trim().isEmpty,
+          hasError:
+              _hasSubmittedLocation && vm.cityController.text.trim().isEmpty,
           errorText: 'Please enter city',
           onChanged: (_) {
             if (_hasSubmittedLocation) setState(() {});
@@ -626,7 +903,9 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         const SizedBox(height: 8),
         _buildDropdownSelector(
           currentValue: vm.selectedDistrict,
-          hint: vm.selectedState == null ? 'Select State first' : 'Select District',
+          hint: vm.selectedState == null
+              ? 'Select State first'
+              : 'Select District',
           onTap: () {
             if (vm.selectedState == null) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -720,33 +999,37 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Save this address to my profile',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1E242F),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _handleSaveAddressToProfile(vm),
+                behavior: HitTestBehavior.opaque,
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Save this address to my profile',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E242F),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 3),
-                  Text(
-                    'Allows you to quickly reuse this address for future bookings',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF94A3B8),
+                    SizedBox(height: 3),
+                    Text(
+                      'Allows you to quickly reuse this address for future bookings',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(width: 12),
             GestureDetector(
-              onTap: () => vm.setSaveToProfile(!vm.saveToProfile),
+              onTap: () => _handleSaveAddressToProfile(vm),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 width: 48,
@@ -781,9 +1064,77 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 14),
+
+        // Explicit Save Address Button
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: () =>
+                _handleSaveAddressToProfile(vm, explicitButton: true),
+            icon: const Icon(Icons.bookmark_add_outlined,
+                size: 18, color: Color(0xFF182236)),
+            label: const Text(
+              'Save Address',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF182236),
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              backgroundColor: const Color(0xFFF8FAFC),
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  Future<void> _handleSaveAddressToProfile(BookingViewModel vm,
+      {bool explicitButton = false}) async {
+    final addr = vm.pickupAddressController.text.trim();
+    final city = vm.cityController.text.trim();
+
+    if (addr.isEmpty || city.isEmpty) {
+      if (explicitButton) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter pickup address and city to save'),
+            backgroundColor: Color(0xFFE05368),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        vm.setSaveToProfile(!vm.saveToProfile);
+      }
+      return;
+    }
+
+    if (!explicitButton && !vm.saveToProfile) {
+      vm.setSaveToProfile(true);
+    }
+
+    final saved = await vm.saveCurrentAddressToProfile();
+    if (saved != null && mounted) {
+      vm.setSaveToProfile(true);
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Address saved to profile successfully!'),
+          backgroundColor: Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   // ================= STEP 2: SCHEDULE DETAILS =================
@@ -1178,6 +1529,26 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                         if (vm.currentStep == 0) {
                           vm.proceedToLocation();
                         } else if (vm.currentStep == 1) {
+                          if (vm.selectedAddressTab == 0) {
+                            if (vm.selectedSavedAddress == null &&
+                                vm.savedAddresses.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Please add a new address to continue'),
+                                  backgroundColor: Color(0xFFE05368),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+                            if (vm.selectedSavedAddress != null) {
+                              vm.selectSavedAddress(vm.selectedSavedAddress!);
+                            }
+                            vm.proceedToSchedule();
+                            return;
+                          }
+
                           final addr = vm.pickupAddressController.text.trim();
                           final city = vm.cityController.text.trim();
                           final state = vm.selectedState;
@@ -1218,6 +1589,9 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                               ),
                             );
                             return;
+                          }
+                          if (vm.saveToProfile) {
+                            await vm.saveCurrentAddressToProfile();
                           }
                           vm.proceedToSchedule();
                         } else {
