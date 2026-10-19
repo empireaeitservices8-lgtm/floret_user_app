@@ -64,10 +64,33 @@ Map<String, Widget Function(BuildContext context)> appRoutes() => {
       DisposalConsoleScreen.routeName: (context) =>
           const DisposalConsoleScreen(),
       BookPickupScreen.routeName: (context) => const BookPickupScreen(),
-      RazorpayCheckoutScreen.routeName: (context) =>
-          const RazorpayCheckoutScreen(),
-      PaymentSuccessfulScreen.routeName: (context) =>
-          const PaymentSuccessfulScreen(),
+      RazorpayCheckoutScreen.routeName: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments;
+        if (args is Map<String, dynamic>) {
+          return RazorpayCheckoutScreen(
+            amount: (args['amount'] as num?)?.toDouble() ?? 500.00,
+            orderId: args['orderId'] as String? ?? 'order_u6Fx1O',
+            transactionId: args['transactionId'] as int?,
+            onTopUpSuccess: args['onTopUpSuccess'] as VoidCallback?,
+            isCommercialRegistration:
+                args['isCommercialRegistration'] as bool? ?? false,
+          );
+        } else if (args is double) {
+          return RazorpayCheckoutScreen(amount: args);
+        }
+        return const RazorpayCheckoutScreen();
+      },
+      PaymentSuccessfulScreen.routeName: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments;
+        if (args is Map<String, dynamic>) {
+          return PaymentSuccessfulScreen(
+            amount: (args['amount'] as num?)?.toDouble() ?? 500.00,
+          );
+        } else if (args is double) {
+          return PaymentSuccessfulScreen(amount: args);
+        }
+        return const PaymentSuccessfulScreen();
+      },
       ReceiptTicketScreen.routeName: (context) =>
           const ReceiptTicketScreen(),
     };

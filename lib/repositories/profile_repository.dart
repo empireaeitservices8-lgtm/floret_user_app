@@ -79,6 +79,16 @@ class ProfileRepository {
       await prefs.setString('user_id', uId);
       await OrderStore.instance.loadForUser(uId);
     }
+    if (profileModel.accountType != null && profileModel.accountType!.isNotEmpty) {
+      await SpHelper.saveString('account_type', profileModel.accountType!);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('account_type', profileModel.accountType!);
+    }
+    if (profileModel.registrationFeePaid != null) {
+      await SpHelper.saveBoolean('commercial_fee_paid', profileModel.registrationFeePaid!);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('commercial_fee_paid', profileModel.registrationFeePaid!);
+    }
 
     // Persist registration/profile address for My Account and Saved Addresses
     final prefs = await SharedPreferences.getInstance();

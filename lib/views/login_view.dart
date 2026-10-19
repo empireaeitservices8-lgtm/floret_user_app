@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/sp_helper.dart';
 import '../viewmodels/login_viewmodel.dart';
 import '../features/home/screen/home_screen.dart';
+import '../features/wallet/screen/razorpay_checkout_screen.dart';
 
 class LoginView extends StatefulWidget {
   static const String routeName = '/login_view';
@@ -47,7 +50,7 @@ class _LoginViewState extends State<LoginView> {
 
       // Check user access permission
       if (response != null && response.canAccessApp) {
-        debugPrint('🚀 [LOGIN UI] User permitted (can_access_app == true). Navigating to HomeScreen');
+        debugPrint('🚀 [LOGIN UI] User permitted (can_access_app == true).');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Welcome back, ${response.username}!'),
@@ -56,12 +59,43 @@ class _LoginViewState extends State<LoginView> {
           ),
         );
 
-        // Navigate to Home screen and remove all previous routes from stack
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          HomeScreen.routeName,
-          (route) => false,
-        );
+        final prefs = await SharedPreferences.getInstance();
+        final accountType = (await SpHelper.getString('account_type') ??
+                prefs.getString('account_type') ??
+                response.accountType)
+            .trim()
+            .toLowerCase();
+        final isCommercial = accountType == 'commercial';
+        final isFeePaid =
+            (await SpHelper.getBoolean('commercial_fee_paid') ?? false) ||
+                (prefs.getBool('commercial_fee_paid') ?? false);
+
+        if (!mounted) return;
+
+        if (isCommercial && !isFeePaid) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            RazorpayCheckoutScreen.routeName,
+            (route) => false,
+            arguments: {
+              'amount': 1000.00,
+              'isCommercialRegistration': true,
+              'orderId': 'comm_reg_${DateTime.now().millisecondsSinceEpoch}',
+              'onTopUpSuccess': () async {
+                await SpHelper.saveBoolean('commercial_fee_paid', true);
+                final p = await SharedPreferences.getInstance();
+                await p.setBool('commercial_fee_paid', true);
+              },
+            },
+          );
+        } else {
+          // Navigate to Home screen and remove all previous routes from stack
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            HomeScreen.routeName,
+            (route) => false,
+          );
+        }
       } else {
         // can_access_app is false
         debugPrint('⚠️ [LOGIN UI] Access restricted (can_access_app == false)');
