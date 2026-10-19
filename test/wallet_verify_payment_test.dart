@@ -21,10 +21,11 @@ class MockVerifyPaymentApiService extends ApiService {
   @override
   Future<Response> createWalletTopupOrder({
     required double amount,
+    String paymentMethod = 'Razorpay',
     String? token,
   }) async {
     lastCreatedOrderAmount = amount;
-    lastPayload = {'amount': amount};
+    lastPayload = {'amount': amount, 'payment_method': paymentMethod};
     lastHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -58,12 +59,14 @@ class MockVerifyPaymentApiService extends ApiService {
 
   @override
   Future<Response> verifyPayment({
+    int? transactionId,
     String razorpayOrderId = 'order_123',
     String razorpayPaymentId = 'pay_123',
     String razorpaySignature = 'signature_123',
     String? token,
   }) async {
     lastPayload = {
+      if (transactionId != null) 'transaction_id': transactionId,
       'razorpay_order_id': razorpayOrderId,
       'razorpay_payment_id': razorpayPaymentId,
       'razorpay_signature': razorpaySignature,
@@ -239,12 +242,20 @@ void main() {
       await tester.tap(find.text('Proceed to Pay ₹500.00'));
       await tester.pumpAndSettle();
 
-      // Verified that onTopUpSuccess callback was called to refresh balance
-      expect(balanceRefreshed, isTrue);
-
       // Verified navigation to Razorpay Checkout Screen
       expect(find.text('Floret Technologies'), findsOneWidget);
       expect(find.text('₹500.00'), findsOneWidget);
+
+      // Authorize Razorpay payment
+      await tester.tap(find.byKey(const Key('pay_via_razorpay_button')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('authorize_payment_button')));
+      await tester.pump(const Duration(milliseconds: 1600));
+      await tester.pumpAndSettle();
+
+      // Verified that onTopUpSuccess callback was called to refresh balance
+      expect(balanceRefreshed, isTrue);
     });
 
     test('6. Explicitly calling wallet balance API updates balance to 4500.00',

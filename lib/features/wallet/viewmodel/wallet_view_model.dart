@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:floret_app/providers/view_model.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
 import '../model/wallet_model.dart';
 import '../repos/wallet_repository.dart';
 
@@ -18,7 +19,23 @@ class WalletViewModel extends ViewModel {
         ),
       );
     }
+    _initCachedBalance();
     loadWalletData();
+  }
+
+  Future<void> _initCachedBalance() async {
+    try {
+      final cachedStr = await SpHelper.getString('wallet_balance');
+      if (cachedStr != null && cachedStr.isNotEmpty) {
+        final cached = double.tryParse(cachedStr);
+        if (cached != null && _walletBundle.walletBalance.balance == 0.0) {
+          _walletBundle = _walletBundle.copyWith(
+            walletBalance: WalletBalanceDataModel(balance: cached),
+          );
+          notifyListeners();
+        }
+      }
+    } catch (_) {}
   }
 
   int _selectedActivityTab = 0; // 0: Wallet Activity, 1: Eco Rewards
@@ -30,8 +47,60 @@ class WalletViewModel extends ViewModel {
   bool get isRefreshing => _isRefreshing;
 
   // Wallet Balance getters
-  WalletBalanceDataModel get balanceModel => _walletBundle.walletBalance;
-  double get walletBalance => _walletBundle.walletBalance.balance;
+  WalletBalanceDataModel get balanceModel {
+    final computedBalance = walletBalance;
+    if (_walletBundle.walletBalance.balance != computedBalance) {
+      return _walletBundle.walletBalance.copyWith(balance: computedBalance);
+    }
+    return _walletBundle.walletBalance;
+  }
+
+  double get walletBalance {
+    if (walletTransactions.isNotEmpty) {
+      double total = 0.0;
+      bool hasCompleted = false;
+      for (final tx in walletTransactions) {
+        final s = tx.status.trim().toLowerCase();
+        // Skip failed, cancelled or rejected transactions
+        if (s == 'failed' || s == 'cancelled' || s == 'rejected') {
+          continue;
+        }
+        // Count completed / success transactions
+        if (s == 'completed' || s == 'success' || s.isEmpty) {
+          hasCompleted = true;
+          if (tx.isCredit) {
+            total += tx.amount;
+          } else {
+            total -= tx.amount;
+          }
+        }
+      }
+      if (hasCompleted) {
+        return total < 0 ? 0.0 : total;
+      }
+
+      // If no transactions have explicit 'completed' status, calculate from all non-failed/non-cancelled transactions
+      double fallbackTotal = 0.0;
+      bool hasAny = false;
+      for (final tx in walletTransactions) {
+        final s = tx.status.trim().toLowerCase();
+        if (s == 'failed' || s == 'cancelled' || s == 'rejected') {
+          continue;
+        }
+        hasAny = true;
+        if (tx.isCredit) {
+          fallbackTotal += tx.amount;
+        } else {
+          fallbackTotal -= tx.amount;
+        }
+      }
+      if (hasAny) {
+        return fallbackTotal < 0 ? 0.0 : fallbackTotal;
+      }
+    }
+    return _walletBundle.walletBalance.balance;
+  }
+
   bool get autoTopupEnabled => _walletBundle.walletBalance.autoTopupEnabled;
   double get autoTopupTriggerAmount =>
       _walletBundle.walletBalance.autoTopupTriggerAmount ?? 100.0;
@@ -87,6 +156,11 @@ class WalletViewModel extends ViewModel {
     notifyListeners();
   }
 
+  void setWalletBundle(WalletDataBundle bundle) {
+    _walletBundle = bundle;
+    notifyListeners();
+  }
+
   Future<void> fetchTopupAndTransactions() async {
     try {
       final results = await Future.wait([
@@ -103,9 +177,25 @@ class WalletViewModel extends ViewModel {
         rewardPointsTransactions: _walletBundle.rewardPointsTransactions,
         pickups: _walletBundle.pickups,
       );
+      if (walletBalance > 0) {
+        SpHelper.saveString('wallet_balance', walletBalance.toString());
+      }
       notifyListeners();
     } catch (e) {
       // Retain previous state on error
+    }
+  }
+
+  /// Fetches topup config directly from GET /api/wallet/topup/
+  Future<WalletTopupConfigModel> fetchTopupConfig() async {
+    try {
+      final config = await _repository.fetchTopupConfig();
+      _walletBundle = _walletBundle.copyWith(walletTopupConfig: config);
+      notifyListeners();
+      return config;
+    } catch (e) {
+      debugPrint('⚠️ [WALLET VIEWMODEL] fetchTopupConfig error: $e');
+      return _walletBundle.walletTopupConfig;
     }
   }
 
@@ -131,17 +221,40 @@ class WalletViewModel extends ViewModel {
     }
 
     try {
-      final bundle = await _repository.fetchAllWalletData();
-      if (_walletBundle.rewardPoints.availablePoints > 0 &&
-          bundle.rewardPoints.availablePoints == 0) {
-        _walletBundle = bundle.copyWith(
-          rewardPoints: bundle.rewardPoints.copyWith(
-            availablePoints: _walletBundle.rewardPoints.availablePoints,
-          ),
-        );
-      } else {
-        _walletBundle = bundle;
+      // 1. Fetch wallet balance directly from GET /api/wallet/balance/
+      try {
+        final bal = await _repository.fetchBalance();
+        if (bal.id != null || bal.balance > 0) {
+          _walletBundle = _walletBundle.copyWith(walletBalance: bal);
+          notifyListeners();
+        }
+      } catch (balErr) {
+        debugPrint('⚠️ [WALLET VIEWMODEL] direct balance fetch error: $balErr');
       }
+
+      final bundle = await _repository.fetchAllWalletData();
+      final latestBalance = (_walletBundle.walletBalance.balance > 0 ||
+              _walletBundle.walletBalance.id != null)
+          ? _walletBundle.walletBalance
+          : bundle.walletBalance;
+
+      _walletBundle = bundle.copyWith(
+        walletBalance: latestBalance,
+        walletTransactions: (_walletBundle.walletTransactions.transactions.isNotEmpty &&
+                bundle.walletTransactions.transactions.isEmpty)
+            ? _walletBundle.walletTransactions
+            : bundle.walletTransactions,
+        rewardPoints: (_walletBundle.rewardPoints.availablePoints > 0 &&
+                bundle.rewardPoints.availablePoints == 0)
+            ? bundle.rewardPoints.copyWith(
+                availablePoints: _walletBundle.rewardPoints.availablePoints,
+              )
+            : bundle.rewardPoints,
+      );
+      if (walletBalance > 0) {
+        SpHelper.saveString('wallet_balance', walletBalance.toString());
+      }
+      notifyListeners();
     } catch (e) {
       // Retain previous state on error
     } finally {
@@ -230,6 +343,7 @@ class WalletViewModel extends ViewModel {
   }
 
   Future<bool> verifyPayment({
+    int? transactionId,
     String razorpayOrderId = 'order_123',
     String razorpayPaymentId = 'pay_123',
     String razorpaySignature = 'signature_123',
@@ -237,6 +351,7 @@ class WalletViewModel extends ViewModel {
     showLoading();
     try {
       final success = await _repository.verifyPayment(
+        transactionId: transactionId,
         razorpayOrderId: razorpayOrderId,
         razorpayPaymentId: razorpayPaymentId,
         razorpaySignature: razorpaySignature,

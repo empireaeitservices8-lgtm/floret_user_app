@@ -11,8 +11,13 @@ import 'redeem_rewards_bottom_sheet.dart';
 class WalletScreen extends StatefulWidget {
   static const String routeName = '/wallet';
   final int initialPoints;
+  final WalletViewModel? viewModel;
 
-  const WalletScreen({super.key, this.initialPoints = 0});
+  const WalletScreen({
+    super.key,
+    this.initialPoints = 0,
+    this.viewModel,
+  });
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -24,10 +29,13 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel = WalletViewModel(initialPoints: widget.initialPoints);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _viewModel.fetchWalletBalance();
-    });
+    _viewModel =
+        widget.viewModel ?? WalletViewModel(initialPoints: widget.initialPoints);
+    if (widget.viewModel == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _viewModel.fetchWalletBalance();
+      });
+    }
   }
 
   @override
@@ -231,12 +239,15 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                     ElevatedButton.icon(
                       onPressed: () {
-                        vm.fetchTopupAndTransactions();
+                        vm.fetchTopupConfig();
+                        vm.fetchWalletBalance();
                         TopUpBottomSheet.show(
                           context,
                           config: vm.topupConfig,
-                          onTopUpSuccess: () =>
-                              vm.loadWalletData(isRefresh: true),
+                          onTopUpSuccess: () {
+                            vm.fetchWalletBalance();
+                            vm.loadWalletData(isRefresh: true);
+                          },
                         );
                       },
                       icon: const Icon(
@@ -340,11 +351,15 @@ class _WalletScreenState extends State<WalletScreen> {
             title: 'Top Up',
             subtitle: 'Add Funds',
             onTap: () {
-              vm.fetchTopupAndTransactions();
+              vm.fetchTopupConfig();
+              vm.fetchWalletBalance();
               TopUpBottomSheet.show(
                 context,
                 config: vm.topupConfig,
-                onTopUpSuccess: () => vm.loadWalletData(isRefresh: true),
+                onTopUpSuccess: () {
+                  vm.fetchWalletBalance();
+                  vm.loadWalletData(isRefresh: true);
+                },
               );
             },
           ),
@@ -604,11 +619,15 @@ class _WalletScreenState extends State<WalletScreen> {
 
           ElevatedButton.icon(
             onPressed: () {
-              vm.fetchTopupAndTransactions();
+              vm.fetchTopupConfig();
+              vm.fetchWalletBalance();
               TopUpBottomSheet.show(
                 context,
                 config: vm.topupConfig,
-                onTopUpSuccess: () => vm.loadWalletData(isRefresh: true),
+                onTopUpSuccess: () {
+                  vm.fetchWalletBalance();
+                  vm.loadWalletData(isRefresh: true);
+                },
               );
             },
             icon: const Icon(

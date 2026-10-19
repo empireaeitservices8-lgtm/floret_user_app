@@ -22,6 +22,10 @@ import 'package:floret_app/features/profile/screen/order_history_screen.dart';
 import 'package:floret_app/features/profile/screen/my_account_screen.dart';
 import 'package:floret_app/features/profile/screen/saved_addresses_screen.dart';
 import 'package:floret_app/features/profile/screen/contact_support_screen.dart';
+import 'package:floret_app/features/profile/screen/official_invoice_screen.dart';
+import 'package:floret_app/features/profile/screen/invoice_pdf_preview_screen.dart';
+import 'package:floret_app/features/profile/model/order_model.dart';
+import 'package:floret_app/features/profile/model/bill_model.dart';
 import 'package:floret_app/features/booking/screen/disposal_console_screen.dart';
 import 'package:floret_app/features/booking/screen/book_pickup_screen.dart';
 import 'package:floret_app/features/wallet/screen/razorpay_checkout_screen.dart';
@@ -76,12 +80,21 @@ Widget? _getScreen(RouteSettings settings) {
       return ConnectionFailedScreen(
         param: params,
       );
-    // case OwnerManageUserScreen.route:
-    //   OwnerManageUserScreenParams params =
-    //       settings.arguments as OwnerManageUserScreenParams;
-    //   return OwnerManageUserScreen(
-    //     params: params,
-    //   );
+    case OfficialInvoiceScreen.routeName:
+      final args = settings.arguments;
+      if (args is OrderModel) {
+        return OfficialInvoiceScreen(order: args);
+      }
+      return null;
+    case InvoicePdfPreviewScreen.routeName:
+      final args = settings.arguments;
+      if (args is Map) {
+        return InvoicePdfPreviewScreen(
+          order: args['order'] as OrderModel,
+          bill: args['bill'] as BillModel,
+        );
+      }
+      return null;
 
     default:
       return null;

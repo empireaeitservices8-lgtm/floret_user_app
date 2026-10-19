@@ -150,8 +150,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         iconBgColor: const Color(0xFFE6F7F0),
                         title: 'Floret Wallet',
                         subtitle: 'Check points and earned bags',
-                        onTap: () {
-                          Navigator.pushNamed(context, WalletScreen.routeName);
+                        onTap: () async {
+                          await Navigator.pushNamed(context, WalletScreen.routeName);
+                          _loadPoints();
                         },
                       ),
                     ),
@@ -455,8 +456,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         iconColor: const Color(0xFFFBBF24),
                         value: '$displayPoints pts',
                         label: 'Points',
-                        onTap: () {
-                          Navigator.pushNamed(context, WalletScreen.routeName);
+                        onTap: () async {
+                          await Navigator.pushNamed(context, WalletScreen.routeName);
+                          _loadPoints();
                         },
                       ),
                     ),

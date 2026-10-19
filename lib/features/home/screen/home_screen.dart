@@ -274,9 +274,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                           isBadgePill: false,
                                           title: 'Eco Points',
                                           value: '${vm.ecoPoints} Pts',
-                                          onTap: () {
-                                            Navigator.pushNamed(context,
+                                          onTap: () async {
+                                            await Navigator.pushNamed(context,
                                                 WalletScreen.routeName);
+                                            _viewModel.fetchWalletBalance();
                                           },
                                           gradientColors: const [
                                             Color(0xFFF59E0B),
@@ -446,8 +447,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Sustainability Score Card
           GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, WalletScreen.routeName);
+            onTap: () async {
+              await Navigator.pushNamed(context, WalletScreen.routeName);
+              _viewModel.fetchWalletBalance();
             },
             behavior: HitTestBehavior.opaque,
             child: Container(
@@ -893,19 +895,25 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildRecycleProgressCard(
       {HomeViewModel? vm, List<OrderModel>? orders}) {
     const double targetWeight = 50.0;
-    final double userWeight = vm?.getUserPickupWeight(orders) ??
+    final now = DateTime.now();
+    final double userWeight = vm?.getUserPickupWeight(orders, now) ??
         (() {
           final list = orders ?? OrderStore.instance.orders.value;
+          final monthlyList = list.where((o) {
+            final date = o.completedDate ?? o.pickupDate;
+            return date.year == now.year && date.month == now.month;
+          }).toList();
           final completed =
-              list.where((o) => o.status == OrderStatus.completed).toList();
+              monthlyList.where((o) => o.status == OrderStatus.completed).toList();
           final valid =
-              list.where((o) => o.status != OrderStatus.cancelled).toList();
+              monthlyList.where((o) => o.status != OrderStatus.cancelled).toList();
           final target = completed.isNotEmpty ? completed : valid;
           return target.fold<double>(0.0, (sum, o) => sum + o.effectiveWeight);
         })();
 
     final double progressFraction = (userWeight / targetWeight).clamp(0.0, 1.0);
-    final int percentDone = ((userWeight / targetWeight) * 100).round();
+    final int percentDone =
+        ((userWeight / targetWeight) * 100).round().clamp(0, 100);
     final String weightDisplay =
         '${userWeight.toStringAsFixed(1)} kg / ${targetWeight.toInt()} kg';
 

@@ -153,17 +153,24 @@ class HomeViewModel extends ViewModel {
   List<OrderModel> get orderHistory => _orderHistory;
   bool get isLoadingOrders => _isLoadingOrders;
 
-  /// Calculates total pickup weight for the user in kg (5kg per pickup)
-  double getUserPickupWeight([List<OrderModel>? ordersList]) {
+  /// Calculates monthly pickup weight for the user in kg for the active month (target 50kg monthly).
+  /// Automatically resets and updates at the start of every month.
+  double getUserPickupWeight([List<OrderModel>? ordersList, DateTime? forMonth]) {
+    final now = forMonth ?? DateTime.now();
     final list = ordersList ??
         (OrderStore.instance.orders.value.isNotEmpty
             ? OrderStore.instance.orders.value
             : _orderHistory);
     if (list.isNotEmpty) {
+      final monthlyList = list.where((o) {
+        final date = o.completedDate ?? o.pickupDate;
+        return date.year == now.year && date.month == now.month;
+      }).toList();
+
       final completed =
-          list.where((o) => o.status == OrderStatus.completed).toList();
+          monthlyList.where((o) => o.status == OrderStatus.completed).toList();
       final valid =
-          list.where((o) => o.status != OrderStatus.cancelled).toList();
+          monthlyList.where((o) => o.status != OrderStatus.cancelled).toList();
       final target = completed.isNotEmpty ? completed : valid;
       return target.fold<double>(
         0.0,
@@ -172,7 +179,32 @@ class HomeViewModel extends ViewModel {
     }
 
     if (_homeBundle.pickups.isNotEmpty) {
-      return _homeBundle.pickups.length * 5.0;
+      final monthlyPickups = _homeBundle.pickups.where((p) {
+        if (p.pickupDate != null && p.pickupDate!.isNotEmpty) {
+          final s = p.pickupDate!.trim();
+          DateTime? parsed = DateTime.tryParse(s);
+          if (parsed == null) {
+            final parts = s.split(RegExp(r'[-/]'));
+            if (parts.length == 3) {
+              final p0 = int.tryParse(parts[0]);
+              final p1 = int.tryParse(parts[1]);
+              final p2 = int.tryParse(parts[2]);
+              if (p0 != null && p1 != null && p2 != null) {
+                if (parts[2].length == 4) {
+                  parsed = DateTime(p2, p1, p0);
+                } else if (parts[0].length == 4) {
+                  parsed = DateTime(p0, p1, p2);
+                }
+              }
+            }
+          }
+          if (parsed != null) {
+            return parsed.year == now.year && parsed.month == now.month;
+          }
+        }
+        return false;
+      }).toList();
+      return monthlyPickups.length * 5.0;
     }
 
     return 0.0;

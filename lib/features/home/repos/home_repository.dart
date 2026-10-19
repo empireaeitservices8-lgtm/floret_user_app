@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:floret_app/services/api_service.dart';
@@ -66,8 +67,18 @@ class HomeRepository {
     }
     try {
       final response = await _apiService.getWalletBalance();
-      if (response.data is Map) {
-        final map = Map<String, dynamic>.from(response.data as Map);
+      dynamic responseData = response.data;
+      if (responseData is String) {
+        try {
+          responseData = jsonDecode(responseData);
+        } catch (_) {}
+      }
+      if (responseData is Map) {
+        final map = Map<String, dynamic>.from(
+          (responseData['data'] is Map)
+              ? responseData['data'] as Map
+              : responseData,
+        );
         return WalletBalanceDataModel.fromJson(map);
       }
     } catch (e) {

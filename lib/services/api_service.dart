@@ -548,6 +548,7 @@ class ApiService {
 
   /// Sends a POST request to /api/wallet/topup/verify-payment/
   Future<Response> verifyPayment({
+    int? transactionId,
     String razorpayOrderId = 'order_123',
     String razorpayPaymentId = 'pay_123',
     String razorpaySignature = 'signature_123',
@@ -557,6 +558,7 @@ class ApiService {
       endpoint: walletVerifyPaymentEndpoint,
       requestName: 'VERIFY PAYMENT',
       data: {
+        if (transactionId != null) 'transaction_id': transactionId,
         'razorpay_order_id': razorpayOrderId,
         'razorpay_payment_id': razorpayPaymentId,
         'razorpay_signature': razorpaySignature,
@@ -604,6 +606,7 @@ class ApiService {
   /// Sends a POST request to /api/wallet/topup/ with amount
   Future<Response> createWalletTopupOrder({
     required double amount,
+    String paymentMethod = 'Razorpay',
     String? token,
   }) async {
     return _authenticatedPost(
@@ -611,6 +614,7 @@ class ApiService {
       requestName: 'CREATE WALLET TOPUP ORDER',
       data: {
         'amount': amount,
+        'payment_method': paymentMethod,
       },
       token: token,
     );

@@ -9,11 +9,15 @@ class RazorpayCheckoutScreen extends StatefulWidget {
 
   final double amount;
   final String orderId;
+  final int? transactionId;
+  final VoidCallback? onTopUpSuccess;
 
   const RazorpayCheckoutScreen({
     super.key,
     this.amount = 500.00,
     this.orderId = 'order_u6Fx1O',
+    this.transactionId,
+    this.onTopUpSuccess,
   });
 
   @override
@@ -80,6 +84,8 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
       builder: (dlgContext) => ThreeDSecureAuthDialog(
         amount: widget.amount,
         orderId: widget.orderId,
+        transactionId: widget.transactionId,
+        onTopUpSuccess: widget.onTopUpSuccess,
         onAuthorized: _navigateToSuccessScreen,
       ),
     );
@@ -131,6 +137,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
+                          key: const Key('pay_via_razorpay_button'),
                           onPressed: _isProcessing ? null : _onPayPressed,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0F1E36),
@@ -1165,12 +1172,16 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
 class ThreeDSecureAuthDialog extends StatefulWidget {
   final double amount;
   final String? orderId;
+  final int? transactionId;
+  final VoidCallback? onTopUpSuccess;
   final VoidCallback onAuthorized;
 
   const ThreeDSecureAuthDialog({
     super.key,
     required this.amount,
     this.orderId,
+    this.transactionId,
+    this.onTopUpSuccess,
     required this.onAuthorized,
   });
 
@@ -1220,12 +1231,17 @@ class _ThreeDSecureAuthDialogState extends State<ThreeDSecureAuthDialog> {
     final trimmedId = orderId.startsWith('order_')
         ? orderId.substring('order_'.length)
         : orderId;
+    final paymentId = 'pay_$trimmedId';
+    final signature = 'sig_$trimmedId';
+
     try {
       await WalletRepository().verifyPayment(
+        transactionId: widget.transactionId,
         razorpayOrderId: orderId,
-        razorpayPaymentId: 'pay_$trimmedId',
-        razorpaySignature: 'signature_123',
+        razorpayPaymentId: paymentId,
+        razorpaySignature: signature,
       );
+      widget.onTopUpSuccess?.call();
     } catch (_) {}
 
     await Future.delayed(const Duration(milliseconds: 1500));

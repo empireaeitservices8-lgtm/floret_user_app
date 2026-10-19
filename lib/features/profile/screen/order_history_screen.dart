@@ -10,6 +10,8 @@ import '../model/order_model.dart';
 import '../repos/profile_repository.dart';
 import '../../booking/screen/receipt_ticket_screen.dart';
 import 'pickup_bill_bottom_sheet.dart';
+import 'official_invoice_screen.dart';
+import '../../map/screen/location_picker_map_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   static const String routeName = '/order_history';
@@ -72,6 +74,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
     try {
       final remoteOrders = await _profileRepository.fetchOrderHistory();
+      // ignore: avoid_print
+      print('📦 [OrderHistoryScreen] Fetched ${remoteOrders.length} orders from API');
       OrderStore.instance.mergeRemoteOrders(remoteOrders);
       if (mounted) {
         setState(() {
@@ -450,9 +454,21 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   List<OrderModel> _filterOrders(List<OrderModel> orders) {
     switch (_selectedFilterIndex) {
       case 1:
-        return orders.where((o) => o.status == OrderStatus.completed).toList();
+        // picked and paid it should show under completed
+        return orders.where((o) {
+          final isPickedOrCompleted = o.status == OrderStatus.completed ||
+              (o.rawStatus != null && o.rawStatus!.toLowerCase().contains('pick'));
+          return isPickedOrCompleted && o.isPaid;
+        }).toList();
       case 2:
-        return orders.where((o) => o.status == OrderStatus.pending).toList();
+        // unpaid it show under pending (or pending status)
+        return orders.where((o) {
+          if (o.status == OrderStatus.cancelled ||
+              o.status == OrderStatus.reschedule) {
+            return false;
+          }
+          return !o.isPaid || o.status == OrderStatus.pending;
+        }).toList();
       case 3:
         return orders
             .where((o) => o.status == OrderStatus.reschedule)
@@ -484,27 +500,47 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   // Order card matching design
   Widget _buildOrderCard(OrderModel order) {
-    final statusColor = order.status == OrderStatus.completed
-        ? const Color(0xFF16A34A)
-        : order.status == OrderStatus.reschedule
-            ? const Color(0xFF2563EB)
-            : order.status == OrderStatus.cancelled
-                ? const Color(0xFFDC2626)
-                : const Color(0xFFF59E0B);
-    final statusLabel = order.status == OrderStatus.completed
-        ? 'COMPLETED'
-        : order.status == OrderStatus.reschedule
-            ? 'RESCHEDULED'
-            : order.status == OrderStatus.cancelled
-                ? 'CANCELLED'
-                : 'PENDING';
-    final statusIcon = order.status == OrderStatus.completed
-        ? Icons.check_circle_outline_rounded
-        : order.status == OrderStatus.reschedule
-            ? Icons.event_repeat_rounded
-            : order.status == OrderStatus.cancelled
-                ? Icons.cancel_outlined
-                : Icons.hourglass_bottom_rounded;
+    String statusLabel = 'PENDING';
+    Color statusColor = const Color(0xFFF59E0B);
+    IconData statusIcon = Icons.hourglass_bottom_rounded;
+
+    final isPicked = (order.rawStatus ?? '').toLowerCase().contains('pick');
+    final isCompletedAndPaid = order.status == OrderStatus.completed && order.isPaid;
+
+    final normalized = (order.rawStatus ?? '').toUpperCase().trim();
+    if (order.status == OrderStatus.completed && order.isPaid) {
+      statusLabel = 'COMPLETED';
+      statusColor = const Color(0xFF16A34A);
+      statusIcon = Icons.check_circle_outline_rounded;
+    } else if (order.status == OrderStatus.cancelled ||
+        normalized.contains('CANCEL')) {
+      statusLabel = 'CANCELLED';
+      statusColor = const Color(0xFFDC2626);
+      statusIcon = Icons.cancel_outlined;
+    } else if (order.status == OrderStatus.reschedule ||
+        normalized.contains('RESCHEDULE')) {
+      statusLabel = 'RESCHEDULED';
+      statusColor = const Color(0xFF2563EB);
+      statusIcon = Icons.event_repeat_rounded;
+    } else if (normalized.contains('PICK')) {
+      statusLabel = 'PICKED';
+      statusColor = const Color(0xFFEA580C);
+      statusIcon = Icons.inventory_2_outlined;
+    } else if (normalized.contains('ACCEPT')) {
+      statusLabel = 'ACCEPTED';
+      statusColor = const Color(0xFFEA580C);
+      statusIcon = Icons.hourglass_bottom_rounded;
+    } else {
+      statusLabel = order.status == OrderStatus.completed
+          ? 'COMPLETED'
+          : 'PENDING';
+      statusColor = order.status == OrderStatus.completed
+          ? const Color(0xFF16A34A)
+          : const Color(0xFFF59E0B);
+      statusIcon = order.status == OrderStatus.completed
+          ? Icons.check_circle_outline_rounded
+          : Icons.hourglass_bottom_rounded;
+    }
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -640,60 +676,142 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   ],
                 ),
                 const Divider(height: 28, color: Color(0xFFF1F5F9)),
-                if (order.status != OrderStatus.completed &&
-                    order.status != OrderStatus.cancelled) ...[
+                if (isCompletedAndPaid) ...[
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      _buildActionButton(
-                        label: 'Cancel',
-                        icon: Icons.cancel_outlined,
-                        textColor: const Color(0xFFDC2626),
-                        borderColor: const Color(0xFFFCA5A5),
-                        onTap: () => _confirmCancel(order),
-                      ),
-                      const SizedBox(width: 12),
-                      _buildActionButton(
-                        label: 'Reschedule',
-                        icon: Icons.edit_calendar_outlined,
-                        textColor: const Color(0xFF1E242F),
-                        borderColor: const Color(0xFF9CA3AF),
-                        onTap: () => _reschedule(order),
+                      // Paid status badge matching Image 1
+                      _buildPaymentStatusBadge(order),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Invoice button matching Image 1
+                                _buildInvoiceButton(order),
+                                const SizedBox(width: 8),
+                                // View Bill button
+                                _buildActionButton(
+                                  label: 'View Bill',
+                                  icon: Icons.receipt_long_outlined,
+                                  textColor: const Color(0xFF4B5563),
+                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  borderColor: const Color(0xFFD1D5DB),
+                                  onTap: () => showPickupBillBottomSheet(context, order),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                ],
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    _buildActionButton(
-                      label: 'Track Order',
-                      icon: Icons.map_rounded,
-                      textColor: Colors.white,
-                      backgroundColor: const Color(0xFF1E293B),
-                      borderColor: const Color(0xFF1E293B),
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Tracking for ${order.bookingId} will be available once a collector is assigned.'),
-                            behavior: SnackBarBehavior.floating,
+                ] else if (isPicked) ...[
+                  // Picked but unpaid: shows unpaid badge, Invoice button, and View Bill (matching user screenshot Card 2)
+                  Row(
+                    children: [
+                      _buildPaymentStatusBadge(order),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildInvoiceButton(order),
+                                const SizedBox(width: 8),
+                                _buildActionButton(
+                                  label: 'View Bill',
+                                  icon: Icons.receipt_long_outlined,
+                                  textColor: const Color(0xFF4B5563),
+                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  borderColor: const Color(0xFFD1D5DB),
+                                  onTap: () => showPickupBillBottomSheet(context, order),
+                                ),
+                              ],
+                            ),
                           ),
-                        );
-                      },
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  if (order.status != OrderStatus.cancelled) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _buildActionButton(
+                          label: 'Cancel',
+                          icon: Icons.cancel_outlined,
+                          textColor: const Color(0xFFDC2626),
+                          borderColor: const Color(0xFFFCA5A5),
+                          onTap: () => _confirmCancel(order),
+                        ),
+                        const SizedBox(width: 12),
+                        _buildActionButton(
+                          label: 'Reschedule',
+                          icon: Icons.edit_calendar_outlined,
+                          textColor: const Color(0xFF1E242F),
+                          borderColor: const Color(0xFF9CA3AF),
+                          onTap: () => _reschedule(order),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    _buildActionButton(
-                      label: 'View Bill',
-                      icon: Icons.receipt_long_outlined,
-                      textColor: const Color(0xFF4B5563),
-                      backgroundColor: const Color(0xFFF3F4F6),
-                      borderColor: const Color(0xFFD1D5DB),
-                      onTap: () => showPickupBillBottomSheet(context, order),
-                    ),
+                    const SizedBox(height: 12),
                   ],
-                ),
+                  Row(
+                    children: [
+                      // Show unpaid badge on bottom left
+                      _buildPaymentStatusBadge(order),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildActionButton(
+                                  label: 'Track Order',
+                                  icon: Icons.map_rounded,
+                                  textColor: Colors.white,
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  borderColor: const Color(0xFF1E293B),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const LocationPickerMapScreen(
+                                          confirmButtonText: 'Track Order',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                _buildActionButton(
+                                  label: 'View Bill',
+                                  icon: Icons.receipt_long_outlined,
+                                  textColor: const Color(0xFF4B5563),
+                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  borderColor: const Color(0xFFD1D5DB),
+                                  onTap: () => showPickupBillBottomSheet(context, order),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -702,6 +820,84 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     ),
   );
 }
+
+  Widget _buildPaymentStatusBadge(OrderModel order) {
+    // Shows Paid / Unpaid badge matching Image 1 & Image 2
+    final isPaid = order.isPaid;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: isPaid ? const Color(0xFFF0FDF4) : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isPaid ? const Color(0xFFBBF7D0) : const Color(0xFFFED7AA),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPaid
+                ? Icons.check_circle_outline_rounded
+                : Icons.hourglass_bottom_rounded,
+            size: 14,
+            color: isPaid ? const Color(0xFF16A34A) : const Color(0xFFEA580C),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            isPaid ? 'Paid' : 'Unpaid',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: isPaid ? const Color(0xFF16A34A) : const Color(0xFFEA580C),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvoiceButton(OrderModel order) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OfficialInvoiceScreen(order: order),
+          ),
+        );
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE5E7EB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF9CA3AF), width: 1.2),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.picture_as_pdf_outlined,
+              size: 16,
+              color: Color(0xFF1E293B),
+            ),
+            SizedBox(width: 6),
+            Text(
+              'Invoice',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _openReceiptTicket(OrderModel order) {
     Navigator.push(
@@ -730,21 +926,21 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: borderColor, width: 1.2),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: textColor),
-            const SizedBox(width: 8),
+            Icon(icon, size: 16, color: textColor),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: textColor,
               ),

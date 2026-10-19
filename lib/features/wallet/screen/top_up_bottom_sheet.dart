@@ -62,10 +62,13 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
   Future<void> _loadTopupData() async {
     try {
       final configFuture = _walletRepository.fetchTopupConfig();
+      final balanceFuture = _walletRepository.fetchBalance();
       final txFuture = _walletRepository.fetchTransactions();
-      final results = await Future.wait([configFuture, txFuture]);
+      final results =
+          await Future.wait([configFuture, balanceFuture, txFuture]);
 
       final config = results[0] as WalletTopupConfigModel;
+
       if (mounted && config.predefinedAmounts.isNotEmpty) {
         setState(() {
           _presetAmounts = List<int>.from(config.predefinedAmounts);
@@ -278,34 +281,22 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
                       final amount = double.tryParse(amountText) ?? 500.00;
 
                       String razorpayOrderId = 'order_123';
-                      String razorpayPaymentId = 'pay_123';
+                      int? transactionId;
 
                       // 1. POST /api/wallet/topup/ (Create Razorpay Order)
                       try {
                         final order = await _walletRepository.createTopupOrder(
                           amount: amount,
                         );
-                        if (order?.razorpayOrderId != null &&
-                            order!.razorpayOrderId!.isNotEmpty) {
-                          razorpayOrderId = order.razorpayOrderId!;
-                          final trimmed = razorpayOrderId.startsWith('order_')
-                              ? razorpayOrderId.substring('order_'.length)
-                              : razorpayOrderId;
-                          razorpayPaymentId = 'pay_$trimmed';
+                        if (order != null) {
+                          if (order.razorpayOrderId != null &&
+                              order.razorpayOrderId!.isNotEmpty) {
+                            razorpayOrderId = order.razorpayOrderId!;
+                          }
+                          transactionId = order.transactionId;
                         }
                       } catch (e) {
                         debugPrint('⚠️ [TOP UP] createTopupOrder error: $e');
-                      }
-
-                      // 2. POST /api/wallet/topup/verify-payment/
-                      try {
-                        await _walletRepository.verifyPayment(
-                          razorpayOrderId: razorpayOrderId,
-                          razorpayPaymentId: razorpayPaymentId,
-                          razorpaySignature: 'signature_123',
-                        );
-                      } catch (e) {
-                        debugPrint('⚠️ [TOP UP] verify-payment error: $e');
                       } finally {
                         if (mounted) {
                           setState(() {
@@ -313,9 +304,6 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
                           });
                         }
                       }
-
-                      // 3. Immediately refresh wallet balance
-                      widget.onTopUpSuccess?.call();
 
                       if (!mounted) return;
                       navigator.pop();
@@ -327,9 +315,13 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
                           builder: (_) => RazorpayCheckoutScreen(
                             amount: amount,
                             orderId: razorpayOrderId,
+                            transactionId: transactionId,
+                            onTopUpSuccess: widget.onTopUpSuccess,
                           ),
                         ),
                       );
+                      await _walletRepository.fetchBalance();
+                      await _walletRepository.fetchTransactions();
                       widget.onTopUpSuccess?.call();
                     },
               style: ElevatedButton.styleFrom(

@@ -4,6 +4,7 @@ import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:floret_app/services/address_storage_service.dart';
+import 'package:flutter/foundation.dart';
 import '../model/address_model.dart';
 import '../model/order_model.dart';
 import '../model/profile_model.dart';
@@ -98,6 +99,16 @@ class ProfileRepository {
 
     // 3. Perform authenticated GET request to /api/pickups/
     final response = await _apiService.getPickups(token: authToken);
+
+    // ignore: avoid_print
+    print('📦 [ORDER HISTORY RESPONSE] Status Code: ${response.statusCode}');
+    // ignore: avoid_print
+    print('📦 [ORDER HISTORY RESPONSE] Data: ${response.data}');
+    debugPrint('================================================================');
+    debugPrint('📦 [ORDER HISTORY RESPONSE]');
+    debugPrint('Status Code: ${response.statusCode}');
+    debugPrint('Response Data: ${response.data}');
+    debugPrint('================================================================');
 
     List rawList = [];
     if (response.data is List) {

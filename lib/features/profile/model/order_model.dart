@@ -18,6 +18,8 @@ class OrderModel {
   final String? userId;
   final double? weight;
   final int? bagsUsed;
+  final String? rawStatus;
+  final String? paymentStatus;
 
   OrderModel({
     required this.bookingId,
@@ -31,7 +33,17 @@ class OrderModel {
     this.userId,
     this.weight,
     this.bagsUsed,
+    this.rawStatus,
+    this.paymentStatus,
   });
+
+  bool get isPaid {
+    final ps = (paymentStatus ?? '').toLowerCase().trim();
+    if (ps == 'paid' || ps == 'completed' || ps == 'success') return true;
+    if (ps == 'unpaid' || ps == 'pending') return false;
+    return status == OrderStatus.completed &&
+        !(rawStatus != null && rawStatus!.toLowerCase().contains('unpaid'));
+  }
 
   /// Returns the effective pickup weight in kg (5.0 kg per pickup)
   double get effectiveWeight {
@@ -53,6 +65,8 @@ class OrderModel {
         if (userId != null) 'userId': userId,
         if (weight != null) 'weight': weight,
         if (bagsUsed != null) 'bagsUsed': bagsUsed,
+        if (rawStatus != null) 'rawStatus': rawStatus,
+        if (paymentStatus != null) 'paymentStatus': paymentStatus,
       };
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -97,6 +111,10 @@ class OrderModel {
           (json['pickup_weight'] as num?)?.toDouble(),
       bagsUsed: (json['bagsUsed'] as num?)?.toInt() ??
           (json['bags_used'] as num?)?.toInt(),
+      rawStatus: json['rawStatus'] as String? ?? json['raw_status'] as String?,
+      paymentStatus: json['paymentStatus'] as String? ??
+          json['payment_status'] as String? ??
+          json['payment'] as String?,
     );
   }
 
@@ -140,15 +158,31 @@ class OrderModel {
       parsedCompletedDate = completedDateRaw;
     }
 
-    // 5. Status
-    final rawStatus = (json['status'] ??
+    // 5. Status & Payment Status
+    final originalStatus = (json['status'] ??
             json['pickup_status'] ??
             json['order_status'] ??
             json['state'] ??
             '')
         .toString()
-        .toLowerCase()
         .trim();
+    final rawStatus = originalStatus.toLowerCase();
+
+    final rawPayment = (json['payment_status'] ??
+            json['paymentStatus'] ??
+            json['payment'] ??
+            json['bill_status'] ??
+            '')
+        .toString()
+        .trim();
+    String? paymentStatus;
+    if (rawPayment.isNotEmpty) {
+      paymentStatus = rawPayment;
+    } else if (json['is_paid'] == true || json['paid'] == true) {
+      paymentStatus = 'paid';
+    } else if (json['is_paid'] == false || json['paid'] == false) {
+      paymentStatus = 'unpaid';
+    }
 
     final bool isCompletedFlag = json['is_completed'] == true ||
         json['completed'] == true ||
@@ -158,23 +192,24 @@ class OrderModel {
         json['is_done'] == true;
 
     OrderStatus status = OrderStatus.pending;
-    if (isCompletedFlag ||
+    if (rawStatus.contains('cancel') || json['is_cancelled'] == true) {
+      status = OrderStatus.cancelled;
+    } else if (rawStatus.contains('reschedul')) {
+      status = OrderStatus.reschedule;
+    } else if (isCompletedFlag ||
         rawStatus.contains('complete') ||
         rawStatus.contains('deliver') ||
         rawStatus.contains('collect') ||
         rawStatus.contains('picked_up') ||
         rawStatus.contains('pickedup') ||
         rawStatus.contains('picked up') ||
+        rawStatus == 'picked' ||
         rawStatus.contains('done') ||
         rawStatus.contains('finish') ||
         rawStatus.contains('success') ||
         rawStatus.contains('closed')) {
       status = OrderStatus.completed;
       parsedCompletedDate ??= pickupDate;
-    } else if (rawStatus.contains('cancel') || json['is_cancelled'] == true) {
-      status = OrderStatus.cancelled;
-    } else if (rawStatus.contains('reschedul')) {
-      status = OrderStatus.reschedule;
     } else {
       status = OrderStatus.pending;
     }
@@ -288,6 +323,8 @@ class OrderModel {
       userId: userId,
       weight: parsedWeight,
       bagsUsed: parsedBags,
+      rawStatus: originalStatus.isNotEmpty ? originalStatus : null,
+      paymentStatus: paymentStatus,
     );
   }
 }
