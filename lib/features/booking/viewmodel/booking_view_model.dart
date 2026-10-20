@@ -71,13 +71,15 @@ class BookingViewModel extends ViewModel {
   int get selectedAddressTab => _selectedAddressTab;
 
   List<AddressModel> _savedAddresses = [];
-  List<AddressModel> get savedAddresses => _savedAddresses;
+  List<AddressModel> get savedAddresses =>
+      AddressStorageService.deduplicateAddresses(_savedAddresses);
 
   AddressModel? _selectedSavedAddress;
   AddressModel? get selectedSavedAddress => _selectedSavedAddress;
 
   Future<void> loadSavedAddresses() async {
-    _savedAddresses = await AddressStorageService.getSavedAddresses();
+    final rawList = await AddressStorageService.getSavedAddresses();
+    _savedAddresses = AddressStorageService.deduplicateAddresses(rawList);
     if (_savedAddresses.isNotEmpty) {
       if (_selectedSavedAddress == null ||
           !_savedAddresses.any((a) => a.id == _selectedSavedAddress!.id)) {
@@ -115,24 +117,40 @@ class BookingViewModel extends ViewModel {
     final zip = zipCodeController.text.trim();
     if (addr.isEmpty || city.isEmpty) return null;
 
+    AddressModel? existingMatch;
+    try {
+      existingMatch = _savedAddresses.firstWhere(
+        (a) =>
+            a.addressLine.trim().isNotEmpty &&
+            a.addressLine.trim().toLowerCase() == addr.toLowerCase(),
+      );
+    } catch (_) {}
+
     final newAddress = AddressModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      type: type ?? (_savedAddresses.isEmpty ? 'Home' : 'Address #${DateTime.now().millisecondsSinceEpoch}'),
+      id: existingMatch?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      type: type ??
+          (existingMatch != null &&
+                  existingMatch.type.isNotEmpty &&
+                  !existingMatch.type.startsWith('Address #')
+              ? existingMatch.type
+              : (_savedAddresses.isEmpty
+                  ? 'Home'
+                  : 'Address #${DateTime.now().millisecondsSinceEpoch}')),
       addressLine: addr,
       city: city,
       pincode: zip.isNotEmpty ? zip : '695001',
-      state: _selectedState ?? 'Kerala',
-      district: _selectedDistrict,
-      localBody: _selectedLocalBody,
-      ward: _selectedWard,
-      isDefault: _savedAddresses.isEmpty,
+      state: _selectedState ?? existingMatch?.state ?? 'Kerala',
+      district: _selectedDistrict ?? existingMatch?.district,
+      localBody: _selectedLocalBody ?? existingMatch?.localBody,
+      ward: _selectedWard ?? existingMatch?.ward,
+      isDefault: existingMatch?.isDefault ?? _savedAddresses.isEmpty,
     );
 
-    await AddressStorageService.addAddress(newAddress);
+    final saved = await AddressStorageService.addAddress(newAddress);
     await loadSavedAddresses();
-    _selectedSavedAddress = newAddress;
+    _selectedSavedAddress = saved;
     notifyListeners();
-    return newAddress;
+    return saved;
   }
 
   String? _selectedState;

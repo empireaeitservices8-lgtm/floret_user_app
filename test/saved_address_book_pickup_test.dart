@@ -80,6 +80,64 @@ void main() {
       final all = await AddressStorageService.getSavedAddresses();
       expect(all.any((a) => a.addressLine == '456 Hilltop Ave'), isTrue);
     });
+
+    test('if entered pickup address is repeated, only latest one is stored and shown', () async {
+      final vm = BookingViewModel();
+      await vm.loadSavedAddresses();
+
+      // Enter address "Sunset Blvd" with new city "Kochi"
+      vm.pickupAddressController.text = 'Sunset Blvd';
+      vm.cityController.text = 'Kochi';
+      vm.zipCodeController.text = '682001';
+
+      await vm.saveCurrentAddressToProfile();
+
+      // Verify "Sunset Blvd" appears only once in savedAddresses
+      final sunsetMatches = vm.savedAddresses
+          .where((a) => a.addressLine.toLowerCase() == 'sunset blvd')
+          .toList();
+      expect(sunsetMatches.length, equals(1));
+      // Verify it reflects the latest entered data
+      expect(sunsetMatches.first.city, equals('Kochi'));
+      expect(sunsetMatches.first.pincode, equals('682001'));
+    });
+
+    test('deduplicates repeated addresses loaded from raw storage, showing only latest', () async {
+      // Simulate raw storage having repeated entries
+      await AddressStorageService.saveAddresses([
+        AddressModel(
+          id: 'old_1',
+          addressLine: 'Baker Street',
+          city: 'London',
+          pincode: '111111',
+          isDefault: true,
+        ),
+        AddressModel(
+          id: 'old_2',
+          addressLine: 'Palm Grove',
+          city: 'Kochi',
+          pincode: '682001',
+          isDefault: false,
+        ),
+        AddressModel(
+          id: 'latest_1',
+          addressLine: 'Baker Street',
+          city: 'New London',
+          pincode: '222222',
+          isDefault: false,
+        ),
+      ]);
+
+      final vm = BookingViewModel();
+      await vm.loadSavedAddresses();
+
+      final bakerMatches = vm.savedAddresses
+          .where((a) => a.addressLine.toLowerCase() == 'baker street')
+          .toList();
+      expect(bakerMatches.length, equals(1));
+      expect(bakerMatches.first.city, equals('New London'));
+      expect(bakerMatches.first.pincode, equals('222222'));
+    });
   });
 
   group('BookPickupScreen Widget Tests', () {
@@ -111,6 +169,61 @@ void main() {
 
       // Verify Continue button is present
       expect(find.text('Continue'), findsOneWidget);
+    });
+
+    testWidgets('Location Details Saved Addresses does not show repeated addresses, only latest',
+        (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      // Preload repeated addresses in storage
+      await AddressStorageService.saveAddresses([
+        AddressModel(
+          id: 'addr_1',
+          type: 'Home',
+          addressLine: 'Green Valley',
+          city: 'Old Town',
+          pincode: '695001',
+          isDefault: true,
+        ),
+        AddressModel(
+          id: 'addr_2',
+          type: 'Work',
+          addressLine: 'Cyber Park',
+          city: 'Tech City',
+          pincode: '695581',
+          isDefault: false,
+        ),
+        AddressModel(
+          id: 'addr_3',
+          type: 'Home',
+          addressLine: 'Green Valley',
+          city: 'New Town',
+          pincode: '695002',
+          isDefault: false,
+        ),
+      ]);
+
+      final vm = BookingViewModel();
+      await vm.loadSavedAddresses();
+      vm.proceedToLocation(); // Move to Step 1: Location Details
+      vm.setAddressTab(0); // Select Saved Addresses tab
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BookPickupScreen(viewModel: vm),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // "Green Valley" should only have one card in horizontal saved addresses list
+      // Total occurrences of "Green Valley": 1 in horizontal card + 1 in Selected Destination = 2 (not 3)
+      expect(find.text('Green Valley'), findsNWidgets(2));
+      // The latest city "New Town" should be displayed
+      expect(find.textContaining('New Town'), findsAtLeastNWidgets(1));
+      // The older city "Old Town" should not be displayed
+      expect(find.textContaining('Old Town'), findsNothing);
     });
   });
 }

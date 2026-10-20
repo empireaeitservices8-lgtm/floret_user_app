@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:floret_app/viewmodels/profile_viewmodel.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
@@ -1018,14 +1020,23 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() => tester.view.resetPhysicalSize());
+    SharedPreferences.setMockInitialValues({});
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      (MethodCall methodCall) async => null,
+    );
 
     await tester.pumpWidget(
-      MaterialApp(
-        initialRoute: SettingsScreen.routeName,
-        routes: {
-          SettingsScreen.routeName: (c) => const SettingsScreen(),
-          LoginScreen.routeName: (c) => const LoginScreen(),
-        },
+      ChangeNotifierProvider(
+        create: (_) => ProfileViewModel(),
+        child: MaterialApp(
+          initialRoute: SettingsScreen.routeName,
+          routes: {
+            SettingsScreen.routeName: (c) => const SettingsScreen(),
+            LoginScreen.routeName: (c) => const LoginScreen(),
+          },
+        ),
       ),
     );
     await tester.pump();
@@ -1037,12 +1048,66 @@ void main() {
     await tester.tap(find.text('Logout'));
     await tester.pumpAndSettle();
 
+    // Verify confirmation popup appears and tap Logout
+    expect(find.text('Are you sure you want to logout?'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Logout'));
+    await tester.pumpAndSettle();
+
     // Verify navigated to LoginScreen
     expect(find.text('Welcome Back'), findsOneWidget);
     expect(find.text('Login to manage your waste sustainably'), findsOneWidget);
     expect(find.text('Mobile Number'), findsOneWidget);
     expect(find.text('Send OTP'), findsOneWidget);
     expect(find.text('Sign Up'), findsOneWidget);
+  });
+
+  testWidgets(
+      '22b. SettingsScreen -> Tap Logout -> Cancel closes dialog without logging out',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+    SharedPreferences.setMockInitialValues({});
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      (MethodCall methodCall) async => null,
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => ProfileViewModel(),
+        child: MaterialApp(
+          initialRoute: SettingsScreen.routeName,
+          routes: {
+            SettingsScreen.routeName: (c) => const SettingsScreen(),
+            LoginScreen.routeName: (c) => const LoginScreen(),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Verify on SettingsScreen
+    expect(find.text('Logout'), findsOneWidget);
+
+    // Tap Logout tile
+    await tester.tap(find.text('Logout'));
+    await tester.pumpAndSettle();
+
+    // Verify confirmation popup appears
+    expect(find.text('Are you sure you want to logout?'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+
+    // Tap Cancel
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // Verify popup is dismissed and user is still on SettingsScreen
+    expect(find.text('Are you sure you want to logout?'), findsNothing);
+    expect(find.text('Logout'), findsOneWidget);
+    expect(find.text('Welcome Back'), findsNothing);
   });
 
   testWidgets(

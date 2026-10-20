@@ -15,9 +15,10 @@ class AddressStorageService {
       if (raw != null && raw.trim().isNotEmpty) {
         final decoded = jsonDecode(raw);
         if (decoded is List && decoded.isNotEmpty) {
-          return decoded
+          final list = decoded
               .map((e) => AddressModel.fromJson(Map<String, dynamic>.from(e)))
               .toList();
+          return deduplicateAddresses(list);
         }
       }
 
@@ -70,6 +71,30 @@ class AddressStorageService {
     }
   }
 
+  /// Deduplicates a list of addresses by addressLine (case-insensitive & trimmed),
+  /// keeping only the latest one.
+  static List<AddressModel> deduplicateAddresses(List<AddressModel> addresses) {
+    if (addresses.isEmpty) return [];
+
+    final Map<String, AddressModel> map = {};
+    for (final addr in addresses) {
+      final key = addr.addressLine.trim().toLowerCase();
+      if (key.isNotEmpty) {
+        final existing = map[key];
+        if (existing != null) {
+          final isDef = addr.isDefault || existing.isDefault;
+          map[key] = addr.copyWith(isDefault: isDef);
+        } else {
+          map[key] = addr;
+        }
+      } else {
+        map[addr.id] = addr;
+      }
+    }
+
+    return map.values.toList();
+  }
+
   /// Saves the complete list of addresses to SharedPreferences.
   static Future<void> saveAddresses(List<AddressModel> addresses) async {
     try {
@@ -94,16 +119,43 @@ class AddressStorageService {
 
     final finalAddress = newAddress.copyWith(isDefault: shouldMakeDefault);
 
-    // If matching id exists, replace it
-    final existingIndex = updatedList.indexWhere((a) => a.id == finalAddress.id);
+    // If matching id or addressLine exists, replace it with the latest one
+    final normLine = finalAddress.addressLine.trim().toLowerCase();
+    final existingIndex = updatedList.indexWhere(
+      (a) =>
+          a.id == finalAddress.id ||
+          (normLine.isNotEmpty &&
+              a.addressLine.trim().toLowerCase() == normLine),
+    );
     if (existingIndex != -1) {
-      updatedList[existingIndex] = finalAddress;
+      final wasDefault = updatedList[existingIndex].isDefault;
+      final existingType = updatedList[existingIndex].type;
+      final resolvedType = (finalAddress.type.startsWith('Address #') &&
+              !existingType.startsWith('Address #'))
+          ? existingType
+          : finalAddress.type;
+      final resolvedAddress = finalAddress.copyWith(
+        id: updatedList[existingIndex].id,
+        type: resolvedType,
+        isDefault: wasDefault && !shouldMakeDefault ? true : shouldMakeDefault,
+      );
+      updatedList[existingIndex] = resolvedAddress;
+      // Remove any other duplicates with the same addressLine
+      if (normLine.isNotEmpty) {
+        for (int i = updatedList.length - 1; i >= 0; i--) {
+          if (i != existingIndex &&
+              updatedList[i].addressLine.trim().toLowerCase() == normLine) {
+            updatedList.removeAt(i);
+          }
+        }
+      }
+      await saveAddresses(updatedList);
+      return resolvedAddress;
     } else {
       updatedList.add(finalAddress);
+      await saveAddresses(updatedList);
+      return finalAddress;
     }
-
-    await saveAddresses(updatedList);
-    return finalAddress;
   }
 
   /// Deletes an address by ID and updates default if necessary.
