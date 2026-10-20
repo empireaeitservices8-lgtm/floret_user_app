@@ -490,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'Sustainability Score',
                               maxLines: 1,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
@@ -903,10 +903,12 @@ class _HomeScreenState extends State<HomeScreen> {
             final date = o.completedDate ?? o.pickupDate;
             return date.year == now.year && date.month == now.month;
           }).toList();
-          final completed =
-              monthlyList.where((o) => o.status == OrderStatus.completed).toList();
-          final valid =
-              monthlyList.where((o) => o.status != OrderStatus.cancelled).toList();
+          final completed = monthlyList
+              .where((o) => o.status == OrderStatus.completed)
+              .toList();
+          final valid = monthlyList
+              .where((o) => o.status != OrderStatus.cancelled)
+              .toList();
           final target = completed.isNotEmpty ? completed : valid;
           return target.fold<double>(0.0, (sum, o) => sum + o.effectiveWeight);
         })();

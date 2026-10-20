@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/features/auth/screen/login_screen.dart';
 import 'package:floret_app/features/home/screen/home_screen.dart';
+import 'package:floret_app/features/wallet/screen/razorpay_checkout_screen.dart';
 import 'package:floret_app/viewmodels/splash_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -39,6 +42,39 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     if (status == AuthGateStatus.authenticated) {
+      final prefs = await SharedPreferences.getInstance();
+      final accountType = (await SpHelper.getString('account_type') ??
+              prefs.getString('account_type') ??
+              '')
+          .trim()
+          .toLowerCase();
+      final isCommercial = accountType == 'commercial';
+      final isFeePaid =
+          (await SpHelper.getBoolean('commercial_fee_paid') ?? false) ||
+              (prefs.getBool('commercial_fee_paid') ?? false);
+
+      if (!mounted) return;
+
+      if (isCommercial && !isFeePaid) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: RazorpayCheckoutScreen.routeName),
+            builder: (context) => RazorpayCheckoutScreen(
+              amount: 1000.00,
+              isCommercialRegistration: true,
+              orderId: 'comm_reg_${DateTime.now().millisecondsSinceEpoch}',
+              onTopUpSuccess: () async {
+                await SpHelper.saveBoolean('commercial_fee_paid', true);
+                final p = await SharedPreferences.getInstance();
+                await p.setBool('commercial_fee_paid', true);
+              },
+            ),
+          ),
+        );
+        return;
+      }
+
       Navigator.pushReplacementNamed(context, HomeScreen.routeName);
     } else {
       Navigator.pushReplacementNamed(context, LoginScreen.routeName);

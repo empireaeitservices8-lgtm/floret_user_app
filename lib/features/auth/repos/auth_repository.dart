@@ -33,7 +33,8 @@ class AuthRepository {
 
       final response = await _apiService.sendOtp(formattedPhone);
       final resData = response.data is Map ? response.data as Map : {};
-      final message = resData['message']?.toString() ?? 'OTP sent successfully.';
+      final message =
+          resData['message']?.toString() ?? 'OTP sent successfully.';
 
       return AuthResponseModel(
         success: true,
@@ -56,7 +57,8 @@ class AuthRepository {
               ? '+$mobileNumber'
               : '+91$mobileNumber');
 
-      debugPrint('🚀 [API REQUEST] Verifying OTP / Logging in with phone: $formattedPhone');
+      debugPrint(
+          '🚀 [API REQUEST] Verifying OTP / Logging in with phone: $formattedPhone');
       final response = await _apiService.login(
         phoneNumber: formattedPhone,
         otp: otp,
@@ -112,7 +114,8 @@ class AuthRepository {
       await prefs.setBool('can_access_app', canAccessApp);
       await _webAPIService.initTokenToHeader();
 
-      debugPrint('✅ [API RESPONSE] Successfully authenticated with real server token: $token');
+      debugPrint(
+          '✅ [API RESPONSE] Successfully authenticated with real server token: $token');
       return AuthResponseModel(
         success: true,
         message: 'OTP verified successfully',
@@ -132,19 +135,37 @@ class AuthRepository {
   Future<SignupResponseModel> registerUser(SignupRequestModel request) async {
     try {
       final requestData = request.toJson();
+
       final Response response;
-      if (request.mouDocumentPath != null &&
-          request.mouDocumentPath!.isNotEmpty) {
+      final filePath = request.mouDocumentPath;
+      final bool hasMouFile = filePath != null && filePath.isNotEmpty;
+
+      if (hasMouFile) {
+        final filename = request.mouDocumentName ??
+            filePath.split(RegExp(r'[/\\]')).last;
+
+        // mou_document is expected as a String on the backend serializer.
+        requestData['mou_document'] = filename;
+        requestData.remove('mou_file');
+
         final formData = FormData.fromMap(requestData);
+
+        // Upload the actual document under 'mou_file'
         try {
-          final multipartFile = await MultipartFile.fromFile(
-            request.mouDocumentPath!,
-            filename: request.mouDocumentName ??
-                request.mouDocumentPath!.split(RegExp(r'[/\\]')).last,
+          formData.files.add(
+            MapEntry(
+              'mou_file',
+              await MultipartFile.fromFile(
+                filePath,
+                filename: filename,
+              ),
+            ),
           );
-          formData.files.add(MapEntry('mou_document', multipartFile));
-          formData.files.add(MapEntry('mou_file', multipartFile));
-        } catch (_) {}
+        } catch (fileErr) {
+          debugPrint(
+              '⚠️ [AUTH REPOSITORY] Could not read file from path $filePath: $fileErr');
+        }
+
         response = await _apiService.dio.post(
           ApiEndpoints.register,
           data: formData,
@@ -164,7 +185,8 @@ class AuthRepository {
             : Map<String, dynamic>.from(response.data as Map);
 
         final signupResponse = SignupResponseModel.fromJson(resData);
-        final phone = (signupResponse.phoneNumber != null && signupResponse.phoneNumber!.isNotEmpty)
+        final phone = (signupResponse.phoneNumber != null &&
+                signupResponse.phoneNumber!.isNotEmpty)
             ? signupResponse.phoneNumber!
             : (request.phone.startsWith('+')
                 ? request.phone
@@ -174,24 +196,31 @@ class AuthRepository {
         final firstName = request.firstName.trim();
         final lastName = request.lastName.trim();
         final fullName = '$firstName $lastName'.trim();
-        final primaryName = firstName.isNotEmpty ? firstName : (signupResponse.username ?? fullName);
+        final primaryName = firstName.isNotEmpty
+            ? firstName
+            : (signupResponse.username ?? fullName);
 
-        debugPrint('[RegisterProvider] Registration successful. Generated OTP: ');
+        debugPrint(
+            '[RegisterProvider] Registration successful. Generated OTP: ');
 
         // Sequence of APIs after successful registration:
         // 1. POST /api/otp/send/
         // 2. POST /api/login/ with phone & returned otp
         // 3. GET /api/profile/ with obtained token
         String retrievedToken = signupResponse.token ?? '';
-        String retrievedUserId = signupResponse.userId?.toString() ?? resData['user_id']?.toString() ?? '';
+        String retrievedUserId = signupResponse.userId?.toString() ??
+            resData['user_id']?.toString() ??
+            '';
         String retrievedUsername = signupResponse.username ?? primaryName;
-        String retrievedAccountType = signupResponse.accountType ?? request.accountType;
+        String retrievedAccountType =
+            signupResponse.accountType ?? request.accountType;
         String retrievedMouStatus = '';
         bool canAccessApp = true;
 
         try {
           final otpResponse = await _apiService.sendOtp(phone);
-          final otpData = otpResponse.data is Map ? otpResponse.data as Map : {};
+          final otpData =
+              otpResponse.data is Map ? otpResponse.data as Map : {};
           final generatedOtp = otpData['otp']?.toString() ?? '';
 
           if (generatedOtp.isNotEmpty) {
@@ -199,18 +228,23 @@ class AuthRepository {
               phoneNumber: phone,
               otp: generatedOtp,
             );
-            final loginData = loginResponse.data is Map ? loginResponse.data as Map : {};
-            if (loginData['token'] != null && loginData['token'].toString().trim().isNotEmpty) {
+            final loginData =
+                loginResponse.data is Map ? loginResponse.data as Map : {};
+            if (loginData['token'] != null &&
+                loginData['token'].toString().trim().isNotEmpty) {
               retrievedToken = loginData['token'].toString().trim();
             }
             if (loginData['user_id'] != null) {
               retrievedUserId = loginData['user_id'].toString();
             }
-            if (loginData['username'] != null && loginData['username'].toString().trim().isNotEmpty) {
+            if (loginData['username'] != null &&
+                loginData['username'].toString().trim().isNotEmpty) {
               retrievedUsername = loginData['username'].toString().trim();
             }
-            if (loginData['account_type'] != null && loginData['account_type'].toString().trim().isNotEmpty) {
-              retrievedAccountType = loginData['account_type'].toString().trim();
+            if (loginData['account_type'] != null &&
+                loginData['account_type'].toString().trim().isNotEmpty) {
+              retrievedAccountType =
+                  loginData['account_type'].toString().trim();
             }
             if (loginData['mou_status'] != null) {
               retrievedMouStatus = loginData['mou_status'].toString().trim();
@@ -230,12 +264,14 @@ class AuthRepository {
               try {
                 await _apiService.getProfile(token: retrievedToken);
               } catch (profileErr) {
-                debugPrint('⚠️ [SIGNUP] Profile fetch error (non-fatal): $profileErr');
+                debugPrint(
+                    '⚠️ [SIGNUP] Profile fetch error (non-fatal): $profileErr');
               }
             }
           }
         } catch (chainErr) {
-          debugPrint('⚠️ [SIGNUP] Post-registration OTP/Login sequence error: $chainErr');
+          debugPrint(
+              '⚠️ [SIGNUP] Post-registration OTP/Login sequence error: $chainErr');
         }
 
         // Save session credentials
@@ -246,7 +282,8 @@ class AuthRepository {
           await prefs.setString(sp_keys.keyToken, retrievedToken);
           await prefs.setString('token', retrievedToken);
           await _webAPIService.initTokenToHeader();
-          debugPrint('💾 [SIGNUP] Saved authentication token to SharedPreferences & SpHelper: $retrievedToken');
+          debugPrint(
+              '💾 [SIGNUP] Saved authentication token to SharedPreferences & SpHelper: $retrievedToken');
         }
         await SpHelper.saveString(sp_keys.keyUseMobile, phone);
         await SpHelper.saveString(sp_keys.keyUserName, retrievedUsername);
@@ -281,7 +318,8 @@ class AuthRepository {
         // Save registration address to SpHelper, SharedPreferences and AddressStorageService
         final regStreet = request.streetAddress.trim();
         final regCity = request.city.trim();
-        final regState = request.state.trim().isNotEmpty ? request.state.trim() : 'Kerala';
+        final regState =
+            request.state.trim().isNotEmpty ? request.state.trim() : 'Kerala';
         final regDistrict = request.district.trim();
         final regLocalBody = request.localBody.trim();
         final regWard = request.ward.trim();
@@ -338,7 +376,8 @@ class AuthRepository {
         }
 
         return signupResponse.copyWith(
-          token: retrievedToken.isNotEmpty ? retrievedToken : signupResponse.token,
+          token:
+              retrievedToken.isNotEmpty ? retrievedToken : signupResponse.token,
           userId: int.tryParse(retrievedUserId) ?? signupResponse.userId,
           username: retrievedUsername,
           phoneNumber: phone,
@@ -350,12 +389,14 @@ class AuthRepository {
         );
       }
     } on DioException catch (e) {
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [REGISTRATION API ERROR]');
       debugPrint('Status Code: ${e.response?.statusCode}');
       debugPrint('Response Data: ${e.response?.data}');
       debugPrint('Error Message: ${e.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       String errorMessage = 'Registration failed. Please try again.';
       if (e.response?.data != null) {
@@ -380,9 +421,11 @@ class AuthRepository {
       }
       return SignupResponseModel.fromError(errorMessage);
     } catch (e) {
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [REGISTRATION UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       return SignupResponseModel.fromError(e.toString());
     }
   }
@@ -397,7 +440,8 @@ class AuthRepository {
       return spTokenAlt.trim();
     }
     final prefs = await SharedPreferences.getInstance();
-    final prefToken = prefs.getString(sp_keys.keyToken) ?? prefs.getString('token');
+    final prefToken =
+        prefs.getString(sp_keys.keyToken) ?? prefs.getString('token');
     if (prefToken != null && prefToken.trim().isNotEmpty) {
       return prefToken.trim();
     }
@@ -436,15 +480,17 @@ class AuthRepository {
     try {
       String endpoint = '${ApiEndpoints.wards}?local_body';
       if (lb.contains('varkala')) {
-        endpoint = '${ApiEndpoints.wards}?local_body&local_body_id=2&local_body_id=3';
+        endpoint =
+            '${ApiEndpoints.wards}?local_body&local_body_id=2&local_body_id=3';
       } else if (localBodyId != null) {
-        endpoint = '${ApiEndpoints.wards}?local_body&local_body_id=$localBodyId';
+        endpoint =
+            '${ApiEndpoints.wards}?local_body&local_body_id=$localBodyId';
       }
 
-      debugPrint('🚀 [AUTH REPOSITORY] Fetching wards for $localBody from: $endpoint');
-      final response = await ApiClient()
-          .get(endpoint)
-          .timeout(const Duration(seconds: 10));
+      debugPrint(
+          '🚀 [AUTH REPOSITORY] Fetching wards for $localBody from: $endpoint');
+      final response =
+          await ApiClient().get(endpoint).timeout(const Duration(seconds: 10));
 
       if (response.data is List) {
         final List<String> list = [];
@@ -460,7 +506,8 @@ class AuthRepository {
           }
         }
         if (list.isNotEmpty) {
-          debugPrint('✅ [AUTH REPOSITORY] Fetched ${list.length} wards for $localBody');
+          debugPrint(
+              '✅ [AUTH REPOSITORY] Fetched ${list.length} wards for $localBody');
           return list;
         }
       }

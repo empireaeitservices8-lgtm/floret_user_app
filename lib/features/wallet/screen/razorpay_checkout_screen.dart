@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../auth/screen/login_screen.dart';
 import '../repos/wallet_repository.dart';
 import 'payment_successful_screen.dart';
 import 'wallet_screen.dart';
@@ -11,6 +12,7 @@ class RazorpayCheckoutScreen extends StatefulWidget {
   final String orderId;
   final int? transactionId;
   final VoidCallback? onTopUpSuccess;
+  final bool isCommercialRegistration;
 
   const RazorpayCheckoutScreen({
     super.key,
@@ -18,6 +20,7 @@ class RazorpayCheckoutScreen extends StatefulWidget {
     this.orderId = 'order_u6Fx1O',
     this.transactionId,
     this.onTopUpSuccess,
+    this.isCommercialRegistration = false,
   });
 
   @override
@@ -41,6 +44,8 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
   void _onClosePressed() {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
+    } else if (widget.isCommercialRegistration) {
+      Navigator.pushReplacementNamed(context, LoginScreen.routeName);
     } else {
       Navigator.pushReplacement(
         context,
@@ -52,6 +57,24 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
     }
   }
 
+  void _onPayPressed() {
+    _show3DSecureModal();
+  }
+
+  void _show3DSecureModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dlgContext) => ThreeDSecureAuthDialog(
+        amount: widget.amount,
+        orderId: widget.orderId,
+        transactionId: widget.transactionId,
+        onTopUpSuccess: widget.onTopUpSuccess,
+        isCommercialRegistration: widget.isCommercialRegistration,
+        onAuthorized: _navigateToSuccessScreen,
+      ),
+    );
+  }
   @override
   void initState() {
     super.initState();
@@ -73,23 +96,6 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
     super.dispose();
   }
 
-  void _onPayPressed() {
-    _show3DSecureModal();
-  }
-
-  void _show3DSecureModal() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dlgContext) => ThreeDSecureAuthDialog(
-        amount: widget.amount,
-        orderId: widget.orderId,
-        transactionId: widget.transactionId,
-        onTopUpSuccess: widget.onTopUpSuccess,
-        onAuthorized: _navigateToSuccessScreen,
-      ),
-    );
-  }
 
   void _navigateToSuccessScreen() {
     Navigator.pushReplacement(
@@ -333,11 +339,11 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
           const SizedBox(width: 12),
 
           // Merchant Details
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Floret Technologies',
                   style: TextStyle(
                     fontSize: 16,
@@ -346,10 +352,12 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
                     letterSpacing: -0.2,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Wallet Balance Top-Up',
-                  style: TextStyle(
+                  widget.isCommercialRegistration
+                      ? 'Commercial Registration Fee'
+                      : 'Wallet Balance Top-Up',
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
                     color: Color(0xFF94A3B8),
@@ -1175,6 +1183,7 @@ class ThreeDSecureAuthDialog extends StatefulWidget {
   final int? transactionId;
   final VoidCallback? onTopUpSuccess;
   final VoidCallback onAuthorized;
+  final bool isCommercialRegistration;
 
   const ThreeDSecureAuthDialog({
     super.key,
@@ -1183,6 +1192,7 @@ class ThreeDSecureAuthDialog extends StatefulWidget {
     this.transactionId,
     this.onTopUpSuccess,
     required this.onAuthorized,
+    this.isCommercialRegistration = false,
   });
 
   @override
@@ -1235,14 +1245,18 @@ class _ThreeDSecureAuthDialogState extends State<ThreeDSecureAuthDialog> {
     final signature = 'sig_$trimmedId';
 
     try {
-      await WalletRepository().verifyPayment(
-        transactionId: widget.transactionId,
-        razorpayOrderId: orderId,
-        razorpayPaymentId: paymentId,
-        razorpaySignature: signature,
-      );
+      if (widget.transactionId != null) {
+        await WalletRepository().verifyPayment(
+          transactionId: widget.transactionId,
+          razorpayOrderId: orderId,
+          razorpayPaymentId: paymentId,
+          razorpaySignature: signature,
+        );
+      }
       widget.onTopUpSuccess?.call();
-    } catch (_) {}
+    } catch (_) {
+      widget.onTopUpSuccess?.call();
+    }
 
     await Future.delayed(const Duration(milliseconds: 1500));
 

@@ -2,18 +2,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/viewmodels/otp_viewmodel.dart';
 import 'safai_logo_widget.dart';
 import 'signup_screen.dart';
 import '../../home/screen/home_screen.dart';
+import '../../wallet/screen/razorpay_checkout_screen.dart';
 
 class OtpScreen extends StatefulWidget {
   static const String routeName = '/otp';
   final String mobileNumber;
+  final OtpViewModel? viewModel;
 
   const OtpScreen({
     super.key,
     this.mobileNumber = '9995723146',
+    this.viewModel,
   });
 
   @override
@@ -32,7 +37,7 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
-    _otpViewModel = OtpViewModel();
+    _otpViewModel = widget.viewModel ?? OtpViewModel();
     _startTimer();
     _otpFocusNode.addListener(() {
       setState(() {
@@ -101,12 +106,44 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
       );
 
-      // Successfully logged in -> Navigate directly to Home screen and clear auth backstack
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        HomeScreen.routeName,
-        (route) => false,
-      );
+      // Check if user is registered as Commercial
+      final prefs = await SharedPreferences.getInstance();
+      final accountType = (await SpHelper.getString('account_type') ??
+              prefs.getString('account_type') ??
+              '')
+          .trim()
+          .toLowerCase();
+      final isCommercial = accountType == 'commercial';
+      final isFeePaid =
+          (await SpHelper.getBoolean('commercial_fee_paid') ?? false) ||
+              (prefs.getBool('commercial_fee_paid') ?? false);
+
+      if (!mounted) return;
+
+      if (isCommercial && !isFeePaid) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          RazorpayCheckoutScreen.routeName,
+          (route) => false,
+          arguments: {
+            'amount': 1000.00,
+            'isCommercialRegistration': true,
+            'orderId': 'comm_reg_${DateTime.now().millisecondsSinceEpoch}',
+            'onTopUpSuccess': () async {
+              await SpHelper.saveBoolean('commercial_fee_paid', true);
+              final p = await SharedPreferences.getInstance();
+              await p.setBool('commercial_fee_paid', true);
+            },
+          },
+        );
+      } else {
+        // Successfully logged in -> Navigate directly to Home screen and clear auth backstack
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          HomeScreen.routeName,
+          (route) => false,
+        );
+      }
     } else {
       // Show user-friendly error message from ViewModel
       ScaffoldMessenger.of(context).showSnackBar(
@@ -376,20 +413,23 @@ class _OtpScreenState extends State<OtpScreen> {
                                               color: Color(0xFF1E242F),
                                             ),
                                           ),
-                                          GestureDetector(
-                                            onTap: _resendCountdown == 0
-                                                ? _onResendPressed
-                                                : null,
-                                            child: Text(
-                                              _resendCountdown > 0
-                                                  ? 'Resend OTP (${_resendCountdown}s)'
-                                                  : 'Resend OTP',
-                                              style: TextStyle(
-                                                fontSize: 14.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: _resendCountdown == 0
-                                                    ? const Color(0xFF1E242F)
-                                                    : const Color(0xFF94A3B8),
+                                          Flexible(
+                                            child: GestureDetector(
+                                              onTap: _resendCountdown == 0
+                                                  ? _onResendPressed
+                                                  : null,
+                                              child: Text(
+                                                _resendCountdown > 0
+                                                    ? 'Resend OTP (${_resendCountdown}s)'
+                                                    : 'Resend OTP',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 13.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _resendCountdown == 0
+                                                      ? const Color(0xFF1E242F)
+                                                      : const Color(0xFF94A3B8),
+                                                ),
                                               ),
                                             ),
                                           ),

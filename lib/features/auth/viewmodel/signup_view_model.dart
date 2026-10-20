@@ -648,6 +648,15 @@ class SignupViewModel extends ViewModel {
           debugPrint('💾 [SIGNUP VIEWMODEL] Saved authentication token: $trimmedToken');
         }
 
+        // Save account type and initialize commercial fee paid flag
+        await SpHelper.saveString('account_type', _accountType);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('account_type', _accountType);
+        if (_accountType == 'Commercial') {
+          await SpHelper.saveBoolean('commercial_fee_paid', false);
+          await prefs.setBool('commercial_fee_paid', false);
+        }
+
         // Save registration address
         final street = streetAddressController.text.trim();
         final city = cityController.text.trim();
