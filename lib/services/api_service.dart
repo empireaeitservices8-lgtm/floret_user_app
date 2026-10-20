@@ -609,6 +609,89 @@ class ApiService {
     }
   }
 
+  /// Generic authenticated PATCH request with complete debugging and error handling
+  Future<Response> _authenticatedPatch({
+    required String endpoint,
+    required String requestName,
+    Map<String, dynamic>? data,
+    String? token,
+  }) async {
+    final String fullUrl = '$baseUrl$endpoint';
+    final authToken = await _resolveAuthToken(token);
+
+    final Map<String, dynamic> headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (authToken != null && authToken.isNotEmpty) {
+      headers['Authorization'] = 'Token $authToken';
+    }
+
+    debugPrint(
+        '================================================================');
+    debugPrint('🚀 [$requestName API REQUEST]');
+    debugPrint('URL: $fullUrl');
+    debugPrint('Method: PATCH');
+    debugPrint('Headers: $headers');
+    debugPrint('Payload:');
+    try {
+      debugPrint(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (_) {
+      debugPrint('$data');
+    }
+    debugPrint(
+        '================================================================');
+
+    try {
+      final response = await _dio.patch(
+        endpoint,
+        data: data,
+        options: Options(headers: headers),
+      );
+
+      debugPrint(
+          '================================================================');
+      debugPrint('✅ [$requestName API RESPONSE]');
+      debugPrint('URL: $fullUrl');
+      debugPrint(
+          'Status Code: ${response.statusCode} ${response.statusMessage ?? ""}');
+      debugPrint('Response Body (JSON):');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
+      } catch (_) {
+        debugPrint('${response.data}');
+      }
+      debugPrint(
+          '================================================================');
+
+      return response;
+    } on DioException catch (dioError) {
+      debugPrint(
+          '================================================================');
+      debugPrint('❌ [$requestName API ERROR]');
+      debugPrint('Status Code: ${dioError.response?.statusCode}');
+      debugPrint('Response Data: ${dioError.response?.data}');
+      debugPrint('Error Type: ${dioError.type}');
+      debugPrint('Error Message: ${dioError.message}');
+      debugPrint(
+          '================================================================');
+
+      if (dioError.response?.statusCode == 401) {
+        rethrow;
+      }
+      final errorMessage = parseDioError(dioError);
+      throw Exception(errorMessage);
+    } catch (e) {
+      if (e is DioException) rethrow;
+      debugPrint(
+          '================================================================');
+      debugPrint('❌ [$requestName UNEXPECTED ERROR]: $e');
+      debugPrint(
+          '================================================================');
+      throw Exception('An error occurred during $requestName: $e');
+    }
+  }
+
   /// Sends a POST request to /api/wallet/topup/verify-payment/
   Future<Response> verifyPayment({
     int? transactionId,
@@ -706,6 +789,21 @@ class ApiService {
     return _authenticatedGet(
       endpoint: pickupsEndpoint,
       requestName: 'GET PICKUPS',
+      token: token,
+    );
+  }
+
+  /// Sends a PATCH request to /api/pickups/{pickup_id}/ to update status
+  Future<Response> updatePickupStatus({
+    required dynamic pickupId,
+    required String status,
+    String? token,
+  }) async {
+    final cleanId = pickupId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    return _authenticatedPatch(
+      endpoint: '$pickupsEndpoint$cleanId/',
+      requestName: 'UPDATE PICKUP STATUS',
+      data: {'status': status},
       token: token,
     );
   }

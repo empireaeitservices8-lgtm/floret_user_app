@@ -40,6 +40,28 @@ class MockPickupsApiService extends ApiService {
       data: mockResponseList,
     );
   }
+
+  dynamic capturedCancelPickupId;
+  String? capturedCancelStatus;
+
+  @override
+  Future<Response> updatePickupStatus({
+    required dynamic pickupId,
+    required String status,
+    String? token,
+  }) async {
+    capturedCancelPickupId = pickupId;
+    capturedCancelStatus = status;
+    capturedToken = token;
+    return Response(
+      requestOptions: RequestOptions(path: '/api/pickups/$pickupId/'),
+      statusCode: 200,
+      data: {
+        'id': pickupId,
+        'status': status,
+      },
+    );
+  }
 }
 
 void main() {
@@ -315,6 +337,69 @@ void main() {
       expect(find.text('WC-504'), findsOneWidget);
     });
 
+    testWidgets('4b. Tapping Cancel in Order History calls PATCH API and shows CANCELLED status under Cancelled',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await SpHelper.saveString(sp_keys.keyToken, 'auth_token_cancel_test');
+      await SpHelper.saveString(sp_keys.keyUserId, '400');
+      await OrderStore.instance.loadForUser('400');
+
+      final mockApi = MockPickupsApiService();
+      mockApi.mockResponseList = [
+        {
+          'id': 246,
+          'user': 400,
+          'status': 'Pending',
+          'waste_type': 'Sanitary waste',
+          'pickup_date': '2026-10-22',
+          'street': 'todsy',
+          'city': 'gghy',
+          'contact_number': '+911111111111',
+        },
+      ];
+
+      final repo = ProfileRepository(apiService: mockApi);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OrderHistoryScreen(repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Card is initially displayed with WC-246
+      expect(find.text('WC-246'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Tap on Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Confirmation dialog should be visible
+      expect(find.text('Cancel Pickup'), findsOneWidget);
+      expect(find.text('Are you sure you want to cancel WC-246?'), findsOneWidget);
+
+      // Tap Yes, Cancel
+      await tester.tap(find.text('Yes, Cancel'));
+      await tester.pumpAndSettle();
+
+      // Verify that API was called with pickupId 246 and status cancelled
+      expect(mockApi.capturedCancelPickupId, '246');
+      expect(mockApi.capturedCancelStatus, 'cancelled');
+
+      // Switch to Cancelled filter tab
+      await tester.ensureVisible(find.text('Cancelled').first);
+      await tester.tap(find.text('Cancelled').first);
+      await tester.pumpAndSettle();
+
+      // Under Cancelled, WC-246 is displayed with status CANCELLED
+      expect(find.text('WC-246'), findsOneWidget);
+      expect(find.text('CANCELLED'), findsOneWidget);
+    });
+
     testWidgets('5. API failure displays error state with Retry button (not silent empty result)',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
@@ -424,7 +509,9 @@ void main() {
         orderCancelled,
       ];
 
-      final vm = NotificationsViewModel();
+      final vm = NotificationsViewModel(
+        nowProvider: () => DateTime(2026, 10, 13),
+      );
       await vm.loadNotifications();
 
       // Check Upcoming tab

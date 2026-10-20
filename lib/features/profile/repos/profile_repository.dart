@@ -169,4 +169,16 @@ class ProfileRepository {
     await Future.delayed(const Duration(milliseconds: 500));
     return true;
   }
+
+  /// Updates pickup status to cancelled via PATCH /api/pickups/{pickup_id}/
+  Future<bool> cancelPickup(dynamic pickupId, {String? token}) async {
+    final cleanId = pickupId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanId.isEmpty) return false;
+    final response = await _apiService.updatePickupStatus(
+      pickupId: cleanId,
+      status: 'cancelled',
+      token: token,
+    );
+    return response.statusCode == 200 || response.statusCode == 204;
+  }
 }

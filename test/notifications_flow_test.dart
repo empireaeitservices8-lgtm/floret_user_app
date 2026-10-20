@@ -58,7 +58,9 @@ void main() {
 
       OrderStore.instance.orders.value = [upcomingOrder];
 
-      final vm = NotificationsViewModel();
+      final vm = NotificationsViewModel(
+        nowProvider: () => DateTime(2026, 10, 13),
+      );
       await vm.loadNotifications();
 
       // Check in Upcoming category tab
@@ -202,7 +204,9 @@ void main() {
 
       OrderStore.instance.orders.value = [orderDelivered, orderUpcoming];
 
-      final vm = NotificationsViewModel();
+      final vm = NotificationsViewModel(
+        nowProvider: () => DateTime(2026, 10, 13),
+      );
       await vm.loadNotifications();
 
       // All Tab
@@ -248,7 +252,9 @@ void main() {
 
       OrderStore.instance.orders.value = [orderDelivered, orderUpcoming];
 
-      final vm = NotificationsViewModel();
+      final vm = NotificationsViewModel(
+        nowProvider: () => DateTime(2026, 10, 13),
+      );
       await vm.loadNotifications();
 
       await tester.pumpWidget(
@@ -275,6 +281,163 @@ void main() {
       expect(find.text('Pickup Scheduled • WC-161'), findsOneWidget);
       expect(find.text('15 Oct 2026'), findsOneWidget);
       expect(find.textContaining('scheduled for 15 Oct 2026'), findsOneWidget);
+    });
+  });
+
+  group('Upcoming Section Date Filtering (Today and Future Dates)', () {
+    test('Upcoming section shows today and future dates, but hides previous dates', () async {
+      final baseNow = DateTime(2026, 10, 20, 16, 0); // 20 Oct 2026 at 4:00 PM
+
+      final orderYesterday = OrderModel(
+        bookingId: 'WC-YESTERDAY',
+        wasteType: 'Sanitary waste',
+        pickupDate: DateTime(2026, 10, 19, 10, 0), // 19 Oct 2026 (previous date)
+        address: 'Addr',
+        fullAddress: 'Full Addr',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      final orderTodayEarlier = OrderModel(
+        bookingId: 'WC-TODAY-EARLIER',
+        wasteType: 'Solid waste',
+        pickupDate: DateTime(2026, 10, 20, 9, 0), // Today at 9:00 AM (scheduled time has passed)
+        address: 'Addr',
+        fullAddress: 'Full Addr',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      final orderTodayLater = OrderModel(
+        bookingId: 'WC-TODAY-LATER',
+        wasteType: 'E-Waste',
+        pickupDate: DateTime(2026, 10, 20, 18, 0), // Today at 6:00 PM (later today)
+        address: 'Addr',
+        fullAddress: 'Full Addr',
+        contact: 'User',
+        status: OrderStatus.reschedule,
+      );
+
+      final orderTomorrow = OrderModel(
+        bookingId: 'WC-TOMORROW',
+        wasteType: 'Dry waste',
+        pickupDate: DateTime(2026, 10, 21, 11, 0), // Tomorrow (future date)
+        address: 'Addr',
+        fullAddress: 'Full Addr',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      final orderNextWeek = OrderModel(
+        bookingId: 'WC-NEXT-WEEK',
+        wasteType: 'Glass waste',
+        pickupDate: DateTime(2026, 10, 27, 14, 0), // Next week (future date)
+        address: 'Addr',
+        fullAddress: 'Full Addr',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      OrderStore.instance.orders.value = [
+        orderYesterday,
+        orderTodayEarlier,
+        orderTodayLater,
+        orderTomorrow,
+        orderNextWeek,
+      ];
+
+      final vm = NotificationsViewModel(nowProvider: () => baseNow);
+      await vm.loadNotifications();
+
+      // In All tab: all 5 are present
+      vm.setTabIndex(0);
+      expect(vm.filteredNotifications.length, 5);
+
+      // In Upcoming tab: WC-YESTERDAY is hidden! Today's (both earlier and later) and future are visible!
+      vm.setTabIndex(1);
+      final upcoming = vm.filteredNotifications;
+      expect(upcoming.length, 4);
+
+      final upcomingIds = upcoming.map((n) => n.id).toList();
+      expect(upcomingIds.contains('WC-YESTERDAY'), isFalse);
+      expect(upcomingIds.contains('WC-TODAY-EARLIER'), isTrue);
+      expect(upcomingIds.contains('WC-TODAY-LATER'), isTrue);
+      expect(upcomingIds.contains('WC-TOMORROW'), isTrue);
+      expect(upcomingIds.contains('WC-NEXT-WEEK'), isTrue);
+    });
+
+    testWidgets('NotificationsScreen UI shows today and future dates in Upcoming tab, but hides previous dates',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final baseNow = DateTime(2026, 10, 20, 16, 0); // 20 Oct 2026 at 4:00 PM
+
+      final orderPast = OrderModel(
+        bookingId: 'WC-PAST-001',
+        wasteType: 'Sanitary waste',
+        pickupDate: DateTime(2026, 10, 18, 10, 0), // Past date
+        address: 'Past St',
+        fullAddress: 'Past Full St',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      final orderToday = OrderModel(
+        bookingId: 'WC-TODAY-001',
+        wasteType: 'Solid waste',
+        pickupDate: DateTime(2026, 10, 20, 9, 30), // Today at 9:30 AM (past scheduled time)
+        address: 'Today St',
+        fullAddress: 'Today Full St',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      final orderFuture = OrderModel(
+        bookingId: 'WC-FUT-001',
+        wasteType: 'Dry waste',
+        pickupDate: DateTime(2026, 10, 25, 14, 0), // Future date
+        address: 'Future St',
+        fullAddress: 'Future Full St',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      OrderStore.instance.orders.value = [orderPast, orderToday, orderFuture];
+
+      final vm = NotificationsViewModel(nowProvider: () => baseNow);
+      await vm.loadNotifications();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NotificationsScreen(viewModel: vm),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Switch to Upcoming tab
+      await tester.tap(find.text('Upcoming').first);
+      await tester.pumpAndSettle();
+
+      // Today's notification is visible even though scheduled time passed!
+      expect(find.text('Pickup Scheduled • WC-TODAY-001'), findsOneWidget);
+      expect(find.text('20 Oct 2026'), findsOneWidget);
+
+      // Future notification is visible!
+      expect(find.text('Pickup Scheduled • WC-FUT-001'), findsOneWidget);
+      expect(find.text('25 Oct 2026'), findsOneWidget);
+
+      // Past notification is NOT visible under Upcoming!
+      expect(find.text('Pickup Scheduled • WC-PAST-001'), findsNothing);
+      expect(find.text('18 Oct 2026'), findsNothing);
+
+      // Switch to All tab: Past notification IS visible under All!
+      await tester.tap(find.text('All').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Pickup Scheduled • WC-PAST-001'), findsOneWidget);
+      expect(find.text('Pickup Scheduled • WC-TODAY-001'), findsOneWidget);
+      expect(find.text('Pickup Scheduled • WC-FUT-001'), findsOneWidget);
     });
   });
 }

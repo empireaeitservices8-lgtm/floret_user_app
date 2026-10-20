@@ -475,7 +475,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             .toList();
       case 4:
         return orders
-            .where((o) => o.status == OrderStatus.cancelled)
+            .where((o) =>
+                o.status == OrderStatus.cancelled ||
+                (o.rawStatus != null &&
+                    o.rawStatus!.toLowerCase().contains('cancel')))
             .toList();
       default:
         return orders;
@@ -510,14 +513,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     final normalized = (order.rawStatus ?? '').toUpperCase().trim();
     final isCancelled = order.status == OrderStatus.cancelled ||
         normalized.contains('CANCEL');
-    if (order.status == OrderStatus.completed && order.isPaid) {
-      statusLabel = 'COMPLETED';
-      statusColor = const Color(0xFF16A34A);
-      statusIcon = Icons.check_circle_outline_rounded;
-    } else if (isCancelled) {
+    if (isCancelled) {
       statusLabel = 'CANCELLED';
       statusColor = const Color(0xFFDC2626);
       statusIcon = Icons.cancel_outlined;
+    } else if (order.status == OrderStatus.completed && order.isPaid) {
+      statusLabel = 'COMPLETED';
+      statusColor = const Color(0xFF16A34A);
+      statusIcon = Icons.check_circle_outline_rounded;
     } else if (order.status == OrderStatus.reschedule ||
         normalized.contains('RESCHEDULE')) {
       statusLabel = 'RESCHEDULED';
@@ -974,8 +977,20 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       ),
     );
     if (confirm == true) {
+      final pickupId = order.pickupId ??
+          int.tryParse(order.bookingId.replaceAll(RegExp(r'[^0-9]'), ''));
+
       OrderStore.instance.updateStatus(
           order.bookingId, OrderStatus.cancelled);
+      if (mounted) setState(() {});
+
+      if (pickupId != null) {
+        try {
+          await _profileRepository.cancelPickup(pickupId);
+        } catch (e) {
+          debugPrint('⚠️ [OrderHistoryScreen] Error calling cancel pickup API: $e');
+        }
+      }
     }
   }
 

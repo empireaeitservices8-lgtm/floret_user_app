@@ -7,6 +7,7 @@ import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 enum OrderStatus { pending, completed, reschedule, cancelled }
 
 class OrderModel {
+  final int? id;
   final String bookingId;
   final String wasteType;
   DateTime pickupDate;
@@ -18,10 +19,11 @@ class OrderModel {
   final String? userId;
   final double? weight;
   final int? bagsUsed;
-  final String? rawStatus;
+  String? rawStatus;
   final String? paymentStatus;
 
   OrderModel({
+    this.id,
     required this.bookingId,
     required this.wasteType,
     required this.pickupDate,
@@ -36,6 +38,9 @@ class OrderModel {
     this.rawStatus,
     this.paymentStatus,
   });
+
+  int? get pickupId =>
+      id ?? int.tryParse(bookingId.replaceAll(RegExp(r'[^0-9]'), ''));
 
   bool get isPaid {
     final ps = (paymentStatus ?? '').toLowerCase().trim();
@@ -53,6 +58,7 @@ class OrderModel {
   }
 
   Map<String, dynamic> toJson() => {
+        if (id != null) 'id': id,
         'bookingId': bookingId,
         'wasteType': wasteType,
         'pickupDate': pickupDate.toIso8601String(),
@@ -77,6 +83,7 @@ class OrderModel {
       return OrderModel.fromBackendJson(json);
     }
 
+    final parsedId = (json['id'] as num?)?.toInt();
     final completedDateRaw = json['completedDate'] ??
         json['completed_date'] ??
         json['completed_at'] ??
@@ -89,6 +96,7 @@ class OrderModel {
     }
 
     return OrderModel(
+      id: parsedId,
       bookingId: json['bookingId'] as String? ?? 'WC-161',
       wasteType: json['wasteType'] as String? ?? 'Sanitary waste',
       pickupDate: json['pickupDate'] != null
@@ -125,9 +133,11 @@ class OrderModel {
     // 1. Booking ID (support numeric ID, booking_id, or formatted WC-xxx)
     final rawId = json['booking_id'] ?? json['bookingId'] ?? json['id'];
     String bookingId = 'WC-161';
+    int? numericId = (json['id'] as num?)?.toInt();
     if (rawId != null) {
       final s = rawId.toString().trim();
       bookingId = s.toUpperCase().startsWith('WC-') ? s : 'WC-$s';
+      numericId ??= int.tryParse(s.replaceAll(RegExp(r'[^0-9]'), ''));
     }
 
     // 2. Waste Type / Category
@@ -312,6 +322,7 @@ class OrderModel {
     }
 
     return OrderModel(
+      id: numericId,
       bookingId: bookingId,
       wasteType: wasteType,
       pickupDate: pickupDate,
@@ -555,7 +566,14 @@ class OrderStore {
 
   void updateStatus(String bookingId, OrderStatus status) {
     for (final o in orders.value) {
-      if (o.bookingId == bookingId) o.status = status;
+      if (o.bookingId == bookingId) {
+        o.status = status;
+        if (status == OrderStatus.cancelled) {
+          o.rawStatus = 'cancelled';
+        } else if (status == OrderStatus.reschedule) {
+          o.rawStatus = 'reschedule';
+        }
+      }
     }
     orders.value = List<OrderModel>.from(orders.value);
     _saveToStorage();

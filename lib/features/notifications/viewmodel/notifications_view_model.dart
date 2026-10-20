@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:floret_app/providers/view_model.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
@@ -7,9 +8,13 @@ import '../../profile/model/order_model.dart';
 
 class NotificationsViewModel extends ViewModel {
   final NotificationRepository _repository;
+  DateTime Function() _now;
 
-  NotificationsViewModel({NotificationRepository? repository})
-      : _repository = repository ?? NotificationRepository() {
+  NotificationsViewModel({
+    NotificationRepository? repository,
+    DateTime Function()? nowProvider,
+  })  : _repository = repository ?? NotificationRepository(),
+        _now = nowProvider ?? DateTime.now {
     _currentUserId = OrderStore.instance.currentUserId;
     loadNotifications();
     // Listen to OrderStore so new bookings auto-appear in notifications
@@ -28,9 +33,34 @@ class NotificationsViewModel extends ViewModel {
 
   bool get hasUnreadNotifications => unreadCount > 0;
 
+  /// Returns whether [date] is today or a future date.
+  /// Keeps today's notifications visible even if their scheduled time has passed.
+  bool isScheduledTodayOrFuture(DateTime date) {
+    final now = _now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final targetDay = DateTime(date.year, date.month, date.day);
+    return !targetDay.isBefore(todayStart);
+  }
+
+  @visibleForTesting
+  void setNowProvider(DateTime Function() provider) {
+    _now = provider;
+    notifyListeners();
+  }
+
   List<NotificationItemModel> get filteredNotifications {
     if (_selectedTabIndex == 0) return _notifications;
     final tabName = tabs[_selectedTabIndex];
+    if (tabName == 'Upcoming') {
+      return _notifications.where((n) {
+        if (n.category != 'Upcoming') return false;
+        final date = n.effectiveScheduledDate;
+        if (date != null) {
+          return isScheduledTodayOrFuture(date);
+        }
+        return true;
+      }).toList();
+    }
     return _notifications.where((n) => n.category == tabName).toList();
   }
 
@@ -132,6 +162,7 @@ class NotificationsViewModel extends ViewModel {
         category: category,
         isRead: isMarkedRead,
         userId: order.userId,
+        scheduledDate: order.pickupDate,
       );
     }).toList();
   }
