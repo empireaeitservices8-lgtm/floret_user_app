@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/services/web_api_services.dart';
@@ -52,7 +53,8 @@ class WalletRepository {
         try {
           await SpHelper.saveString('wallet_balance', model.balance.toString());
         } catch (_) {}
-        debugPrint('💰 [WALLET REPO] Successfully mapped wallet balance: ${model.balance}');
+        debugPrint(
+            '💰 [WALLET REPO] Successfully mapped wallet balance: ${model.balance}');
         return model;
       }
     } catch (e) {
@@ -121,6 +123,34 @@ class WalletRepository {
     }
     return null;
   }
+
+  // Future<Map<String, dynamic>?> generateRazorpayQR({
+  //   required double amount,
+  //   required int billId,
+  //   String currency = 'INR',
+  // }) async {
+  //   try {
+  //     final Dio dio = Dio();
+  //     final body = {
+  //       'amount': amount,
+  //       'bill_id': billId,
+  //       'currency': currency,
+  //     };
+  // debugPrint(
+  //     'POST generate-qr to ${APIEndPoints.baseUrl}${APIEndPoints.razorpayGenerateQr} with body: $body');
+  //     final res = await dio.post(ApiService.razorpayGenerateQr, data: body);
+  //     debugPrint(
+  //         'Generate QR Response Status: ${res.statusCode}, Body: ${res.data}');
+  //     if ((res.statusCode == 200 || res.statusCode == 201) &&
+  //         res.data is Map<String, dynamic>) {
+  //       return res.data as Map<String, dynamic>;
+  //     }
+  //     return null;
+  //   } catch (e) {
+  //     debugPrint('generateRazorpayQR error: $e');
+  //     return null;
+  //   }
+  // }
 
   /// 3. GET /api/wallet/transactions/
   Future<WalletTransactionsResponseModel> fetchTransactions() async {

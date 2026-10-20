@@ -23,6 +23,7 @@ class ApiService {
       '/api/reward-points/transactions/';
   static const String pickupsEndpoint = '/api/pickups/';
   static const String receiveBillEndpoint = '/api/receive-bill/';
+  //static const String razorpayGenerateQr = '/api/razorpay/generate-qr/';
 
   final Dio _dio;
 
@@ -51,7 +52,8 @@ class ApiService {
             final token = await SpHelper.getString(sp_keys.keyToken) ??
                 await SpHelper.getString('token') ??
                 (await SharedPreferences.getInstance()).getString('token') ??
-                (await SharedPreferences.getInstance()).getString(sp_keys.keyToken);
+                (await SharedPreferences.getInstance())
+                    .getString(sp_keys.keyToken);
             if (token != null && token.trim().isNotEmpty) {
               options.headers['Authorization'] = 'Token ${token.trim()}';
             }
@@ -62,23 +64,26 @@ class ApiService {
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          debugPrint('[ApiClient] RESPONSE: ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.uri}');
+          debugPrint(
+              '[ApiClient] RESPONSE: ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.uri}');
           debugPrint('[ApiClient] RESPONSE Data: ${response.data}');
           return handler.next(response);
         },
         onError: (error, handler) {
-          debugPrint('[ApiClient] ERROR: ${error.response?.statusCode} ${error.requestOptions.method} ${error.requestOptions.uri}');
+          debugPrint(
+              '[ApiClient] ERROR: ${error.response?.statusCode} ${error.requestOptions.method} ${error.requestOptions.uri}');
           debugPrint('[ApiClient] ERROR Response: ${error.response?.data}');
           return handler.next(error);
         },
       ),
     );
   }
- 
+
   /// Sends a POST request to /api/register/ with user registration details
   Future<Response> register(dynamic data, {Options? options}) async {
     final String fullUrl = '$baseUrl$registerEndpoint';
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
     debugPrint('🚀 [REGISTER API REQUEST]');
     debugPrint('URL: $fullUrl');
     debugPrint('Method: POST');
@@ -89,7 +94,8 @@ class ApiService {
     } catch (_) {
       debugPrint('$data');
     }
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
 
     try {
       final response = await _dio.post(
@@ -97,7 +103,8 @@ class ApiService {
         data: data,
         options: options,
       );
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('✅ [REGISTER API RESPONSE]');
       debugPrint('Status Code: ${response.statusCode}');
       debugPrint('Data:');
@@ -106,22 +113,27 @@ class ApiService {
       } catch (_) {
         debugPrint('${response.data}');
       }
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       return response;
     } on DioException catch (dioError) {
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [REGISTER API ERROR]');
       debugPrint('Status Code: ${dioError.response?.statusCode}');
       debugPrint('Response Data: ${dioError.response?.data}');
       debugPrint('Error Type: ${dioError.type}');
       debugPrint('Error Message: ${dioError.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       final errorMessage = _parseDioError(dioError);
       throw Exception(errorMessage);
     } catch (e) {
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [REGISTER UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       throw Exception('An unexpected error occurred during registration: $e');
     }
   }
@@ -138,7 +150,8 @@ class ApiService {
     };
 
     // 🚀 Debug: Log API Request Details
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
     debugPrint('🚀 [LOGIN API REQUEST]');
     debugPrint('URL: $fullUrl');
     debugPrint('Method: POST');
@@ -149,7 +162,8 @@ class ApiService {
     } catch (_) {
       debugPrint('$requestPayload');
     }
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
 
     try {
       final response = await _dio.post(
@@ -158,7 +172,8 @@ class ApiService {
       );
 
       // ✅ Debug: Log API Response Details
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('✅ [LOGIN API RESPONSE]');
       debugPrint('Status Code: ${response.statusCode}');
       debugPrint('Data:');
@@ -167,26 +182,31 @@ class ApiService {
       } catch (_) {
         debugPrint('${response.data}');
       }
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       return response;
     } on DioException catch (dioError) {
       // ❌ Debug: Log Dio Error Details
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [LOGIN API ERROR]');
       debugPrint('Status Code: ${dioError.response?.statusCode}');
       debugPrint('Response Data: ${dioError.response?.data}');
       debugPrint('Error Type: ${dioError.type}');
       debugPrint('Error Message: ${dioError.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       final errorMessage = _parseDioError(dioError);
       throw Exception(errorMessage);
     } catch (e) {
       // ❌ Debug: Log Unexpected Error
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [LOGIN UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       throw Exception('An unexpected error occurred: $e');
     }
   }
@@ -199,7 +219,8 @@ class ApiService {
     };
 
     // 🚀 Debug: Log API Request Details
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
     debugPrint('🚀 [SEND OTP API REQUEST]');
     debugPrint('URL: $fullUrl');
     debugPrint('Method: POST');
@@ -210,7 +231,8 @@ class ApiService {
     } catch (_) {
       debugPrint('$requestPayload');
     }
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
 
     try {
       final response = await _dio.post(
@@ -219,7 +241,8 @@ class ApiService {
       );
 
       // ✅ Debug: Log API Response Details (Display OTP for testing/development)
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('✅ [SEND OTP API RESPONSE]');
       debugPrint('Status Code: ${response.statusCode}');
       debugPrint('Data:');
@@ -228,26 +251,31 @@ class ApiService {
       } catch (_) {
         debugPrint('${response.data}');
       }
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       return response;
     } on DioException catch (dioError) {
       // ❌ Debug: Log Dio Error Details
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [SEND OTP API ERROR]');
       debugPrint('Status Code: ${dioError.response?.statusCode}');
       debugPrint('Response Data: ${dioError.response?.data}');
       debugPrint('Error Type: ${dioError.type}');
       debugPrint('Error Message: ${dioError.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       final errorMessage = _parseDioError(dioError);
       throw Exception(errorMessage);
     } catch (e) {
       // ❌ Debug: Log Unexpected Error
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [SEND OTP UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       throw Exception('An unexpected error occurred: $e');
     }
   }
@@ -264,7 +292,8 @@ class ApiService {
     };
 
     // 🚀 Debug: Log API Request Details
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
     debugPrint('🚀 [VERIFY OTP API REQUEST]');
     debugPrint('URL: $fullUrl');
     debugPrint('Method: POST');
@@ -275,7 +304,8 @@ class ApiService {
     } catch (_) {
       debugPrint('$requestPayload');
     }
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
 
     try {
       final response = await _dio.post(
@@ -284,7 +314,8 @@ class ApiService {
       );
 
       // ✅ Debug: Log API Response Details
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('✅ [VERIFY OTP API RESPONSE]');
       debugPrint('Status Code: ${response.statusCode}');
       debugPrint('Data:');
@@ -293,26 +324,31 @@ class ApiService {
       } catch (_) {
         debugPrint('${response.data}');
       }
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       return response;
     } on DioException catch (dioError) {
       // ❌ Debug: Log Dio Error Details
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [VERIFY OTP API ERROR]');
       debugPrint('Status Code: ${dioError.response?.statusCode}');
       debugPrint('Response Data: ${dioError.response?.data}');
       debugPrint('Error Type: ${dioError.type}');
       debugPrint('Error Message: ${dioError.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       final errorMessage = _parseDioError(dioError);
       throw Exception(errorMessage);
     } catch (e) {
       // ❌ Debug: Log Unexpected Error
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [VERIFY OTP UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       throw Exception('An unexpected error occurred: $e');
     }
   }
@@ -334,13 +370,15 @@ class ApiService {
     }
 
     // 🚀 Debug: Log API Request Details
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
     debugPrint('🚀 [GET PROFILE API REQUEST]');
     debugPrint('URL: $fullUrl');
     debugPrint('Method: GET');
     debugPrint('Authorization: Token $authToken');
     debugPrint('Default Headers: ${_dio.options.headers}');
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
 
     try {
       final response = await _dio.get(
@@ -353,28 +391,33 @@ class ApiService {
       );
 
       // ✅ Debug: Log API Response Details
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('✅ [GET PROFILE API RESPONSE]');
       debugPrint('URL: $fullUrl');
-      debugPrint('Status Code: ${response.statusCode} ${response.statusMessage ?? ""}');
+      debugPrint(
+          'Status Code: ${response.statusCode} ${response.statusMessage ?? ""}');
       debugPrint('Response Body (JSON):');
       try {
         debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
       } catch (_) {
         debugPrint('${response.data}');
       }
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       return response;
     } on DioException catch (dioError) {
       // ❌ Debug: Log Dio Error Details
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [GET PROFILE API ERROR]');
       debugPrint('Status Code: ${dioError.response?.statusCode}');
       debugPrint('Response Data: ${dioError.response?.data}');
       debugPrint('Error Type: ${dioError.type}');
       debugPrint('Error Message: ${dioError.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       // Preserve DioException if 401 Unauthorized for dedicated handling
       if (dioError.response?.statusCode == 401) {
@@ -385,10 +428,13 @@ class ApiService {
       throw Exception(errorMessage);
     } catch (e) {
       if (e is DioException) rethrow;
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [GET PROFILE UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
-      throw Exception('An unexpected error occurred while fetching profile: $e');
+      debugPrint(
+          '================================================================');
+      throw Exception(
+          'An unexpected error occurred while fetching profile: $e');
     }
   }
 
@@ -422,12 +468,14 @@ class ApiService {
       headers['Authorization'] = 'Token $authToken';
     }
 
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
     debugPrint('🚀 [$requestName API REQUEST]');
     debugPrint('URL: $fullUrl');
     debugPrint('Method: GET');
     debugPrint('Headers: $headers');
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
 
     try {
       final response = await _dio.get(
@@ -435,27 +483,32 @@ class ApiService {
         options: Options(headers: headers),
       );
 
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('✅ [$requestName API RESPONSE]');
       debugPrint('URL: $fullUrl');
-      debugPrint('Status Code: ${response.statusCode} ${response.statusMessage ?? ""}');
+      debugPrint(
+          'Status Code: ${response.statusCode} ${response.statusMessage ?? ""}');
       debugPrint('Response Body (JSON):');
       try {
         debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
       } catch (_) {
         debugPrint('${response.data}');
       }
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       return response;
     } on DioException catch (dioError) {
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [$requestName API ERROR]');
       debugPrint('Status Code: ${dioError.response?.statusCode}');
       debugPrint('Response Data: ${dioError.response?.data}');
       debugPrint('Error Type: ${dioError.type}');
       debugPrint('Error Message: ${dioError.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       if (dioError.response?.statusCode == 401) {
         rethrow;
@@ -464,9 +517,11 @@ class ApiService {
       throw Exception(errorMessage);
     } catch (e) {
       if (e is DioException) rethrow;
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [$requestName UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       throw Exception('An error occurred during $requestName: $e');
     }
   }
@@ -489,7 +544,8 @@ class ApiService {
       headers['Authorization'] = 'Token $authToken';
     }
 
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
     debugPrint('🚀 [$requestName API REQUEST]');
     debugPrint('URL: $fullUrl');
     debugPrint('Method: POST');
@@ -500,7 +556,8 @@ class ApiService {
     } catch (_) {
       debugPrint('$data');
     }
-    debugPrint('================================================================');
+    debugPrint(
+        '================================================================');
 
     try {
       final response = await _dio.post(
@@ -509,7 +566,8 @@ class ApiService {
         options: Options(headers: headers),
       );
 
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('✅ [$requestName API RESPONSE]');
       debugPrint('URL: $fullUrl');
       debugPrint(
@@ -520,17 +578,20 @@ class ApiService {
       } catch (_) {
         debugPrint('${response.data}');
       }
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       return response;
     } on DioException catch (dioError) {
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [$requestName API ERROR]');
       debugPrint('Status Code: ${dioError.response?.statusCode}');
       debugPrint('Response Data: ${dioError.response?.data}');
       debugPrint('Error Type: ${dioError.type}');
       debugPrint('Error Message: ${dioError.message}');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
 
       if (dioError.response?.statusCode == 401) {
         rethrow;
@@ -539,9 +600,11 @@ class ApiService {
       throw Exception(errorMessage);
     } catch (e) {
       if (e is DioException) rethrow;
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       debugPrint('❌ [$requestName UNEXPECTED ERROR]: $e');
-      debugPrint('================================================================');
+      debugPrint(
+          '================================================================');
       throw Exception('An error occurred during $requestName: $e');
     }
   }
