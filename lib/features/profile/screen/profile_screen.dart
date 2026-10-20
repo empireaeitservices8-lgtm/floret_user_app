@@ -10,6 +10,7 @@ import 'order_history_screen.dart';
 import 'my_account_screen.dart';
 import 'contact_support_screen.dart';
 import '../../notifications/screen/notifications_screen.dart';
+import '../../notifications/viewmodel/notifications_view_model.dart';
 import '../../../widgets/app_bottom_nav_bar.dart';
 import '../model/order_model.dart';
 import '../../../helpers/sp_helper.dart';
@@ -29,6 +30,15 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   int _ecoPoints = 0;
+
+  NotificationsViewModel? _getNotificationsViewModel(BuildContext context,
+      {bool listen = true}) {
+    try {
+      return Provider.of<NotificationsViewModel>(context, listen: listen);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -151,7 +161,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: 'Floret Wallet',
                         subtitle: 'Check points and earned bags',
                         onTap: () async {
-                          await Navigator.pushNamed(context, WalletScreen.routeName);
+                          await Navigator.pushNamed(
+                              context, WalletScreen.routeName);
                           _loadPoints();
                         },
                       ),
@@ -308,6 +319,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final notifVm = _getNotificationsViewModel(context, listen: true);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 50, 18, 22),
@@ -349,9 +361,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         return FutureBuilder<String>(
                           future: SpHelper.getUserName(),
                           builder: (context, snapshot) {
-                            final name = (snapshot.hasData && snapshot.data!.isNotEmpty)
-                                ? snapshot.data!
-                                : '';
+                            final name =
+                                (snapshot.hasData && snapshot.data!.isNotEmpty)
+                                    ? snapshot.data!
+                                    : '';
                             return _buildGreetingTitle(name);
                           },
                         );
@@ -362,6 +375,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               GestureDetector(
                 onTap: () {
+                  final vm =
+                      _getNotificationsViewModel(context, listen: false);
+                  vm?.markAllAsRead();
                   Navigator.pushNamed(context, NotificationsScreen.routeName);
                 },
                 behavior: HitTestBehavior.opaque,
@@ -384,18 +400,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         size: 22,
                       ),
                     ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        width: 9,
-                        height: 9,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEF4444),
-                          shape: BoxShape.circle,
+                    if (notifVm?.hasUnreadNotifications ?? false)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          width: 9,
+                          height: 9,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -420,7 +437,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final completedCount = completed.length;
               final displayPoints = _ecoPoints > 0
                   ? _ecoPoints
-                  : (completedCount > 0 ? completedCount * 50 : 250);
+                  : (completedCount > 0 ? completedCount * 0 : 0);
 
               return Container(
                 padding:
@@ -457,7 +474,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         value: '$displayPoints pts',
                         label: 'Points',
                         onTap: () async {
-                          await Navigator.pushNamed(context, WalletScreen.routeName);
+                          await Navigator.pushNamed(
+                              context, WalletScreen.routeName);
                           _loadPoints();
                         },
                       ),

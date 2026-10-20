@@ -7,6 +7,7 @@ import '../../settings/screen/settings_screen.dart';
 import '../../profile/screen/profile_screen.dart';
 import '../../profile/screen/order_history_screen.dart';
 import '../../notifications/screen/notifications_screen.dart';
+import '../../notifications/viewmodel/notifications_view_model.dart';
 import '../../wallet/screen/wallet_screen.dart';
 import '../viewmodel/home_view_model.dart';
 import 'select_pickup_bottom_sheet.dart';
@@ -50,6 +51,15 @@ class _HomeScreenState extends State<HomeScreen> {
       return Provider.of<ProfileViewModel>(context, listen: listen);
     } catch (_) {
       return _localProfileVm;
+    }
+  }
+
+  NotificationsViewModel? _getNotificationsViewModel(BuildContext context,
+      {bool listen = true}) {
+    try {
+      return Provider.of<NotificationsViewModel>(context, listen: listen);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -105,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 1. Dark Midnight Blue Header
-                        _buildHeader(vm, profileVm),
+                        _buildHeader(context, vm, profileVm),
 
                         const SizedBox(height: 16),
 
@@ -325,7 +335,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // 1. Dark Header Widget
-  Widget _buildHeader(HomeViewModel vm, ProfileViewModel profileVm) {
+  Widget _buildHeader(
+      BuildContext context, HomeViewModel vm, ProfileViewModel profileVm) {
+    final notifVm = _getNotificationsViewModel(context, listen: true);
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -411,6 +423,9 @@ class _HomeScreenState extends State<HomeScreen> {
               // Notification Bell with Badge
               GestureDetector(
                 onTap: () {
+                  final nVm =
+                      _getNotificationsViewModel(context, listen: false);
+                  nVm?.markAllAsRead();
                   Navigator.pushNamed(context, NotificationsScreen.routeName);
                 },
                 behavior: HitTestBehavior.opaque,
@@ -424,18 +439,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                         size: 28,
                       ),
-                      Positioned(
-                        top: 1,
-                        right: 2,
-                        child: Container(
-                          width: 8.5,
-                          height: 8.5,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFA500),
-                            shape: BoxShape.circle,
+                      if (notifVm?.hasUnreadNotifications ?? false)
+                        Positioned(
+                          top: 1,
+                          right: 2,
+                          child: Container(
+                            width: 8.5,
+                            height: 8.5,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFFA500),
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),

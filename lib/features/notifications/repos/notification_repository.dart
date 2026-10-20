@@ -6,6 +6,7 @@ import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../model/notification_model.dart';
+import '../../profile/model/order_model.dart';
 
 class NotificationRepository {
   final WebAPIService _webAPIService;
@@ -56,6 +57,35 @@ class NotificationRepository {
     }
   }
 
+  /// Marks all specified notifications as read and persists their state for the current authenticated user.
+  Future<bool> markAllAsRead(Iterable<String> ids) async {
+    try {
+      final uid = await _resolveCurrentUserId();
+      final storageKey =
+          uid.isNotEmpty ? 'read_notifications_$uid' : 'read_notifications';
+      final existingStr = await SpHelper.getString(storageKey);
+      final List<String> readIds = existingStr != null && existingStr.trim().isNotEmpty
+          ? List<String>.from(jsonDecode(existingStr) as List)
+          : [];
+
+      bool changed = false;
+      for (final id in ids) {
+        if (!readIds.contains(id)) {
+          readIds.add(id);
+          changed = true;
+        }
+      }
+
+      if (changed || existingStr == null) {
+        await SpHelper.saveString(storageKey, jsonEncode(readIds));
+      }
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ [NOTIFICATION REPO] markAllAsRead error: $e');
+      return false;
+    }
+  }
+
   /// Retrieves the set of persisted read notification IDs for the current user.
   Future<Set<String>> getReadNotificationIds() async {
     try {
@@ -78,6 +108,9 @@ class NotificationRepository {
   Future<String> _resolveCurrentUserId() async {
     final uid = await SpHelper.getString(sp_keys.keyUserId);
     if (uid != null && uid.trim().isNotEmpty) return uid.trim();
+    if (OrderStore.instance.currentUserId.isNotEmpty) {
+      return OrderStore.instance.currentUserId;
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final prefUid = prefs.getString(sp_keys.keyUserId) ??

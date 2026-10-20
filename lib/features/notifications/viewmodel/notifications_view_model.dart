@@ -10,6 +10,7 @@ class NotificationsViewModel extends ViewModel {
 
   NotificationsViewModel({NotificationRepository? repository})
       : _repository = repository ?? NotificationRepository() {
+    _currentUserId = OrderStore.instance.currentUserId;
     loadNotifications();
     // Listen to OrderStore so new bookings auto-appear in notifications
     OrderStore.instance.orders.addListener(_onOrdersChanged);
@@ -18,9 +19,14 @@ class NotificationsViewModel extends ViewModel {
   int _selectedTabIndex = 0;
   final List<String> tabs = const ['All', 'Upcoming', 'Delivered'];
   List<NotificationItemModel> _notifications = [];
+  String _currentUserId = '';
 
   int get selectedTabIndex => _selectedTabIndex;
   List<NotificationItemModel> get notifications => _notifications;
+
+  int get unreadCount => _notifications.where((n) => !n.isRead).length;
+
+  bool get hasUnreadNotifications => unreadCount > 0;
 
   List<NotificationItemModel> get filteredNotifications {
     if (_selectedTabIndex == 0) return _notifications;
@@ -38,6 +44,12 @@ class NotificationsViewModel extends ViewModel {
   final Set<String> _readIds = {};
 
   void _onOrdersChanged() {
+    final newUserId = OrderStore.instance.currentUserId;
+    if (_currentUserId != newUserId) {
+      _currentUserId = newUserId;
+      loadNotifications();
+      return;
+    }
     _buildNotificationsFromOrders(_readIds);
     notifyListeners();
   }
@@ -46,7 +58,9 @@ class NotificationsViewModel extends ViewModel {
   /// pending/reschedule → category 'Upcoming'
   /// completed          → category 'Delivered'
   void _buildNotificationsFromOrders([Set<String>? persistedReadIds]) {
-    final currentUserId = OrderStore.instance.currentUserId;
+    final currentUserId = OrderStore.instance.currentUserId.isNotEmpty
+        ? OrderStore.instance.currentUserId
+        : _currentUserId;
     final allOrders = OrderStore.instance.orders.value;
 
     // Isolate notifications by authenticated user
@@ -108,9 +122,7 @@ class NotificationsViewModel extends ViewModel {
 
       final isMarkedRead = (persistedReadIds != null &&
               persistedReadIds.contains(order.bookingId)) ||
-          _readIds.contains(order.bookingId) ||
-          order.status == OrderStatus.completed ||
-          order.status == OrderStatus.cancelled;
+          _readIds.contains(order.bookingId);
 
       return NotificationItemModel(
         id: order.bookingId,
@@ -127,6 +139,10 @@ class NotificationsViewModel extends ViewModel {
   Future<void> loadNotifications() async {
     showLoading();
     try {
+      _currentUserId = OrderStore.instance.currentUserId.isNotEmpty
+          ? OrderStore.instance.currentUserId
+          : (await SpHelper.getString(sp_keys.keyUserId) ?? '');
+      _readIds.clear();
       final persisted = await _repository.getReadNotificationIds();
       _readIds.addAll(persisted);
 
@@ -136,38 +152,54 @@ class NotificationsViewModel extends ViewModel {
       // Optionally merge with remote notifications if provided
       final remote = await _repository.fetchNotifications();
       if (remote.isNotEmpty) {
-        final uid = OrderStore.instance.currentUserId.isNotEmpty
-            ? OrderStore.instance.currentUserId
-            : (await SpHelper.getString(sp_keys.keyUserId) ?? '');
+        final uid = _currentUserId;
         final userRemote = remote.where((n) {
           if (uid.isNotEmpty) {
             return n.userId == uid;
           }
           return false;
+        }).map((n) {
+          final isRead = _readIds.contains(n.id) || n.isRead;
+          return n.copyWith(isRead: isRead);
         }).toList();
         _notifications = [..._notifications, ...userRemote];
       }
     } finally {
       hideLoading();
+      notifyListeners();
     }
   }
 
   Future<void> markAsRead(String id) async {
     _readIds.add(id);
-    await _repository.markAsRead(id);
     final idx = _notifications.indexWhere((n) => n.id == id);
     if (idx != -1) {
-      final old = _notifications[idx];
-      _notifications[idx] = NotificationItemModel(
-        id: old.id,
-        title: old.title,
-        description: old.description,
-        time: old.time,
-        category: old.category,
-        isRead: true,
-        userId: old.userId,
-      );
+      _notifications[idx] = _notifications[idx].copyWith(isRead: true);
       notifyListeners();
+    }
+    try {
+      await _repository.markAsRead(id);
+    } catch (e) {
+      // ignore: avoid_print
+      print('⚠️ [NOTIFICATIONS VM] Error marking as read: $e');
+    }
+  }
+
+  Future<void> markAllAsRead() async {
+    if (_notifications.isEmpty) return;
+    final allIds = _notifications.map((n) => n.id).toList();
+    _readIds.addAll(allIds);
+
+    _notifications = _notifications
+        .map((n) => n.isRead ? n : n.copyWith(isRead: true))
+        .toList();
+    notifyListeners();
+
+    try {
+      await _repository.markAllAsRead(allIds);
+    } catch (e) {
+      // ignore: avoid_print
+      print('⚠️ [NOTIFICATIONS VM] Error marking all as read: $e');
     }
   }
 

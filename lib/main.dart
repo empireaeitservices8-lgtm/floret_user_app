@@ -12,6 +12,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 import 'features/splashscreen/screen/splashscreen.dart';
+import 'features/notifications/viewmodel/notifications_view_model.dart';
 import 'providers/language_provider.dart';
 import 'providers/theme_provider.dart';
 import 'viewmodels/login_viewmodel.dart';
@@ -50,6 +51,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => SplashViewModel(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => NotificationsViewModel(),
         ),
       ],
       builder: (context, child) => ScreenUtilInit(

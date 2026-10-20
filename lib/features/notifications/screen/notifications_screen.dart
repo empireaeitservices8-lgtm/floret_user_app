@@ -14,33 +14,42 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late final NotificationsViewModel _viewModel;
+  NotificationsViewModel? _viewModel;
   bool _ownsViewModel = false;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.viewModel != null) {
-      _viewModel = widget.viewModel!;
-      _ownsViewModel = false;
-    } else {
-      _viewModel = NotificationsViewModel();
-      _ownsViewModel = true;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_viewModel == null) {
+      if (widget.viewModel != null) {
+        _viewModel = widget.viewModel;
+        _ownsViewModel = false;
+      } else {
+        try {
+          _viewModel =
+              Provider.of<NotificationsViewModel>(context, listen: false);
+          _ownsViewModel = false;
+        } catch (_) {
+          _viewModel = NotificationsViewModel();
+          _ownsViewModel = true;
+        }
+      }
     }
   }
 
   @override
   void dispose() {
     if (_ownsViewModel) {
-      _viewModel.dispose();
+      _viewModel?.dispose();
     }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final vm = _viewModel!;
     return ChangeNotifierProvider<NotificationsViewModel>.value(
-      value: _viewModel,
+      value: vm,
       child: Consumer<NotificationsViewModel>(
         builder: (context, vm, _) {
           return Scaffold(

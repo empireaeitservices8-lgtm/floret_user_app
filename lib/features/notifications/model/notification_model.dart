@@ -43,4 +43,24 @@ class NotificationItemModel {
         'isRead': isRead,
         if (userId != null) 'userId': userId,
       };
+
+  NotificationItemModel copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? time,
+    String? category,
+    bool? isRead,
+    String? userId,
+  }) {
+    return NotificationItemModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      time: time ?? this.time,
+      category: category ?? this.category,
+      isRead: isRead ?? this.isRead,
+      userId: userId ?? this.userId,
+    );
+  }
 }
