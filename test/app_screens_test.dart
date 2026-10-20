@@ -605,6 +605,9 @@ void main() {
     expect(find.text('Redeem for Wallet Credit'), findsOneWidget);
     expect(find.text('100 points -> Direct wallet credit'), findsOneWidget);
     expect(find.text('100 PTS'), findsOneWidget);
+    expect(find.text('Floret Reusable Bag'), findsOneWidget);
+    expect(find.text('7 points -> Eco-friendly bag'), findsOneWidget);
+    expect(find.text('7 PTS'), findsOneWidget);
     expect(find.text('Points to Redeem'), findsOneWidget);
     expect(find.text('Description'), findsOneWidget);
     expect(find.text('Available Points'), findsOneWidget);
@@ -615,6 +618,18 @@ void main() {
         ),
         findsOneWidget);
     expect(find.text('Confirm Redeem'), findsOneWidget);
+
+    // Tap Floret Reusable Bag option -> updates points to 7 and description
+    await tester.tap(find.text('Floret Reusable Bag'));
+    await tester.pumpAndSettle();
+    expect(find.text('7'), findsWidgets);
+    expect(find.text('Redeem for Floret Reusable Bag'), findsOneWidget);
+
+    // Tap back to Redeem for Wallet Credit
+    await tester.tap(find.text('Redeem for Wallet Credit'));
+    await tester.pumpAndSettle();
+    expect(find.text('100'), findsWidgets);
+    expect(find.text('Redeem for wallet credit'), findsOneWidget);
 
     // Tap Confirm Redeem with 0 pts -> closes bottom sheet then shows red snackbar
     await tester.tap(find.text('Confirm Redeem'));
