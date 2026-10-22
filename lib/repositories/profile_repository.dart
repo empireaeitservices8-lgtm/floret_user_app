@@ -78,6 +78,7 @@ class ProfileRepository {
       await prefs.setString(sp_keys.keyUserId, uId);
       await prefs.setString('user_id', uId);
       await OrderStore.instance.loadForUser(uId);
+      await AddressStorageService.loadForUser(uId);
     }
     if (profileModel.accountType != null && profileModel.accountType!.isNotEmpty) {
       await SpHelper.saveString('account_type', profileModel.accountType!);

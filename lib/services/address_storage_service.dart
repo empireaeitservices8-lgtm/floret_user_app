@@ -1,17 +1,94 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../features/profile/model/address_model.dart';
+import '../features/profile/model/order_model.dart';
+import '../helpers/sp_helper.dart';
+import '../utils/sp_keys.dart' as sp_keys;
 
 class AddressStorageService {
   static const String _kSavedAddressesKey = 'user_saved_addresses';
+  static String? _activeUserId;
 
+  /// Sets or clears the active user ID for scoping saved addresses.
+  static void setActiveUserId(String? userId) {
+    if (userId != null && userId.trim().isNotEmpty) {
+      _activeUserId = userId.trim();
+    } else {
+      _activeUserId = null;
+    }
+  }
 
-  /// Retrieves saved addresses from SharedPreferences.
-  /// If no addresses exist, it initializes with user's registration address if available.
-  static Future<List<AddressModel>> getSavedAddresses() async {
+  /// Clears active user ID during logout without deleting stored addresses.
+  static void resetForLogout() {
+    _activeUserId = null;
+  }
+
+  /// Resolves the current user ID from memory, SpHelper, SharedPreferences, or OrderStore.
+  static Future<String> _resolveCurrentUserId([String? explicitUserId]) async {
+    if (explicitUserId != null && explicitUserId.trim().isNotEmpty) {
+      _activeUserId = explicitUserId.trim();
+      return explicitUserId.trim();
+    }
+    final uid = await SpHelper.getString(sp_keys.keyUserId);
+    if (uid != null && uid.trim().isNotEmpty) {
+      _activeUserId = uid.trim();
+      return uid.trim();
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefUid = prefs.getString(sp_keys.keyUserId) ??
+          prefs.getString('user_id') ??
+          prefs.getInt('user_id')?.toString();
+      if (prefUid != null && prefUid.trim().isNotEmpty) {
+        _activeUserId = prefUid.trim();
+        return prefUid.trim();
+      }
+    } catch (_) {}
+    if (OrderStore.instance.currentUserId.isNotEmpty) {
+      _activeUserId = OrderStore.instance.currentUserId;
+      return _activeUserId!;
+    }
+    if (_activeUserId != null && _activeUserId!.isNotEmpty) {
+      return _activeUserId!;
+    }
+    final phone = await SpHelper.getString(sp_keys.keyUseMobile) ??
+        await SpHelper.getString('phone_number');
+    if (phone != null && phone.trim().isNotEmpty) {
+      return phone.trim();
+    }
+    final uname = await SpHelper.getString(sp_keys.keyUserName) ??
+        await SpHelper.getString('username');
+    if (uname != null &&
+        uname.trim().isNotEmpty &&
+        uname.trim().toLowerCase() != 'user') {
+      return uname.trim();
+    }
+    return '';
+  }
+
+  static String _storageKeyForUser(String uid) {
+    if (uid.isNotEmpty) {
+      return '${_kSavedAddressesKey}_$uid';
+    }
+    return _kSavedAddressesKey;
+  }
+
+  /// Explicitly reloads saved addresses for a specific authenticated user.
+  static Future<List<AddressModel>> loadForUser(String userId) async {
+    setActiveUserId(userId);
+    return await getSavedAddresses(userId: userId);
+  }
+
+  /// Retrieves saved addresses from SharedPreferences for the active user.
+  /// If no addresses exist for this user, it initializes with user's registration address or default seeds.
+  static Future<List<AddressModel>> getSavedAddresses({String? userId}) async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final raw = sp.getString(_kSavedAddressesKey);
+      final uid = await _resolveCurrentUserId(userId);
+      final userKey = _storageKeyForUser(uid);
+
+      // 1. Check user-scoped key in SharedPreferences
+      final raw = sp.getString(userKey);
       if (raw != null && raw.trim().isNotEmpty) {
         final decoded = jsonDecode(raw);
         if (decoded is List && decoded.isNotEmpty) {
@@ -22,7 +99,24 @@ class AddressStorageService {
         }
       }
 
-      // Check for user's registration address in SharedPreferences
+      // 2. If user-scoped key is empty, check legacy _kSavedAddressesKey for migration
+      if (uid.isNotEmpty && userKey != _kSavedAddressesKey) {
+        final legacyRaw = sp.getString(_kSavedAddressesKey);
+        if (legacyRaw != null && legacyRaw.trim().isNotEmpty) {
+          final decoded = jsonDecode(legacyRaw);
+          if (decoded is List && decoded.isNotEmpty) {
+            final list = decoded
+                .map((e) => AddressModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            final dedup = deduplicateAddresses(list);
+            await saveAddresses(dedup, userId: uid);
+            await sp.remove(_kSavedAddressesKey);
+            return dedup;
+          }
+        }
+      }
+
+      // 3. Check for user's registration address in SharedPreferences
       final regStreet = sp.getString('registration_street') ??
           sp.getString('street') ??
           sp.getString('registration_address');
@@ -35,7 +129,7 @@ class AddressStorageService {
         final regPin = sp.getString('registration_zip_code') ?? sp.getString('pincode') ?? sp.getString('zip_code') ?? '';
 
         final regAddress = AddressModel(
-          id: 'reg_user_addr',
+          id: 'reg_${uid.isNotEmpty ? uid : "user"}_addr',
           type: 'Home',
           addressLine: regStreet.trim(),
           city: regCity.trim(),
@@ -46,10 +140,11 @@ class AddressStorageService {
           pincode: regPin.trim(),
           isDefault: true,
         );
-        await saveAddresses([regAddress]);
+        await saveAddresses([regAddress], userId: uid);
         return [regAddress];
       }
 
+      // 4. Default seed if no addresses are configured
       final defaultSeeds = [
         AddressModel(
           id: '1792210679721',
@@ -64,7 +159,7 @@ class AddressStorageService {
           isDefault: true,
         ),
       ];
-      await saveAddresses(defaultSeeds);
+      await saveAddresses(defaultSeeds, userId: uid);
       return defaultSeeds;
     } catch (_) {
       return [];
@@ -95,18 +190,27 @@ class AddressStorageService {
     return map.values.toList();
   }
 
-  /// Saves the complete list of addresses to SharedPreferences.
-  static Future<void> saveAddresses(List<AddressModel> addresses) async {
+  /// Saves the complete list of addresses to SharedPreferences for the active user.
+  static Future<void> saveAddresses(List<AddressModel> addresses, {String? userId}) async {
     try {
       final sp = await SharedPreferences.getInstance();
+      final uid = await _resolveCurrentUserId(userId);
       final encoded = jsonEncode(addresses.map((a) => a.toJson()).toList());
-      await sp.setString(_kSavedAddressesKey, encoded);
+
+      if (uid.isNotEmpty) {
+        final userKey = _storageKeyForUser(uid);
+        await sp.setString(userKey, encoded);
+        await SpHelper.saveString(userKey, encoded);
+      } else {
+        await sp.setString(_kSavedAddressesKey, encoded);
+        await SpHelper.saveString(_kSavedAddressesKey, encoded);
+      }
     } catch (_) {}
   }
 
   /// Adds a new address or updates existing one by ID or addressLine.
-  static Future<AddressModel> addAddress(AddressModel newAddress) async {
-    final currentList = await getSavedAddresses();
+  static Future<AddressModel> addAddress(AddressModel newAddress, {String? userId}) async {
+    final currentList = await getSavedAddresses(userId: userId);
     final updatedList = List<AddressModel>.from(currentList);
 
     final bool shouldMakeDefault = newAddress.isDefault || updatedList.isEmpty;
@@ -149,18 +253,18 @@ class AddressStorageService {
           }
         }
       }
-      await saveAddresses(updatedList);
+      await saveAddresses(updatedList, userId: userId);
       return resolvedAddress;
     } else {
       updatedList.add(finalAddress);
-      await saveAddresses(updatedList);
+      await saveAddresses(updatedList, userId: userId);
       return finalAddress;
     }
   }
 
   /// Deletes an address by ID and updates default if necessary.
-  static Future<void> deleteAddress(String id) async {
-    final currentList = await getSavedAddresses();
+  static Future<void> deleteAddress(String id, {String? userId}) async {
+    final currentList = await getSavedAddresses(userId: userId);
     final updatedList = List<AddressModel>.from(currentList);
 
     final index = updatedList.indexWhere((a) => a.id == id);
@@ -170,13 +274,13 @@ class AddressStorageService {
       if (wasDefault && updatedList.isNotEmpty) {
         updatedList[0] = updatedList[0].copyWith(isDefault: true);
       }
-      await saveAddresses(updatedList);
+      await saveAddresses(updatedList, userId: userId);
     }
   }
 
   /// Sets the address with the given ID as default.
-  static Future<void> setDefaultAddress(String id) async {
-    final currentList = await getSavedAddresses();
+  static Future<void> setDefaultAddress(String id, {String? userId}) async {
+    final currentList = await getSavedAddresses(userId: userId);
     final updatedList = List<AddressModel>.from(currentList);
 
     for (int i = 0; i < updatedList.length; i++) {
@@ -184,6 +288,6 @@ class AddressStorageService {
         isDefault: updatedList[i].id == id,
       );
     }
-    await saveAddresses(updatedList);
+    await saveAddresses(updatedList, userId: userId);
   }
 }

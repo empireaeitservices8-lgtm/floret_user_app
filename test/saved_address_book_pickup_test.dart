@@ -5,6 +5,8 @@ import 'package:floret_app/features/profile/model/address_model.dart';
 import 'package:floret_app/services/address_storage_service.dart';
 import 'package:floret_app/features/booking/viewmodel/booking_view_model.dart';
 import 'package:floret_app/features/booking/screen/book_pickup_screen.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 
 void main() {
   setUp(() {
@@ -224,6 +226,99 @@ void main() {
       expect(find.textContaining('New Town'), findsAtLeastNWidgets(1));
       // The older city "Old Town" should not be displayed
       expect(find.textContaining('Old Town'), findsNothing);
+    });
+  });
+
+  group('User Persistent Address & Logout Tests', () {
+    test('addresses are preserved per-user across SpHelper.clearUserData()', () async {
+      // 1. User 101 logs in and saves two addresses
+      await SpHelper.saveString(sp_keys.keyUserId, '101');
+      await AddressStorageService.loadForUser('101');
+
+      final addr1 = AddressModel(
+        id: 'u101_home',
+        type: 'Home',
+        addressLine: '101 Rose Villa',
+        city: 'Thiruvananthapuram',
+        pincode: '695001',
+        isDefault: true,
+      );
+      final addr2 = AddressModel(
+        id: 'u101_work',
+        type: 'Work',
+        addressLine: 'Technopark Phase 3',
+        city: 'Thiruvananthapuram',
+        pincode: '695583',
+        isDefault: false,
+      );
+
+      await AddressStorageService.addAddress(addr1);
+      await AddressStorageService.addAddress(addr2);
+
+      var list101 = await AddressStorageService.getSavedAddresses();
+      expect(list101.length, equals(3));
+      expect(list101.any((a) => a.addressLine == '101 Rose Villa'), isTrue);
+      expect(list101.any((a) => a.addressLine == 'Technopark Phase 3'), isTrue);
+
+      // 2. User 101 logs out (clearUserData is called)
+      await SpHelper.clearUserData();
+      AddressStorageService.resetForLogout();
+
+      // 3. User 101 logs back in
+      await SpHelper.saveString(sp_keys.keyUserId, '101');
+      await AddressStorageService.loadForUser('101');
+
+      // 4. In Book Pickup, all saved addresses (not just default) are present
+      final vm = BookingViewModel();
+      await vm.loadSavedAddresses();
+
+      expect(vm.savedAddresses.length, equals(3));
+      expect(vm.savedAddresses.any((a) => a.addressLine == '101 Rose Villa'), isTrue);
+      expect(vm.savedAddresses.any((a) => a.addressLine == 'Technopark Phase 3'), isTrue);
+    });
+
+    test('different users have independent saved address stores', () async {
+      // User 201 saves an address
+      await SpHelper.saveString(sp_keys.keyUserId, '201');
+      await AddressStorageService.loadForUser('201');
+      await AddressStorageService.addAddress(
+        AddressModel(
+          id: 'u201_addr',
+          type: 'Home',
+          addressLine: '201 Lake View',
+          city: 'Alappuzha',
+          pincode: '688001',
+          isDefault: true,
+        ),
+      );
+
+      // User 202 saves a different address
+      await SpHelper.saveString(sp_keys.keyUserId, '202');
+      await AddressStorageService.loadForUser('202');
+      await AddressStorageService.addAddress(
+        AddressModel(
+          id: 'u202_addr',
+          type: 'Work',
+          addressLine: '202 Marine Drive',
+          city: 'Kochi',
+          pincode: '682031',
+          isDefault: true,
+        ),
+      );
+
+      // Switch back to User 201
+      await SpHelper.saveString(sp_keys.keyUserId, '201');
+      await AddressStorageService.loadForUser('201');
+      final list201 = await AddressStorageService.getSavedAddresses();
+      expect(list201.any((a) => a.addressLine == '201 Lake View'), isTrue);
+      expect(list201.any((a) => a.addressLine == '202 Marine Drive'), isFalse);
+
+      // Switch back to User 202
+      await SpHelper.saveString(sp_keys.keyUserId, '202');
+      await AddressStorageService.loadForUser('202');
+      final list202 = await AddressStorageService.getSavedAddresses();
+      expect(list202.any((a) => a.addressLine == '202 Marine Drive'), isTrue);
+      expect(list202.any((a) => a.addressLine == '201 Lake View'), isFalse);
     });
   });
 }

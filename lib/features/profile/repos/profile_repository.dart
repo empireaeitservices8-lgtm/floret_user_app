@@ -145,6 +145,7 @@ class ProfileRepository {
           uid = itemUserId;
           SpHelper.saveString(sp_keys.keyUserId, itemUserId);
           OrderStore.instance.loadForUser(itemUserId);
+          AddressStorageService.loadForUser(itemUserId);
         }
       }
 

@@ -259,6 +259,12 @@ class AuthRepository {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setString(sp_keys.keyToken, retrievedToken);
               await prefs.setString('token', retrievedToken);
+              if (retrievedUserId.isNotEmpty) {
+                await SpHelper.saveString(sp_keys.keyUserId, retrievedUserId);
+                await prefs.setString(sp_keys.keyUserId, retrievedUserId);
+                await prefs.setString('user_id', retrievedUserId);
+                await AddressStorageService.loadForUser(retrievedUserId);
+              }
               await _webAPIService.initTokenToHeader();
 
               try {
@@ -454,6 +460,10 @@ class AuthRepository {
       return false;
     }
     await _webAPIService.initTokenToHeader();
+    final uid = await SpHelper.getString(sp_keys.keyUserId);
+    if (uid != null && uid.isNotEmpty) {
+      await AddressStorageService.loadForUser(uid);
+    }
     return true;
   }
 
@@ -464,6 +474,7 @@ class AuthRepository {
   Future<void> logout() async {
     await SpHelper.clearUserData();
     OrderStore.instance.resetForLogout();
+    AddressStorageService.resetForLogout();
   }
 
   /// Fetches wards for a selected local body.

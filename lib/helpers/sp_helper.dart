@@ -141,12 +141,70 @@ class SpHelper {
     return t.toUpperCase();
   }
 
-  /// Completely clears all user preferences, secure storage, and cached instances
+  /// Completely clears all user session preferences and tokens during logout,
+  /// while preserving persistent user data such as saved addresses and orders.
   static Future<void> clearUserData() async {
+    final preservedEntries = <String, Object>{};
+    try {
+      final sp = await getSP();
+      for (final key in sp.getKeys()) {
+        if (key.startsWith('user_saved_addresses') ||
+            key == 'user_saved_addresses' ||
+            key.startsWith('saved_user_orders') ||
+            key.startsWith('read_notifications')) {
+          final val = sp.get(key);
+          if (val != null) {
+            preservedEntries[key] = val;
+          }
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in prefs.getKeys()) {
+        if (key.startsWith('user_saved_addresses') ||
+            key == 'user_saved_addresses' ||
+            key.startsWith('saved_user_orders') ||
+            key.startsWith('read_notifications')) {
+          final val = prefs.get(key);
+          if (val != null) {
+            preservedEntries[key] = val;
+          }
+        }
+      }
+    } catch (_) {}
+
     await clearAll();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
+    } catch (_) {}
+
+    // Restore preserved user data (saved addresses, persistent orders)
+    try {
+      final sp = await getSP();
+      final prefs = await SharedPreferences.getInstance();
+      for (final entry in preservedEntries.entries) {
+        final k = entry.key;
+        final v = entry.value;
+        if (v is String) {
+          await sp.setString(k, v);
+          await prefs.setString(k, v);
+        } else if (v is List<String>) {
+          await sp.setStringList(k, v);
+          await prefs.setStringList(k, v);
+        } else if (v is bool) {
+          await sp.setBool(k, v);
+          await prefs.setBool(k, v);
+        } else if (v is int) {
+          await sp.setInt(k, v);
+          await prefs.setInt(k, v);
+        } else if (v is double) {
+          await sp.setDouble(k, v);
+          await prefs.setDouble(k, v);
+        }
+      }
     } catch (_) {}
   }
 }

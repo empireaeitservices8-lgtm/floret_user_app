@@ -2,6 +2,7 @@ import 'package:floret_app/services/web_api_services.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import '../model/settings_model.dart';
 import '../../profile/model/order_model.dart';
+import '../../../services/address_storage_service.dart';
 
 class SettingsRepository {
   final WebAPIService _webAPIService;
@@ -54,5 +55,6 @@ class SettingsRepository {
   Future<void> logout() async {
     await SpHelper.clearUserData();
     OrderStore.instance.resetForLogout();
+    AddressStorageService.resetForLogout();
   }
 }

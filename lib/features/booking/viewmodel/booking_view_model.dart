@@ -261,8 +261,11 @@ class BookingViewModel extends ViewModel {
 
   void setAddressTab(int index) {
     _selectedAddressTab = index;
-    if (index == 0 && _selectedSavedAddress != null) {
-      _applyAddressToControllers(_selectedSavedAddress!);
+    if (index == 0) {
+      loadSavedAddresses();
+      if (_selectedSavedAddress != null) {
+        _applyAddressToControllers(_selectedSavedAddress!);
+      }
     }
     notifyListeners();
   }

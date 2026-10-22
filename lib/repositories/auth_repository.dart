@@ -10,6 +10,7 @@ import '../services/web_api_services.dart';
 import '../helpers/sp_helper.dart';
 import '../utils/sp_keys.dart' as sp_keys;
 import '../features/profile/model/order_model.dart';
+import '../services/address_storage_service.dart';
 import 'profile_repository.dart';
 
 class AuthRepository {
@@ -77,6 +78,7 @@ class AuthRepository {
     if (loginModel.userId > 0) {
       await SpHelper.saveString(sp_keys.keyUserId, loginModel.userId.toString());
       await OrderStore.instance.loadForUser(loginModel.userId.toString());
+      await AddressStorageService.loadForUser(loginModel.userId.toString());
     }
     if (loginModel.accountType.isNotEmpty) {
       await SpHelper.saveString('account_type', loginModel.accountType);
@@ -220,6 +222,7 @@ class AuthRepository {
   Future<void> clearSavedAuth() async {
     await SpHelper.clearUserData();
     OrderStore.instance.resetForLogout();
+    AddressStorageService.resetForLogout();
     debugPrint('🧹 [AUTH REPOSITORY] Cleared local authentication cache.');
   }
 
@@ -245,13 +248,14 @@ class AuthRepository {
       // Initialize API headers with the authentication token
       await WebAPIService().initTokenToHeader();
 
-      // Ensure OrderStore is loaded for the authenticated user
+      // Ensure OrderStore and AddressStorageService are loaded for the authenticated user
       final savedUid = await SpHelper.getString(sp_keys.keyUserId) ??
           prefs.getString(sp_keys.keyUserId) ??
           prefs.getString('user_id') ??
           prefs.getInt('user_id')?.toString();
       if (savedUid != null && savedUid.isNotEmpty) {
         await OrderStore.instance.loadForUser(savedUid);
+        await AddressStorageService.loadForUser(savedUid);
       }
     } catch (e) {
       debugPrint('⚠️ [AUTH REPOSITORY] Token header initialization warning: $e');
