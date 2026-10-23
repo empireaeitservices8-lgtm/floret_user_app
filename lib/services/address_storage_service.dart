@@ -87,48 +87,30 @@ class AddressStorageService {
       final uid = await _resolveCurrentUserId(userId);
       final userKey = _storageKeyForUser(uid);
 
-      // 1. Check user-scoped key in SharedPreferences
-      final raw = sp.getString(userKey);
-      if (raw != null && raw.trim().isNotEmpty) {
-        final decoded = jsonDecode(raw);
-        if (decoded is List && decoded.isNotEmpty) {
-          final list = decoded
-              .map((e) => AddressModel.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-          return deduplicateAddresses(list);
-        }
-      }
-
-      // 2. If user-scoped key is empty, check legacy _kSavedAddressesKey for migration
-      if (uid.isNotEmpty && userKey != _kSavedAddressesKey) {
-        final legacyRaw = sp.getString(_kSavedAddressesKey);
-        if (legacyRaw != null && legacyRaw.trim().isNotEmpty) {
-          final decoded = jsonDecode(legacyRaw);
-          if (decoded is List && decoded.isNotEmpty) {
-            final list = decoded
-                .map((e) => AddressModel.fromJson(Map<String, dynamic>.from(e)))
-                .toList();
-            final dedup = deduplicateAddresses(list);
-            await saveAddresses(dedup, userId: uid);
-            await sp.remove(_kSavedAddressesKey);
-            return dedup;
-          }
-        }
-      }
-
-      // 3. Check for user's registration address in SharedPreferences
+      // Check for user's registration address in SharedPreferences
       final regStreet = sp.getString('registration_street') ??
           sp.getString('street') ??
           sp.getString('registration_address');
+      AddressModel? regAddress;
       if (regStreet != null && regStreet.trim().isNotEmpty) {
-        final regCity = sp.getString('registration_city') ?? sp.getString('city') ?? '';
-        final regState = sp.getString('registration_state') ?? sp.getString('state') ?? 'Kerala';
-        final regDistrict = sp.getString('registration_district') ?? sp.getString('district');
-        final regLocalBody = sp.getString('registration_local_body') ?? sp.getString('local_body');
-        final regWard = sp.getString('registration_ward') ?? sp.getString('ward');
-        final regPin = sp.getString('registration_zip_code') ?? sp.getString('pincode') ?? sp.getString('zip_code') ?? '';
+        final regCity = sp.getString('registration_city') ??
+            sp.getString('city') ??
+            '';
+        final regState = sp.getString('registration_state') ??
+            sp.getString('state') ??
+            'Kerala';
+        final regDistrict = sp.getString('registration_district') ??
+            sp.getString('district');
+        final regLocalBody = sp.getString('registration_local_body') ??
+            sp.getString('local_body');
+        final regWard = sp.getString('registration_ward') ??
+            sp.getString('ward');
+        final regPin = sp.getString('registration_zip_code') ??
+            sp.getString('pincode') ??
+            sp.getString('zip_code') ??
+            '';
 
-        final regAddress = AddressModel(
+        regAddress = AddressModel(
           id: 'reg_${uid.isNotEmpty ? uid : "user"}_addr',
           type: 'Home',
           addressLine: regStreet.trim(),
@@ -140,11 +122,86 @@ class AddressStorageService {
           pincode: regPin.trim(),
           isDefault: true,
         );
-        await saveAddresses([regAddress], userId: uid);
-        return [regAddress];
       }
 
-      // 4. Default seed if no addresses are configured
+      List<AddressModel>? rawList;
+
+      // 1. Check user-scoped key in SharedPreferences
+      final raw = sp.getString(userKey);
+      if (raw != null && raw.trim().isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is List && decoded.isNotEmpty) {
+          rawList = decoded
+              .map((e) => AddressModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        }
+      }
+
+      // 2. If user-scoped key is empty, check legacy _kSavedAddressesKey for migration
+      if (rawList == null && uid.isNotEmpty && userKey != _kSavedAddressesKey) {
+        final legacyRaw = sp.getString(_kSavedAddressesKey);
+        if (legacyRaw != null && legacyRaw.trim().isNotEmpty) {
+          final decoded = jsonDecode(legacyRaw);
+          if (decoded is List && decoded.isNotEmpty) {
+            rawList = decoded
+                .map((e) => AddressModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            await sp.remove(_kSavedAddressesKey);
+          }
+        }
+      }
+
+      // 3. If registration address exists, it MUST be the default address
+      if (regAddress != null) {
+        List<AddressModel> list =
+            rawList != null ? List<AddressModel>.from(rawList) : [];
+        // Remove dummy seeds if user has real registration address
+        list.removeWhere((a) =>
+            a.id == '1792210679721' ||
+            (a.addressLine.toLowerCase() == 'sunset blvd' &&
+                a.city.toLowerCase().contains('thiruvananthapuram corp')));
+
+        final regNorm = regAddress.addressLine.trim().toLowerCase();
+        final matchIndex = list.indexWhere((a) =>
+            a.addressLine.trim().toLowerCase() == regNorm ||
+            a.id == regAddress!.id ||
+            a.id.startsWith('reg_') ||
+            a.id.startsWith('profile_addr_'));
+
+        if (matchIndex != -1) {
+          final matched = list[matchIndex];
+          final updatedReg = matched.copyWith(
+            type: matched.type.isNotEmpty ? matched.type : 'Home',
+            addressLine: regAddress.addressLine,
+            city: regAddress.city.isNotEmpty ? regAddress.city : matched.city,
+            state: regAddress.state ?? matched.state,
+            district: regAddress.district ?? matched.district,
+            localBody: regAddress.localBody ?? matched.localBody,
+            ward: regAddress.ward ?? matched.ward,
+            pincode: regAddress.pincode.isNotEmpty
+                ? regAddress.pincode
+                : matched.pincode,
+            isDefault: true,
+          );
+          list.removeAt(matchIndex);
+          list = list.map((a) => a.copyWith(isDefault: false)).toList();
+          list.insert(0, updatedReg);
+        } else {
+          list = list.map((a) => a.copyWith(isDefault: false)).toList();
+          list.insert(0, regAddress);
+        }
+
+        final dedup = deduplicateAddresses(list);
+        await saveAddresses(dedup, userId: uid);
+        return dedup;
+      }
+
+      // 4. If no registration address, return existing list if any
+      if (rawList != null && rawList.isNotEmpty) {
+        return deduplicateAddresses(rawList);
+      }
+
+      // 5. Default seed if no addresses and no registration address configured
       final defaultSeeds = [
         AddressModel(
           id: '1792210679721',

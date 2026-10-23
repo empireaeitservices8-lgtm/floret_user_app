@@ -159,5 +159,37 @@ void main() {
       expect(find.text('2'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
     });
+
+    testWidgets('Schedule step displays Floret Rewards card with balance, bags earned, and redeem button',
+        (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final vm = BookingViewModel();
+      await vm.loadSavedAddresses();
+      vm.proceedToLocation();
+      vm.proceedToSchedule();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BookPickupScreen(viewModel: vm),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify Floret Rewards section is displayed
+      expect(find.text('Floret Rewards'), findsOneWidget);
+      expect(find.textContaining('Points Balance:'), findsOneWidget);
+      expect(find.textContaining('Bags Earned:'), findsOneWidget);
+      expect(find.text('REDEEM BAG (7 PTS)'), findsOneWidget);
+
+      // Tap REDEEM BAG with 0 points
+      await tester.tap(find.text('REDEEM BAG (7 PTS)'));
+      await tester.pumpAndSettle();
+
+      // Verify insufficient points snackbar
+      expect(find.textContaining('Insufficient points!'), findsOneWidget);
+    });
   });
 }

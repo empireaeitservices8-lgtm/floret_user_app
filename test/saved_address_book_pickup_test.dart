@@ -40,6 +40,20 @@ void main() {
       expect(saved.city, equals('Kochi'));
       expect(saved.isDefault, isTrue);
     });
+
+    test('getSavedAddresses sets registration address as default address', () async {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString('registration_address', 'Flat 10B, Silver Heights');
+      await sp.setString('registration_city', 'Thiruvananthapuram');
+      await sp.setString('registration_zip_code', '695004');
+
+      final list = await AddressStorageService.getSavedAddresses();
+      expect(list.isNotEmpty, isTrue);
+      expect(list.first.isDefault, isTrue);
+      expect(list.first.addressLine, equals('Flat 10B, Silver Heights'));
+      expect(list.first.city, equals('Thiruvananthapuram'));
+      expect(list.first.pincode, equals('695004'));
+    });
   });
 
   group('BookingViewModel Saved Address Tests', () {
@@ -53,6 +67,22 @@ void main() {
 
       vm.setAddressTab(0);
       expect(vm.pickupAddressController.text, equals(vm.selectedSavedAddress!.addressLine));
+    });
+
+    test('BookingViewModel selects user registration address as default address', () async {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString('registration_address', 'Villa 5, Rose Gardens');
+      await sp.setString('registration_city', 'Kozhikode');
+      await sp.setString('registration_zip_code', '673001');
+
+      final vm = BookingViewModel();
+      await vm.loadSavedAddresses();
+
+      expect(vm.selectedSavedAddress, isNotNull);
+      expect(vm.selectedSavedAddress!.isDefault, isTrue);
+      expect(vm.selectedSavedAddress!.addressLine, equals('Villa 5, Rose Gardens'));
+      expect(vm.selectedSavedAddress!.city, equals('Kozhikode'));
+      expect(vm.selectedSavedAddress!.pincode, equals('673001'));
     });
 
     test('selectSavedAddress updates form fields and selected address', () async {

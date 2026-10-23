@@ -137,26 +137,23 @@ class ProfileRepository {
 
     if ((profileModel.street != null && profileModel.street!.isNotEmpty) ||
         (profileModel.city != null && profileModel.city!.isNotEmpty)) {
-      final existingAddrs = await AddressStorageService.getSavedAddresses();
-      if (existingAddrs.isEmpty || !existingAddrs.any((a) => a.isDefault)) {
-        final regModel = AddressModel(
-          id: 'profile_addr_${DateTime.now().millisecondsSinceEpoch}',
-          type: 'Home',
-          addressLine: profileModel.street?.trim().isNotEmpty == true
-              ? profileModel.street!.trim()
-              : (profileModel.formattedAddress.isNotEmpty
-                  ? profileModel.formattedAddress
-                  : 'Home Address'),
-          city: profileModel.city?.trim() ?? '',
-          district: profileModel.district?.trim(),
-          state: profileModel.state?.trim() ?? 'Kerala',
-          localBody: profileModel.localBody?.trim(),
-          ward: profileModel.ward?.trim(),
-          pincode: profileModel.zipCode?.trim() ?? '',
-          isDefault: true,
-        );
-        await AddressStorageService.addAddress(regModel);
-      }
+      final regModel = AddressModel(
+        id: 'profile_addr_${DateTime.now().millisecondsSinceEpoch}',
+        type: 'Home',
+        addressLine: profileModel.street?.trim().isNotEmpty == true
+            ? profileModel.street!.trim()
+            : (profileModel.formattedAddress.isNotEmpty
+                ? profileModel.formattedAddress
+                : 'Home Address'),
+        city: profileModel.city?.trim() ?? '',
+        district: profileModel.district?.trim(),
+        state: profileModel.state?.trim() ?? 'Kerala',
+        localBody: profileModel.localBody?.trim(),
+        ward: profileModel.ward?.trim(),
+        pincode: profileModel.zipCode?.trim() ?? '',
+        isDefault: true,
+      );
+      await AddressStorageService.addAddress(regModel);
     }
 
     return profileModel;

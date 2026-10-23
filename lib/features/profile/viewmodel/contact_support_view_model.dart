@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:floret_app/providers/view_model.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -195,13 +196,56 @@ class ContactSupportViewModel extends ViewModel {
       return false;
     }
 
+    final name = nameController.text.trim();
+    final phone = phoneController.text.trim();
+    final email = emailController.text.trim();
+    final subject = subjectController.text.trim();
+    final message = messageController.text.trim();
+    final inquiry = _selectedInquiry;
+
     try {
       showLoading();
       await _repository.submitSupportTicket(
-        subject: subjectController.text.trim(),
-        message: messageController.text.trim(),
+        subject: subject,
+        message: message,
       );
       hideLoading();
+
+      final mailSubject = subject.isNotEmpty
+          ? '[$inquiry] $subject'
+          : 'Support Request - Safai 360';
+
+      final buffer = StringBuffer();
+      buffer.writeln('Name: $name');
+      if (phone.isNotEmpty) {
+        buffer.writeln('Phone: $phone');
+      }
+      buffer.writeln('Email: $email');
+      buffer.writeln('Inquiry Type: $inquiry');
+      buffer.writeln();
+      buffer.writeln('Message:');
+      buffer.writeln(message);
+
+      final Uri emailUri = Uri(
+        scheme: 'mailto',
+        path: 'florettechnologies@gmail.com',
+        queryParameters: {
+          'subject': mailSubject,
+          'body': buffer.toString(),
+        },
+      );
+
+      try {
+        if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+          if (await canLaunchUrl(emailUri)) {
+            await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+          } else {
+            await launchUrl(emailUri);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error launching email client: $e');
+      }
 
       nameController.clear();
       phoneController.clear();

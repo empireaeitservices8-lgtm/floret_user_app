@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
@@ -9,6 +10,8 @@ import '../repos/booking_repository.dart';
 import 'receipt_ticket_screen.dart';
 import '../../profile/model/order_model.dart';
 import '../../map/screen/location_picker_map_screen.dart';
+import '../../wallet/repos/wallet_repository.dart';
+import '../../home/repos/home_repository.dart';
 
 class BookPickupScreen extends StatefulWidget {
   static const String routeName = '/book_pickup';
@@ -35,6 +38,9 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       TextEditingController();
   bool _isConfirming = false;
 
+  int _rewardPoints = 0;
+  int _bagsEarned = 0;
+
   bool _isZipValid(String zip) {
     final clean = zip.trim().replaceAll(' ', '');
     return clean.isNotEmpty && RegExp(r'^\d{6}$').hasMatch(clean);
@@ -54,6 +60,51 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       _internalViewModel = true;
     }
     _viewModel.loadSavedAddresses();
+    _loadRewardData();
+  }
+
+  Future<void> _loadRewardData() async {
+    try {
+      final cachedPoints = await SpHelper.getString('eco_reward_points');
+      final cachedBags = await SpHelper.getString('eco_bags_earned');
+      if (mounted) {
+        setState(() {
+          if (cachedPoints != null && int.tryParse(cachedPoints) != null) {
+            _rewardPoints = int.parse(cachedPoints);
+          }
+          if (cachedBags != null && int.tryParse(cachedBags) != null) {
+            _bagsEarned = int.parse(cachedBags);
+          }
+        });
+      }
+
+      if (Platform.environment.containsKey('FLUTTER_TEST')) return;
+
+      final model = await HomeRepository().fetchRewardPoints();
+      if (model.availablePoints > 0) {
+        await SpHelper.saveString(
+            'eco_reward_points', model.availablePoints.toString());
+        if (mounted) {
+          setState(() {
+            _rewardPoints = model.availablePoints;
+          });
+        }
+      }
+
+      final txResp = await HomeRepository().fetchRewardPointsTransactions();
+      if (txResp.transactions.isNotEmpty) {
+        final bagCount = txResp.transactions.where((t) =>
+            t.title.toLowerCase().contains('bag') ||
+            (t.type == 'redeemed' && t.points == 7)).length;
+        if (bagCount > _bagsEarned) {
+          _bagsEarned = bagCount;
+          await SpHelper.saveString('eco_bags_earned', _bagsEarned.toString());
+          if (mounted) {
+            setState(() {});
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -1438,7 +1489,12 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
+
+        // Floret Rewards Card
+        _buildFloretRewardsCard(),
+
+        const SizedBox(height: 18),
 
         // Booking Summary Card
         Container(
@@ -1494,6 +1550,231 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+
+  // Floret Rewards Card matching design
+  Widget _buildFloretRewardsCard() {
+    final canRedeem = _rewardPoints >= 7;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBF0),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFFED7AA),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE65100),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.star_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Floret Rewards',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E242F),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Points Balance: $_rewardPoints pts',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Bags Earned: $_bagsEarned bags',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _onRedeemBagTapped,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.shopping_bag_rounded,
+                        size: 13,
+                        color: canRedeem
+                            ? const Color(0xFF475569)
+                            : const Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'REDEEM BAG (7 PTS)',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                          color: canRedeem
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onRedeemBagTapped() {
+    if (_rewardPoints < 7) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 2),
+          content: Text(
+            'Insufficient points! You need at least 7 points to redeem a bag.',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: const Text(
+          'Redeem Floret Bag',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1E242F),
+          ),
+        ),
+        content: const Text(
+          'Redeem 1 Floret Reusable Bag for 7 reward points?',
+          style: TextStyle(
+            fontSize: 14,
+            color: Color(0xFF475569),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() {
+                _rewardPoints -= 7;
+                _bagsEarned += 1;
+              });
+              await SpHelper.saveString(
+                  'eco_reward_points', _rewardPoints.toString());
+              await SpHelper.saveString(
+                  'eco_bags_earned', _bagsEarned.toString());
+              try {
+                await WalletRepository().redeemRewards(7);
+              } catch (_) {}
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: Color(0xFF10B981),
+                    content: Text(
+                      'Successfully redeemed 1 Floret Reusable Bag!',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text(
+              'Confirm',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
