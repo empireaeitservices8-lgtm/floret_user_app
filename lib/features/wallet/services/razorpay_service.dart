@@ -22,9 +22,11 @@ class RazorpayService {
     });
   }
 
-  /// Opens the Razorpay checkout using the order returned by POST /api/wallet/topup/.
+  /// Opens the Razorpay checkout. Can accept an optional [order] or direct [amount] and [keyId].
   void openCheckout({
-    required WalletTopupOrderResponseModel order,
+    WalletTopupOrderResponseModel? order,
+    double? amount,
+    String? keyId,
     required void Function(PaymentSuccessResponse) onSuccess,
     required void Function(PaymentFailureResponse) onError,
     void Function(ExternalWalletResponse)? onExternalWallet,
@@ -33,14 +35,24 @@ class RazorpayService {
     _onError = onError;
     _onExternalWallet = onExternalWallet;
 
+    final key = (order?.keyId != null && order!.keyId!.isNotEmpty)
+        ? order.keyId!
+        : (keyId ?? 'rzp_live_T3MIagFrpI5sz2');
+    final amtInPaise = order?.amountInPaise ??
+        (((amount ?? order?.amount ?? 500.0) * 100).round());
+
     final options = <String, dynamic>{
-      'key': order.keyId,
-      'order_id': order.razorpayOrderId,
-      'amount': order.amountInPaise ?? (order.amount * 100).round(),
-      'currency': order.currency ?? 'INR',
-      'name': order.name ?? 'Floret Technologies',
-      'description': order.description ?? 'Wallet Balance Top-Up',
-      if (order.prefill != null) 'prefill': order.prefill,
+      'key': key,
+      if (order?.razorpayOrderId != null && order!.razorpayOrderId!.isNotEmpty)
+        'order_id': order.razorpayOrderId,
+      'amount': amtInPaise,
+      'currency': order?.currency ?? 'INR',
+      'name': order?.name ?? 'Floret Technologies',
+      'description': order?.description ?? 'Wallet Balance Top-Up',
+      if (order?.prefill != null)
+        'prefill': order!.prefill
+      else
+        'prefill': {'contact': '', 'email': ''},
       'theme': {'color': '#0F1E36'},
     };
     debugPrint('💳 [RAZORPAY] Opening checkout: $options');

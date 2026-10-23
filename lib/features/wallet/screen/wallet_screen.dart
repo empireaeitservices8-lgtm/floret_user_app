@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../helpers/sp_helper.dart';
 import '../model/wallet_model.dart';
 import '../viewmodel/wallet_view_model.dart';
 import 'top_up_bottom_sheet.dart';
@@ -15,13 +16,28 @@ Future<void> _handleAutoTopUpSuccess(
   WalletViewModel vm,
   AutoTopUpConfig res,
 ) async {
+  await vm.updateAutoTopUpSettings(
+    enabled: res.isEnabled,
+    threshold: res.threshold,
+    amount: res.reloadAmount,
+  );
   await vm.loadWalletData(isRefresh: true);
+  await vm.updateAutoTopUpSettings(
+    enabled: res.isEnabled,
+    threshold: res.threshold,
+    amount: res.reloadAmount,
+  );
   if (!context.mounted) return;
   await AutoTopUpSuccessSheet.show(
     context,
     enabled: res.isEnabled,
     threshold: res.threshold,
     topUpAmount: res.reloadAmount,
+  );
+  await vm.updateAutoTopUpSettings(
+    enabled: res.isEnabled,
+    threshold: res.threshold,
+    amount: res.reloadAmount,
   );
 }
 
@@ -61,6 +77,31 @@ class _WalletScreenState extends State<WalletScreen> {
     if (widget.initialPoints != oldWidget.initialPoints &&
         widget.initialPoints > 0) {
       _viewModel.setAvailablePoints(widget.initialPoints);
+    }
+  }
+
+  Future<void> _openAutoTopUpSheet(WalletViewModel vm) async {
+    final res = await AutoTopUpBottomSheet.show(
+      context,
+      isEnabled: vm.autoTopupEnabled,
+      threshold: vm.autoTopupTriggerAmount,
+      reloadAmount: vm.autoTopupAmount,
+    );
+    if (!mounted) return;
+    if (res != null) {
+      await _handleAutoTopUpSuccess(context, vm, res);
+    } else {
+      final cachedAutoStr = await SpHelper.getString('auto_topup_enabled');
+      if (cachedAutoStr != null) {
+        final isEnabled = cachedAutoStr == 'true';
+        if (isEnabled != vm.autoTopupEnabled) {
+          await vm.updateAutoTopUpSettings(
+            enabled: isEnabled,
+            threshold: vm.autoTopupTriggerAmount,
+            amount: vm.autoTopupAmount,
+          );
+        }
+      }
     }
   }
 
@@ -182,18 +223,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () async {
-                        final res = await AutoTopUpBottomSheet.show(
-                          context,
-                          isEnabled: vm.autoTopupEnabled,
-                          threshold: vm.autoTopupTriggerAmount,
-                          reloadAmount: vm.autoTopupAmount,
-                        );
-                        if (res != null) {
-                          if (!context.mounted) return;
-                          await _handleAutoTopUpSuccess(context, vm, res);
-                        }
-                      },
+                      onTap: () => _openAutoTopUpSheet(vm),
                       behavior: HitTestBehavior.opaque,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -394,18 +424,7 @@ class _WalletScreenState extends State<WalletScreen> {
             subtitle: vm.autoTopupEnabled
                 ? '₹${vm.autoTopupTriggerAmount.toInt()} limit'
                 : 'Configure',
-            onTap: () async {
-              final res = await AutoTopUpBottomSheet.show(
-                context,
-                isEnabled: vm.autoTopupEnabled,
-                threshold: vm.autoTopupTriggerAmount,
-                reloadAmount: vm.autoTopupAmount,
-              );
-              if (res != null) {
-                if (!context.mounted) return;
-                await _handleAutoTopUpSuccess(context, vm, res);
-              }
-            },
+            onTap: () => _openAutoTopUpSheet(vm),
           ),
         ),
         const SizedBox(width: 10),

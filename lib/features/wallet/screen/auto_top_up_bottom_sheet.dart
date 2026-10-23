@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../helpers/sp_helper.dart';
 import '../repos/wallet_repository.dart';
 
 class AutoTopUpConfig {
@@ -62,6 +63,29 @@ class _AutoTopUpBottomSheetState extends State<AutoTopUpBottomSheet> {
     );
     _reloadAmountController = TextEditingController(
       text: widget.initialReloadAmount.toStringAsFixed(2),
+    );
+  }
+
+  Future<void> _onToggleChanged() async {
+    final newEnabled = !_isAutoTopUpEnabled;
+    setState(() {
+      _isAutoTopUpEnabled = newEnabled;
+    });
+
+    final parsedThreshold =
+        double.tryParse(_thresholdController.text.trim()) ?? widget.initialThreshold;
+    final parsedReload =
+        double.tryParse(_reloadAmountController.text.trim()) ?? widget.initialReloadAmount;
+
+    await SpHelper.saveString('auto_topup_enabled', newEnabled ? 'true' : 'false');
+    await SpHelper.saveString('auto_topup_user_set', 'true');
+    await SpHelper.saveString('auto_topup_trigger_amount', parsedThreshold.toString());
+    await SpHelper.saveString('auto_topup_amount', parsedReload.toString());
+
+    WalletRepository().setupAutoTopUp(
+      triggerAmount: parsedThreshold,
+      topUpAmount: parsedReload,
+      enabled: newEnabled,
     );
   }
 
@@ -154,11 +178,7 @@ class _AutoTopUpBottomSheetState extends State<AutoTopUpBottomSheet> {
             // Enable Auto Top-Up Card
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () {
-                setState(() {
-                  _isAutoTopUpEnabled = !_isAutoTopUpEnabled;
-                });
-              },
+              onTap: _onToggleChanged,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
@@ -211,11 +231,7 @@ class _AutoTopUpBottomSheetState extends State<AutoTopUpBottomSheet> {
                     // Custom Pill Toggle Switch
                     GestureDetector(
                       key: const Key('auto_top_up_toggle'),
-                      onTap: () {
-                        setState(() {
-                          _isAutoTopUpEnabled = !_isAutoTopUpEnabled;
-                        });
-                      },
+                      onTap: _onToggleChanged,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 50,

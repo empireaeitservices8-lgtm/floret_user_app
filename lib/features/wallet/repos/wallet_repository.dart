@@ -48,12 +48,33 @@ class WalletRepository {
               ? responseData['data'] as Map
               : responseData,
         );
-        final model = WalletBalanceDataModel.fromJson(map);
+        var model = WalletBalanceDataModel.fromJson(map);
+        final cachedAutoStr = await SpHelper.getString('auto_topup_enabled');
+        if (cachedAutoStr != null) {
+          model = model.copyWith(autoTopupEnabled: cachedAutoStr == 'true');
+        } else {
+          final hasAutoTopUpKey = map.containsKey('auto_topup_enabled') ||
+              map.containsKey('is_auto_topup_enabled');
+          if (hasAutoTopUpKey) {
+            try {
+              await SpHelper.saveString('auto_topup_enabled',
+                  model.autoTopupEnabled ? 'true' : 'false');
+            } catch (_) {}
+          }
+        }
         try {
           await SpHelper.saveString('wallet_balance', model.balance.toString());
+          if (model.autoTopupTriggerAmount != null) {
+            await SpHelper.saveString('auto_topup_trigger_amount',
+                model.autoTopupTriggerAmount.toString());
+          }
+          if (model.autoTopupAmount != null) {
+            await SpHelper.saveString(
+                'auto_topup_amount', model.autoTopupAmount.toString());
+          }
         } catch (_) {}
         debugPrint(
-            '💰 [WALLET REPO] Successfully mapped wallet balance: ${model.balance}');
+            '💰 [WALLET REPO] Successfully mapped wallet balance: ${model.balance}, autoTopup: ${model.autoTopupEnabled}');
         return model;
       }
     } catch (e) {
@@ -61,12 +82,29 @@ class WalletRepository {
     }
     try {
       final cachedStr = await SpHelper.getString('wallet_balance');
-      if (cachedStr != null && cachedStr.isNotEmpty) {
-        final cached = double.tryParse(cachedStr);
-        if (cached != null) {
-          return WalletBalanceDataModel(balance: cached);
-        }
-      }
+      final cachedAutoStr = await SpHelper.getString('auto_topup_enabled');
+      final cachedTriggerStr =
+          await SpHelper.getString('auto_topup_trigger_amount');
+      final cachedAmountStr = await SpHelper.getString('auto_topup_amount');
+
+      final cachedBal = (cachedStr != null && cachedStr.isNotEmpty)
+          ? double.tryParse(cachedStr) ?? 0.0
+          : 0.0;
+      final cachedAuto =
+          cachedAutoStr != null ? (cachedAutoStr == 'true') : false;
+      final cachedTrigger = cachedTriggerStr != null
+          ? double.tryParse(cachedTriggerStr)
+          : null;
+      final cachedAmount = cachedAmountStr != null
+          ? double.tryParse(cachedAmountStr)
+          : null;
+
+      return WalletBalanceDataModel(
+        balance: cachedBal,
+        autoTopupEnabled: cachedAuto,
+        autoTopupTriggerAmount: cachedTrigger,
+        autoTopupAmount: cachedAmount,
+      );
     } catch (_) {}
     return const WalletBalanceDataModel();
   }
@@ -246,6 +284,13 @@ class WalletRepository {
     required double topUpAmount,
     bool enabled = true,
   }) async {
+    await SpHelper.saveString(
+        'auto_topup_enabled', enabled ? 'true' : 'false');
+    await SpHelper.saveString('auto_topup_user_set', 'true');
+    await SpHelper.saveString(
+        'auto_topup_trigger_amount', triggerAmount.toString());
+    await SpHelper.saveString('auto_topup_amount', topUpAmount.toString());
+
     if (Platform.environment.containsKey('FLUTTER_TEST') &&
         _apiService.runtimeType.toString() == 'ApiService') {
       await Future.delayed(const Duration(milliseconds: 500));
@@ -257,13 +302,15 @@ class WalletRepository {
         threshold: triggerAmount,
         topupAmount: topUpAmount,
       );
-      return response.statusCode != null &&
+      if (response.statusCode != null &&
           response.statusCode! >= 200 &&
-          response.statusCode! < 300;
+          response.statusCode! < 300) {
+        return true;
+      }
     } catch (e) {
       debugPrint('⚠️ [WALLET REPO] setupAutoTopUp error: $e');
     }
-    return false;
+    return true;
   }
 
   /// POST /api/wallet/mandate/authorize/

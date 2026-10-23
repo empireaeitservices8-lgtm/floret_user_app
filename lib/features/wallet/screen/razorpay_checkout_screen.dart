@@ -43,7 +43,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
 
   void _onClosePressed() {
     if (Navigator.canPop(context)) {
-      Navigator.pop(context);
+      Navigator.pop(context, false);
     } else if (widget.isCommercialRegistration) {
       Navigator.pushReplacementNamed(context, LoginScreen.routeName);
     } else {
@@ -1245,9 +1245,12 @@ class _ThreeDSecureAuthDialogState extends State<ThreeDSecureAuthDialog> {
     final signature = 'sig_$trimmedId';
 
     try {
-      if (widget.transactionId != null) {
+      final order =
+          await WalletRepository().createTopupOrder(amount: widget.amount);
+      final txnId = order?.transactionId ?? widget.transactionId;
+      if (txnId != null) {
         await WalletRepository().verifyPayment(
-          transactionId: widget.transactionId,
+          transactionId: txnId,
           razorpayOrderId: orderId,
           razorpayPaymentId: paymentId,
           razorpaySignature: signature,

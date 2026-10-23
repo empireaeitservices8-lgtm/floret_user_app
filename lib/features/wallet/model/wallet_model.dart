@@ -57,7 +57,10 @@ class WalletBalanceDataModel {
       balance: (json['balance'] is String)
           ? double.tryParse(json['balance']) ?? 0.0
           : (json['balance'] as num?)?.toDouble() ?? 0.0,
-      autoTopupEnabled: json['auto_topup_enabled'] as bool? ?? false,
+      autoTopupEnabled: (json['auto_topup_enabled'] is bool)
+          ? (json['auto_topup_enabled'] as bool)
+          : (json['auto_topup_enabled']?.toString().toLowerCase() == 'true' ||
+              json['auto_topup_enabled'] == 1),
       autoTopupTriggerAmount: (json['auto_topup_trigger_amount'] is String)
           ? double.tryParse(json['auto_topup_trigger_amount'])
           : (json['auto_topup_trigger_amount'] as num?)?.toDouble(),

@@ -21,7 +21,7 @@ class MockVerifyPaymentApiService extends ApiService {
   @override
   Future<Response> createWalletTopupOrder({
     required double amount,
-    String paymentMethod = 'Razorpay',
+    String? paymentMethod = 'Razorpay',
     String? token,
   }) async {
     lastCreatedOrderAmount = amount;

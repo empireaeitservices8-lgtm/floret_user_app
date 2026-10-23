@@ -26,16 +26,64 @@ class WalletViewModel extends ViewModel {
   Future<void> _initCachedBalance() async {
     try {
       final cachedStr = await SpHelper.getString('wallet_balance');
-      if (cachedStr != null && cachedStr.isNotEmpty) {
-        final cached = double.tryParse(cachedStr);
-        if (cached != null && _walletBundle.walletBalance.balance == 0.0) {
-          _walletBundle = _walletBundle.copyWith(
-            walletBalance: WalletBalanceDataModel(balance: cached),
-          );
-          notifyListeners();
-        }
+      final cachedAutoStr = await SpHelper.getString('auto_topup_enabled');
+      final cachedTriggerStr =
+          await SpHelper.getString('auto_topup_trigger_amount');
+      final cachedAmountStr = await SpHelper.getString('auto_topup_amount');
+
+      final cached = (cachedStr != null && cachedStr.isNotEmpty)
+          ? double.tryParse(cachedStr)
+          : null;
+      final cachedAuto =
+          cachedAutoStr != null ? (cachedAutoStr == 'true') : null;
+      final cachedTrigger =
+          cachedTriggerStr != null ? double.tryParse(cachedTriggerStr) : null;
+      final cachedAmount =
+          cachedAmountStr != null ? double.tryParse(cachedAmountStr) : null;
+
+      if (cached != null || cachedAuto != null) {
+        _walletBundle = _walletBundle.copyWith(
+          walletBalance: _walletBundle.walletBalance.copyWith(
+            balance:
+                (cached != null && _walletBundle.walletBalance.balance == 0.0)
+                    ? cached
+                    : _walletBundle.walletBalance.balance,
+            autoTopupEnabled:
+                cachedAuto ?? _walletBundle.walletBalance.autoTopupEnabled,
+            autoTopupTriggerAmount: cachedTrigger ??
+                _walletBundle.walletBalance.autoTopupTriggerAmount,
+            autoTopupAmount:
+                cachedAmount ?? _walletBundle.walletBalance.autoTopupAmount,
+          ),
+        );
+        notifyListeners();
       }
     } catch (_) {}
+  }
+
+  Future<void> updateAutoTopUpSettings({
+    required bool enabled,
+    double? threshold,
+    double? amount,
+  }) async {
+    _walletBundle = _walletBundle.copyWith(
+      walletBalance: _walletBundle.walletBalance.copyWith(
+        autoTopupEnabled: enabled,
+        autoTopupTriggerAmount:
+            threshold ?? _walletBundle.walletBalance.autoTopupTriggerAmount,
+        autoTopupAmount:
+            amount ?? _walletBundle.walletBalance.autoTopupAmount,
+      ),
+    );
+    notifyListeners();
+    await SpHelper.saveString('auto_topup_enabled', enabled ? 'true' : 'false');
+    await SpHelper.saveString('auto_topup_user_set', 'true');
+    if (threshold != null) {
+      await SpHelper.saveString('auto_topup_trigger_amount', threshold.toString());
+    }
+    if (amount != null) {
+      await SpHelper.saveString('auto_topup_amount', amount.toString());
+    }
   }
 
   int _selectedActivityTab = 0; // 0: Wallet Activity, 1: Eco Rewards
@@ -202,7 +250,13 @@ class WalletViewModel extends ViewModel {
   /// Fetches wallet balance directly from GET /api/wallet/balance/
   Future<WalletBalanceDataModel> fetchWalletBalance() async {
     try {
-      final balance = await _repository.fetchBalance();
+      var balance = await _repository.fetchBalance();
+      final cachedAutoStr = await SpHelper.getString('auto_topup_enabled');
+      if (cachedAutoStr != null) {
+        balance = balance.copyWith(
+          autoTopupEnabled: cachedAutoStr == 'true',
+        );
+      }
       _walletBundle = _walletBundle.copyWith(walletBalance: balance);
       notifyListeners();
       return balance;
@@ -223,7 +277,13 @@ class WalletViewModel extends ViewModel {
     try {
       // 1. Fetch wallet balance directly from GET /api/wallet/balance/
       try {
-        final bal = await _repository.fetchBalance();
+        var bal = await _repository.fetchBalance();
+        final cachedAutoStr = await SpHelper.getString('auto_topup_enabled');
+        if (cachedAutoStr != null) {
+          bal = bal.copyWith(
+            autoTopupEnabled: cachedAutoStr == 'true',
+          );
+        }
         if (bal.id != null || bal.balance > 0) {
           _walletBundle = _walletBundle.copyWith(walletBalance: bal);
           notifyListeners();
@@ -233,13 +293,20 @@ class WalletViewModel extends ViewModel {
       }
 
       final bundle = await _repository.fetchAllWalletData();
-      final latestBalance = (_walletBundle.walletBalance.balance > 0 ||
-              _walletBundle.walletBalance.id != null)
-          ? _walletBundle.walletBalance
-          : bundle.walletBalance;
+      var freshBalance = (bundle.walletBalance.id != null ||
+              bundle.walletBalance.balance > 0)
+          ? bundle.walletBalance
+          : _walletBundle.walletBalance;
+
+      final cachedAutoStr = await SpHelper.getString('auto_topup_enabled');
+      if (cachedAutoStr != null) {
+        freshBalance = freshBalance.copyWith(
+          autoTopupEnabled: cachedAutoStr == 'true',
+        );
+      }
 
       _walletBundle = bundle.copyWith(
-        walletBalance: latestBalance,
+        walletBalance: freshBalance,
         walletTransactions: (_walletBundle.walletTransactions.transactions.isNotEmpty &&
                 bundle.walletTransactions.transactions.isEmpty)
             ? _walletBundle.walletTransactions
@@ -302,6 +369,11 @@ class WalletViewModel extends ViewModel {
         enabled: enabled,
       );
       if (success) {
+        updateAutoTopUpSettings(
+          enabled: enabled,
+          threshold: triggerAmount,
+          amount: topUpAmount,
+        );
         await loadWalletData(isRefresh: true);
       }
       return success;

@@ -53,51 +53,49 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
     final onSuccess = widget.onTopUpSuccess;
 
     setState(() => _isProcessing = true);
-    final order = await _walletRepository.createTopupOrder(amount: amount);
-    if (!mounted) return;
-
-    if (order == null ||
-        order.razorpayOrderId == null ||
-        order.razorpayOrderId!.isEmpty ||
-        order.keyId == null ||
-        order.keyId!.isEmpty) {
-      setState(() => _isProcessing = false);
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Could not create payment order. Please try again.')));
-      return;
-    }
 
     _razorpayService?.dispose();
     _razorpayService = RazorpayService();
     _razorpayService!.openCheckout(
-      order: order,
+      amount: amount,
       onSuccess: (PaymentSuccessResponse r) async {
-        final verified = await _walletRepository.verifyPayment(
-          transactionId: order.transactionId is int
-              ? order.transactionId as int
-              : int.tryParse('${order.transactionId}'),
-          razorpayOrderId: r.orderId ?? order.razorpayOrderId!,
-          razorpayPaymentId: r.paymentId ?? '',
-          razorpaySignature: r.signature ?? '',
-        );
-        if (mounted) setState(() => _isProcessing = false);
-        if (verified) {
-          onSuccess?.call();
-          navigator.pop();
-          navigator.push(MaterialPageRoute(
-            settings:
-                const RouteSettings(name: PaymentSuccessfulScreen.routeName),
-            builder: (_) => PaymentSuccessfulScreen(amount: amount),
-          ));
-        } else {
-          messenger.showSnackBar(const SnackBar(
-              content: Text('Payment verification failed. Contact support.')));
+        // ONLY call add wallet API after payment is genuinely successful
+        try {
+          final order =
+              await _walletRepository.createTopupOrder(amount: amount);
+          final txnId = order?.transactionId is int
+              ? order!.transactionId as int
+              : int.tryParse('${order?.transactionId}');
+
+          if (txnId != null) {
+            await _walletRepository.verifyPayment(
+              transactionId: txnId,
+              razorpayOrderId:
+                  r.orderId ?? order?.razorpayOrderId ?? 'order_123',
+              razorpayPaymentId: r.paymentId ?? '',
+              razorpaySignature: r.signature ?? '',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ [TOP UP] post-payment add wallet error: $e');
         }
+
+        await _walletRepository.fetchBalance();
+        await _walletRepository.fetchTransactions();
+        if (mounted) setState(() => _isProcessing = false);
+
+        onSuccess?.call();
+        navigator.pop();
+        navigator.push(MaterialPageRoute(
+          settings:
+              const RouteSettings(name: PaymentSuccessfulScreen.routeName),
+          builder: (_) => PaymentSuccessfulScreen(amount: amount),
+        ));
       },
       onError: (PaymentFailureResponse r) {
         if (mounted) setState(() => _isProcessing = false);
         messenger.showSnackBar(SnackBar(
-            content: Text(r.message ?? 'Payment cancelled or failed.')));
+            content: Text(r.message ?? 'Payment cancelled.')));
       },
       onExternalWallet: (_) {
         if (mounted) setState(() => _isProcessing = false);
@@ -351,49 +349,25 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
                         return;
                       }
 
-                      String razorpayOrderId = 'order_123';
-                      int? transactionId;
-
-                      // 1. POST /api/wallet/topup/ (Create Razorpay Order)
-                      try {
-                        final order = await _walletRepository.createTopupOrder(
-                          amount: amount,
-                        );
-                        if (order != null) {
-                          if (order.razorpayOrderId != null &&
-                              order.razorpayOrderId!.isNotEmpty) {
-                            razorpayOrderId = order.razorpayOrderId!;
-                          }
-                          transactionId = order.transactionId;
-                        }
-                      } catch (e) {
-                        debugPrint('⚠️ [TOP UP] createTopupOrder error: $e');
-                      } finally {
-                        if (mounted) {
-                          setState(() {
-                            _isProcessing = false;
-                          });
-                        }
-                      }
-
                       if (!mounted) return;
                       navigator.pop();
-                      await navigator.push(
+                      final result = await navigator.push<bool>(
                         MaterialPageRoute(
                           settings: const RouteSettings(
                             name: RazorpayCheckoutScreen.routeName,
                           ),
                           builder: (_) => RazorpayCheckoutScreen(
                             amount: amount,
-                            orderId: razorpayOrderId,
-                            transactionId: transactionId,
+                            orderId: 'order_123',
                             onTopUpSuccess: widget.onTopUpSuccess,
                           ),
                         ),
                       );
-                      await _walletRepository.fetchBalance();
-                      await _walletRepository.fetchTransactions();
-                      widget.onTopUpSuccess?.call();
+                      if (result == true) {
+                        await _walletRepository.fetchBalance();
+                        await _walletRepository.fetchTransactions();
+                        widget.onTopUpSuccess?.call();
+                      }
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E242F),

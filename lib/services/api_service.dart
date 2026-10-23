@@ -782,8 +782,13 @@ class ApiService {
       requestName: 'SAVE AUTO TOPUP SETTINGS',
       data: {
         'enabled': enabled,
+        'auto_topup_enabled': enabled,
+        'is_enabled': enabled,
         'threshold': threshold.round(),
+        'auto_topup_trigger_amount': threshold.round(),
+        'trigger_amount': threshold.round(),
         'topup_amount': topupAmount.round(),
+        'auto_topup_amount': topupAmount.round(),
       },
       token: token,
     );

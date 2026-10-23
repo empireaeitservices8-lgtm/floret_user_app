@@ -201,5 +201,29 @@ void main() {
       expect(find.text('WALLETS BALANCE'), findsOneWidget);
       expect(find.text('₹ 2000.00'), findsOneWidget);
     });
+
+    testWidgets('WalletScreen displays Auto Top-Up OFF and Configure when disabled, preserving state on re-entry', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      // Simulate user having disabled auto top-up
+      await SpHelper.saveString('auto_topup_enabled', 'false');
+      await SpHelper.saveString('auto_topup_user_set', 'true');
+      await SpHelper.saveString('wallet_balance', '7500.00');
+
+      final vm = WalletViewModel(repository: WalletRepository());
+      await tester.pumpWidget(
+        MaterialApp(
+          home: WalletScreen(viewModel: vm),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Auto Top-Up OFF'), findsOneWidget);
+      expect(find.text('Configure'), findsOneWidget);
+      expect(vm.autoTopupEnabled, false);
+    });
   });
 }
+
