@@ -432,12 +432,114 @@ void main() {
       expect(find.text('Pickup Scheduled • WC-PAST-001'), findsNothing);
       expect(find.text('18 Oct 2026'), findsNothing);
 
-      // Switch to All tab: Past notification IS visible under All!
+      // Switch to All tab: Past notification IS visible under All with status Missed!
       await tester.tap(find.text('All').first);
       await tester.pumpAndSettle();
-      expect(find.text('Pickup Scheduled • WC-PAST-001'), findsOneWidget);
+      expect(find.text('Pickup Missed • WC-PAST-001'), findsOneWidget);
+      expect(find.text('Missed'), findsOneWidget);
       expect(find.text('Pickup Scheduled • WC-TODAY-001'), findsOneWidget);
       expect(find.text('Pickup Scheduled • WC-FUT-001'), findsOneWidget);
+    });
+  });
+
+  group('Missed Status for Notification Date Less Than Today', () {
+    test('Shows status as Missed instead of Upcoming when notification date is less than today', () async {
+      final baseNow = DateTime(2026, 10, 23, 10, 0); // Today is 23 Oct 2026
+
+      final pastOrder = OrderModel(
+        bookingId: 'WC-PAST-999',
+        wasteType: 'Dry waste',
+        pickupDate: DateTime(2026, 10, 21), // 2 days ago (< today)
+        address: '123 Main St',
+        fullAddress: '123 Main St, City',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      final todayOrder = OrderModel(
+        bookingId: 'WC-TODAY-999',
+        wasteType: 'Plastic waste',
+        pickupDate: DateTime(2026, 10, 23), // Today
+        address: '123 Main St',
+        fullAddress: '123 Main St, City',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      final futureOrder = OrderModel(
+        bookingId: 'WC-FUT-999',
+        wasteType: 'E-Waste',
+        pickupDate: DateTime(2026, 10, 25), // Future
+        address: '123 Main St',
+        fullAddress: '123 Main St, City',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      OrderStore.instance.orders.value = [pastOrder, todayOrder, futureOrder];
+
+      final vm = NotificationsViewModel(nowProvider: () => baseNow);
+      await vm.loadNotifications();
+
+      // In All tab:
+      vm.setTabIndex(0);
+      final allNotifs = vm.filteredNotifications;
+      expect(allNotifs.length, 3);
+
+      final pastNotif = allNotifs.firstWhere((n) => n.id == 'WC-PAST-999');
+      expect(pastNotif.category, 'Missed');
+      expect(pastNotif.title, 'Pickup Missed • WC-PAST-999');
+      expect(pastNotif.description, contains('was missed'));
+
+      final todayNotif = allNotifs.firstWhere((n) => n.id == 'WC-TODAY-999');
+      expect(todayNotif.category, 'Upcoming');
+      expect(todayNotif.title, 'Pickup Scheduled • WC-TODAY-999');
+
+      final futNotif = allNotifs.firstWhere((n) => n.id == 'WC-FUT-999');
+      expect(futNotif.category, 'Upcoming');
+      expect(futNotif.title, 'Pickup Scheduled • WC-FUT-999');
+
+      // In Upcoming tab: past notification is NOT present, only today and future
+      vm.setTabIndex(1);
+      final upcomingNotifs = vm.filteredNotifications;
+      expect(upcomingNotifs.length, 2);
+      expect(upcomingNotifs.any((n) => n.id == 'WC-PAST-999'), isFalse);
+    });
+
+    testWidgets('NotificationsScreen UI displays status as Missed with red styling', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final baseNow = DateTime(2026, 10, 23, 12, 0);
+
+      final pastOrder = OrderModel(
+        bookingId: 'WC-MISSED-1',
+        wasteType: 'Sanitary waste',
+        pickupDate: DateTime(2026, 10, 20), // 3 days ago
+        address: 'MG Road, Kochi',
+        fullAddress: 'MG Road, Kochi - 682016',
+        contact: 'User',
+        status: OrderStatus.pending,
+      );
+
+      OrderStore.instance.orders.value = [pastOrder];
+
+      final vm = NotificationsViewModel(nowProvider: () => baseNow);
+      await vm.loadNotifications();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NotificationsScreen(viewModel: vm),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Under All tab, verify 'Pickup Missed • WC-MISSED-1' and 'Missed' chip are displayed
+      expect(find.text('Pickup Missed • WC-MISSED-1'), findsOneWidget);
+      expect(find.text('Missed'), findsOneWidget);
+      // 'Upcoming' is only the top header tab, not on any card
+      expect(find.text('Upcoming'), findsOneWidget);
     });
   });
 }
