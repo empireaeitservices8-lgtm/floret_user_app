@@ -58,9 +58,12 @@ class WalletBalanceDataModel {
           ? double.tryParse(json['balance']) ?? 0.0
           : (json['balance'] as num?)?.toDouble() ?? 0.0,
       autoTopupEnabled: json['auto_topup_enabled'] as bool? ?? false,
-      autoTopupTriggerAmount:
-          (json['auto_topup_trigger_amount'] as num?)?.toDouble(),
-      autoTopupAmount: (json['auto_topup_amount'] as num?)?.toDouble(),
+      autoTopupTriggerAmount: (json['auto_topup_trigger_amount'] is String)
+          ? double.tryParse(json['auto_topup_trigger_amount'])
+          : (json['auto_topup_trigger_amount'] as num?)?.toDouble(),
+      autoTopupAmount: (json['auto_topup_amount'] is String)
+          ? double.tryParse(json['auto_topup_amount'])
+          : (json['auto_topup_amount'] as num?)?.toDouble(),
       mandateAuthorized: json['mandate_authorized'] as bool? ?? false,
       mandateId: json['mandate_id']?.toString(),
       mandateAuthorizedAt: json['mandate_authorized_at'] as String?,

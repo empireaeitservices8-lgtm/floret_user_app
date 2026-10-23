@@ -49,24 +49,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadPoints() async {
     try {
       final cached = await SpHelper.getString('eco_reward_points');
-      if (cached != null &&
-          int.tryParse(cached) != null &&
-          int.parse(cached) > 0) {
+      if (cached != null && int.tryParse(cached) != null) {
         if (mounted) setState(() => _ecoPoints = int.parse(cached));
-        return;
       }
       final model = await HomeRepository().fetchRewardPoints();
-      if (model.availablePoints > 0) {
-        await SpHelper.saveString(
-            'eco_reward_points', model.availablePoints.toString());
-        if (mounted) setState(() => _ecoPoints = model.availablePoints);
-        return;
-      }
-    } catch (_) {}
-    if (mounted) {
-      setState(() {
-        _ecoPoints = 250;
-      });
+      await SpHelper.saveString(
+          'eco_reward_points', model.availablePoints.toString());
+      if (mounted) setState(() => _ecoPoints = model.availablePoints);
+    } catch (e) {
+      debugPrint('⚠️ [PROFILE] _loadPoints error: $e');
     }
   }
 
@@ -434,10 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   .toList();
               final targetList = completed.isNotEmpty ? completed : valid;
               final carbonSaved = (targetList.length * 14.3).toStringAsFixed(1);
-              final completedCount = completed.length;
-              final displayPoints = _ecoPoints > 0
-                  ? _ecoPoints
-                  : (completedCount > 0 ? completedCount * 0 : 0);
+              final displayPoints = _ecoPoints;
 
               return Container(
                 padding:

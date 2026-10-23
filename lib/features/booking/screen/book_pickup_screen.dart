@@ -81,14 +81,12 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       if (Platform.environment.containsKey('FLUTTER_TEST')) return;
 
       final model = await HomeRepository().fetchRewardPoints();
-      if (model.availablePoints > 0) {
-        await SpHelper.saveString(
-            'eco_reward_points', model.availablePoints.toString());
-        if (mounted) {
-          setState(() {
-            _rewardPoints = model.availablePoints;
-          });
-        }
+      await SpHelper.saveString(
+          'eco_reward_points', model.availablePoints.toString());
+      if (mounted) {
+        setState(() {
+          _rewardPoints = model.availablePoints;
+        });
       }
 
       final txResp = await HomeRepository().fetchRewardPointsTransactions();
@@ -1374,120 +1372,22 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         const SizedBox(height: 18),
 
         // Landmark (Optional)
-        const Text(
-          'Landmark (Optional)',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1E242F),
-          ),
-        ),
+        _buildFieldLabel('Landmark (Optional)'),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          height: 52,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFC),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: const Color(0xFFF1F5F9),
-              width: 1.2,
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                color: Color(0xFF94A3B8),
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _landmarkController,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E242F),
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: 'Enter nearby landmark',
-                    hintStyle: TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        _buildTextField(
+          controller: _landmarkController,
+          hintText: 'Enter nearby landmark',
+          prefixIcon: Icons.location_on_outlined,
         ),
         const SizedBox(height: 18),
 
         // Collector Notes (Optional)
-        const Text(
-          'Collector Notes (Optional)',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1E242F),
-          ),
-        ),
+        _buildFieldLabel('Collector Notes (Optional)'),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 110),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFC),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: const Color(0xFFF1F5F9),
-              width: 1.2,
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Icon(
-                  Icons.sticky_note_2_outlined,
-                  color: Color(0xFF94A3B8),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _collectorNotesController,
-                  minLines: 3,
-                  maxLines: 5,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1E242F),
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: 'Any special instructions for the collector',
-                    hintStyle: TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        _buildNotesField(
+          controller: _collectorNotesController,
+          hintText: 'Any special instructions for the collector',
+          prefixIcon: Icons.sticky_note_2_outlined,
         ),
         const SizedBox(height: 18),
 
@@ -2141,40 +2041,60 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           width: double.infinity,
           height: 52,
           decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFC),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: hasError
                   ? const Color(0xFFE05368)
-                  : const Color(0xFFF1F5F9),
+                  : const Color(0xFFE2E8F0),
               width: hasError ? 1.5 : 1.2,
             ),
           ),
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            onChanged: onChanged,
-            style: const TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E242F),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              inputDecorationTheme: const InputDecorationTheme(
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                filled: false,
+                fillColor: Colors.transparent,
+              ),
             ),
-            decoration: InputDecoration(
-              prefixIcon: Icon(
-                prefixIcon,
-                color: const Color(0xFF94A3B8),
-                size: 20,
+            child: TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              onChanged: onChanged,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E242F),
               ),
-              hintText: hintText,
-              hintStyle: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF94A3B8),
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 16,
+              decoration: InputDecoration(
+                prefixIcon: Icon(
+                  prefixIcon,
+                  color: const Color(0xFF94A3B8),
+                  size: 20,
+                ),
+                hintText: hintText,
+                hintStyle: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF94A3B8),
+                ),
+                filled: false,
+                fillColor: Colors.transparent,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 16,
+                ),
               ),
             ),
           ),
@@ -2194,6 +2114,89 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  // Multi-line Notes Field Container matching design
+  Widget _buildNotesField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData prefixIcon,
+    int minLines = 3,
+    int maxLines = 5,
+  }) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 110),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              prefixIcon,
+              color: const Color(0xFF94A3B8),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                inputDecorationTheme: const InputDecorationTheme(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
+                  fillColor: Colors.transparent,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              child: TextField(
+                controller: controller,
+                minLines: minLines,
+                maxLines: maxLines,
+                keyboardType: TextInputType.multiline,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1E242F),
+                ),
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  filled: false,
+                  fillColor: Colors.transparent,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -40,14 +40,19 @@ class ProfileRepository {
         await SpHelper.getString('email') ??
         '';
 
+    final cachedPoints = await SpHelper.getString('eco_reward_points');
+    final points = (cachedPoints != null && int.tryParse(cachedPoints) != null)
+        ? int.parse(cachedPoints)
+        : 0;
+
     return UserProfileModel(
       name: name,
       mobileNumber: mobile,
       email: email,
       location: 'Kerala, India',
-      totalCollections: 14,
-      totalWeightKg: 42.5,
-      ecoRewardPoints: 250,
+      totalCollections: 0,
+      totalWeightKg: 0.0,
+      ecoRewardPoints: points,
     );
   }
 

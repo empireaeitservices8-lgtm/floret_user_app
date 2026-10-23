@@ -145,8 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       title: 'Pending Bills',
                                       count: '$pendingCount',
                                       onTap: () {
-                                        Navigator.pushNamed(context,
-                                            OrderHistoryScreen.routeName);
+                                        Navigator.pushNamed(
+                                          context,
+                                          OrderHistoryScreen.routeName,
+                                          arguments: 'Pending',
+                                        );
                                       },
                                     ),
                                   ),
@@ -157,8 +160,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       title: 'Active Pickups',
                                       count: '$activeCount',
                                       onTap: () {
-                                        Navigator.pushNamed(context,
-                                            OrderHistoryScreen.routeName);
+                                        Navigator.pushNamed(
+                                          context,
+                                          OrderHistoryScreen.routeName,
+                                          arguments: 'All',
+                                        );
                                       },
                                     ),
                                   ),

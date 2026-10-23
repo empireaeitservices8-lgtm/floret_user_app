@@ -16,8 +16,13 @@ import '../../map/screen/location_picker_map_screen.dart';
 class OrderHistoryScreen extends StatefulWidget {
   static const String routeName = '/order_history';
   final ProfileRepository? repository;
+  final int initialFilterIndex;
 
-  const OrderHistoryScreen({super.key, this.repository});
+  const OrderHistoryScreen({
+    super.key,
+    this.repository,
+    this.initialFilterIndex = 0,
+  });
 
   @override
   State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
@@ -26,6 +31,7 @@ class OrderHistoryScreen extends StatefulWidget {
 class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   late final ProfileRepository _profileRepository;
   int _selectedFilterIndex = 0;
+  bool _initializedFilter = false;
   String _currentUserId = '';
   bool _isLoading = false;
   String? _errorMessage;
@@ -42,7 +48,42 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   void initState() {
     super.initState();
     _profileRepository = widget.repository ?? ProfileRepository();
+    _selectedFilterIndex = widget.initialFilterIndex;
     _loadUserOrders();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedFilter) {
+      _initializedFilter = true;
+      int targetIndex = widget.initialFilterIndex;
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is int) {
+        targetIndex = args;
+      } else if (args is String) {
+        final idx = _filters.indexWhere(
+            (f) => f.toLowerCase() == args.toLowerCase());
+        if (idx != -1) {
+          targetIndex = idx;
+        } else if (args.toLowerCase() == 'active') {
+          targetIndex = 2; // Pending tab
+        }
+      } else if (args is Map) {
+        if (args['filter'] != null) {
+          final filterStr = args['filter'].toString();
+          final idx = _filters.indexWhere(
+              (f) => f.toLowerCase() == filterStr.toLowerCase());
+          if (idx != -1) targetIndex = idx;
+        } else if (args['initialFilterIndex'] is int) {
+          targetIndex = args['initialFilterIndex'] as int;
+        }
+      }
+
+      if (targetIndex >= 0 && targetIndex < _filters.length) {
+        _selectedFilterIndex = targetIndex;
+      }
+    }
   }
 
   Future<void> _loadUserOrders() async {

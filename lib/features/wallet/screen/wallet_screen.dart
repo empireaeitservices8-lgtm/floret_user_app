@@ -5,8 +5,25 @@ import '../model/wallet_model.dart';
 import '../viewmodel/wallet_view_model.dart';
 import 'top_up_bottom_sheet.dart';
 import 'auto_top_up_bottom_sheet.dart';
+import 'auto_top_up_success_sheet.dart';
 import 'e_mandate_bottom_sheet.dart';
 import 'redeem_rewards_bottom_sheet.dart';
+
+/// Refreshes wallet data and shows the success sheet after auto top-up is saved.
+Future<void> _handleAutoTopUpSuccess(
+  BuildContext context,
+  WalletViewModel vm,
+  AutoTopUpConfig res,
+) async {
+  await vm.loadWalletData(isRefresh: true);
+  if (!context.mounted) return;
+  await AutoTopUpSuccessSheet.show(
+    context,
+    enabled: res.isEnabled,
+    threshold: res.threshold,
+    topUpAmount: res.reloadAmount,
+  );
+}
 
 class WalletScreen extends StatefulWidget {
   static const String routeName = '/wallet';
@@ -173,10 +190,8 @@ class _WalletScreenState extends State<WalletScreen> {
                           reloadAmount: vm.autoTopupAmount,
                         );
                         if (res != null) {
-                          await vm.setupAutoTopUp(
-                            triggerAmount: res.threshold,
-                            topUpAmount: res.reloadAmount,
-                          );
+                          if (!context.mounted) return;
+                          await _handleAutoTopUpSuccess(context, vm, res);
                         }
                       },
                       behavior: HitTestBehavior.opaque,
@@ -284,7 +299,12 @@ class _WalletScreenState extends State<WalletScreen> {
 
           // Bottom Inner Capsule: E-Mandate Pending or Authorized
           GestureDetector(
-            onTap: () => EMandateBottomSheet.show(context),
+            onTap: () async {
+              final res = await EMandateBottomSheet.show(context);
+              if (res == true) {
+                await vm.loadWalletData(isRefresh: true);
+              }
+            },
             behavior: HitTestBehavior.opaque,
             child: Container(
               margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -382,10 +402,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 reloadAmount: vm.autoTopupAmount,
               );
               if (res != null) {
-                await vm.setupAutoTopUp(
-                  triggerAmount: res.threshold,
-                  topUpAmount: res.reloadAmount,
-                );
+                if (!context.mounted) return;
+                await _handleAutoTopUpSuccess(context, vm, res);
               }
             },
           ),
@@ -398,7 +416,12 @@ class _WalletScreenState extends State<WalletScreen> {
             iconBgColor: const Color(0xFFF3E8FF),
             title: 'E-Mandate',
             subtitle: vm.mandateAuthorized ? 'Authorized' : 'Authorize',
-            onTap: () => EMandateBottomSheet.show(context),
+            onTap: () async {
+              final res = await EMandateBottomSheet.show(context);
+              if (res == true) {
+                await vm.loadWalletData(isRefresh: true);
+              }
+            },
           ),
         ),
       ],

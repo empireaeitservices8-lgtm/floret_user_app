@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import '../repos/wallet_repository.dart';
 
 class EMandateBottomSheet extends StatefulWidget {
   const EMandateBottomSheet({super.key});
 
-  static Future<void> show(BuildContext context) {
-    return showModalBottomSheet(
+  static Future<bool?> show(BuildContext context) {
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -19,6 +20,7 @@ class EMandateBottomSheet extends StatefulWidget {
 class _EMandateBottomSheetState extends State<EMandateBottomSheet> {
   late final TextEditingController _mandateIdController;
   late final TextEditingController _paymentIdController;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -148,6 +150,9 @@ class _EMandateBottomSheetState extends State<EMandateBottomSheet> {
                         color: Color(0xFF94A3B8),
                       ),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -207,6 +212,9 @@ class _EMandateBottomSheetState extends State<EMandateBottomSheet> {
                         color: Color(0xFF94A3B8),
                       ),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -235,9 +243,60 @@ class _EMandateBottomSheetState extends State<EMandateBottomSheet> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: _isSubmitting
+                  ? null
+                  : () async {
+                      final mandateId = _mandateIdController.text.trim();
+                      final paymentId = _paymentIdController.text.trim();
+
+                      if (mandateId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter Mandate ID'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (paymentId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter Razorpay Payment ID'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setState(() => _isSubmitting = true);
+                      final messenger = ScaffoldMessenger.of(context);
+                      final navigator = Navigator.of(context);
+
+                      final success = await WalletRepository().authorizeMandate(
+                        mandateId: mandateId,
+                        razorpayPaymentId: paymentId,
+                      );
+
+                      if (!mounted) return;
+                      setState(() => _isSubmitting = false);
+
+                      if (success) {
+                        navigator.pop(true);
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('E-Mandate authorized successfully!'),
+                            backgroundColor: Color(0xFF10B981),
+                          ),
+                        );
+                      } else {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to authorize E-Mandate. Please check Mandate ID.'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7E22CE),
                 foregroundColor: Colors.white,
@@ -246,14 +305,23 @@ class _EMandateBottomSheetState extends State<EMandateBottomSheet> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: const Text(
-                'Confirm Mandate Authorization',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Confirm Mandate Authorization',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
 

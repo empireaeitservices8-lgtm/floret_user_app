@@ -580,8 +580,8 @@ class OrderStore {
   }
 
   /// Merges remote orders retrieved from backend API into local store.
-  /// Remote orders take precedence for updated statuses and details,
-  /// while local bookings not yet present on remote are preserved.
+  /// The backend is the source of truth: orders that no longer exist on the
+  /// server (e.g. deleted from admin) are removed from the local cache.
   /// Duplicate records sharing the same bookingId are never created.
   void mergeRemoteOrders(List<OrderModel> remoteOrders) {
     final effectiveUserId = _currentUserId;
@@ -591,24 +591,8 @@ class OrderStore {
             .toList()
         : remoteOrders;
 
-    final remoteIds = filteredRemote.map((o) => o.bookingId).toSet();
-    final List<OrderModel> merged = [...filteredRemote];
-
-    for (final local in orders.value) {
-      if (effectiveUserId.isNotEmpty &&
-          local.userId != null &&
-          local.userId != effectiveUserId) {
-        continue;
-      }
-      if (effectiveUserId.isNotEmpty && isSampleOrder(local)) {
-        continue;
-      }
-      if (!remoteIds.contains(local.bookingId)) {
-        merged.add(local);
-      }
-    }
-
-    orders.value = merged;
+    final seen = <String>{};
+    orders.value = filteredRemote.where((o) => seen.add(o.bookingId)).toList();
     _saveToStorage();
   }
 }

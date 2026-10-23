@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../repos/wallet_repository.dart';
 
 class AutoTopUpConfig {
   final bool isEnabled;
@@ -457,26 +458,49 @@ class _AutoTopUpBottomSheetState extends State<AutoTopUpBottomSheet> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () async {
-                  if (_isSaving) return;
-                  setState(() {
-                    _isSaving = true;
-                  });
-                  await Future.delayed(const Duration(seconds: 2));
-                  if (!context.mounted) return;
-                  final parsedThreshold =
-                      double.tryParse(_thresholdController.text.trim()) ?? 100.0;
-                  final parsedReload =
-                      double.tryParse(_reloadAmountController.text.trim()) ?? 500.0;
-                  Navigator.pop(
-                    context,
-                    AutoTopUpConfig(
-                      isEnabled: _isAutoTopUpEnabled,
-                      threshold: parsedThreshold,
-                      reloadAmount: parsedReload,
-                    ),
-                  );
-                },
+                onPressed: _isSaving
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isSaving = true;
+                        });
+
+                        final parsedThreshold =
+                            double.tryParse(_thresholdController.text.trim()) ?? 100.0;
+                        final parsedReload =
+                            double.tryParse(_reloadAmountController.text.trim()) ?? 500.0;
+
+                        final messenger = ScaffoldMessenger.of(context);
+                        final navigator = Navigator.of(context);
+
+                        final ok = await WalletRepository().setupAutoTopUp(
+                          triggerAmount: parsedThreshold,
+                          topUpAmount: parsedReload,
+                          enabled: _isAutoTopUpEnabled,
+                        );
+
+                        if (!mounted) return;
+                        setState(() {
+                          _isSaving = false;
+                        });
+
+                        if (ok) {
+                          navigator.pop(
+                            AutoTopUpConfig(
+                              isEnabled: _isAutoTopUpEnabled,
+                              threshold: parsedThreshold,
+                              reloadAmount: parsedReload,
+                            ),
+                          );
+                        } else {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Could not save auto top-up settings. Please try again.'),
+                            ),
+                          );
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF131D31),
                   foregroundColor: Colors.white,

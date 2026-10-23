@@ -122,10 +122,8 @@ class HomeRepository {
       if (response.data is Map) {
         final map = Map<String, dynamic>.from(response.data as Map);
         final model = RewardPointsDataModel.fromJson(map);
-        if (model.availablePoints > 0) {
-          SpHelper.saveString(
-              'eco_reward_points', model.availablePoints.toString());
-        }
+        SpHelper.saveString(
+            'eco_reward_points', model.availablePoints.toString());
         return model;
       }
     } catch (e) {

@@ -16,6 +16,10 @@ class ApiService {
   static const String walletBalanceEndpoint = '/api/wallet/balance/';
   static const String walletTransactionsEndpoint = '/api/wallet/transactions/';
   static const String walletTopupEndpoint = '/api/wallet/topup/';
+  static const String walletAutoTopupSettingsEndpoint =
+      '/api/wallet/auto-topup/settings/';
+  static const String walletMandateAuthorizeEndpoint =
+      '/api/wallet/mandate/authorize/';
   static const String walletVerifyPaymentEndpoint =
       '/api/wallet/topup/verify-payment/';
   static const String rewardPointsEndpoint = '/api/reward-points/';
@@ -749,10 +753,46 @@ class ApiService {
     );
   }
 
+  /// Sends a POST request to /api/wallet/mandate/authorize/
+  Future<Response> authorizeMandate({
+    required String mandateId,
+    required String razorpayPaymentId,
+    String? token,
+  }) async {
+    return _authenticatedPost(
+      endpoint: walletMandateAuthorizeEndpoint,
+      requestName: 'AUTHORIZE MANDATE',
+      data: {
+        'mandate_id': mandateId,
+        'razorpay_payment_id': razorpayPaymentId,
+      },
+      token: token,
+    );
+  }
+
+  /// Sends a POST request to /api/wallet/auto-topup/settings/
+  Future<Response> saveAutoTopupSettings({
+    required bool enabled,
+    required double threshold,
+    required double topupAmount,
+    String? token,
+  }) async {
+    return _authenticatedPost(
+      endpoint: walletAutoTopupSettingsEndpoint,
+      requestName: 'SAVE AUTO TOPUP SETTINGS',
+      data: {
+        'enabled': enabled,
+        'threshold': threshold.round(),
+        'topup_amount': topupAmount.round(),
+      },
+      token: token,
+    );
+  }
+
   /// Sends a POST request to /api/wallet/topup/ with amount
   Future<Response> createWalletTopupOrder({
     required double amount,
-    String paymentMethod = 'Razorpay',
+    String? paymentMethod,
     String? token,
   }) async {
     return _authenticatedPost(
@@ -760,7 +800,7 @@ class ApiService {
       requestName: 'CREATE WALLET TOPUP ORDER',
       data: {
         'amount': amount,
-        'payment_method': paymentMethod,
+        if (paymentMethod != null) 'payment_method': paymentMethod,
       },
       token: token,
     );

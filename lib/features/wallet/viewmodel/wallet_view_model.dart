@@ -292,12 +292,14 @@ class WalletViewModel extends ViewModel {
   Future<bool> setupAutoTopUp({
     required double triggerAmount,
     required double topUpAmount,
+    bool enabled = true,
   }) async {
     showLoading();
     try {
       final success = await _repository.setupAutoTopUp(
         triggerAmount: triggerAmount,
         topUpAmount: topUpAmount,
+        enabled: enabled,
       );
       if (success) {
         await loadWalletData(isRefresh: true);
@@ -319,6 +321,25 @@ class WalletViewModel extends ViewModel {
         bankName: bankName,
         accountNumber: accountNumber,
         maxLimit: maxLimit,
+      );
+      if (success) {
+        await loadWalletData(isRefresh: true);
+      }
+      return success;
+    } finally {
+      hideLoading();
+    }
+  }
+
+  Future<bool> authorizeMandate({
+    required String mandateId,
+    required String razorpayPaymentId,
+  }) async {
+    showLoading();
+    try {
+      final success = await _repository.authorizeMandate(
+        mandateId: mandateId,
+        razorpayPaymentId: razorpayPaymentId,
       );
       if (success) {
         await loadWalletData(isRefresh: true);

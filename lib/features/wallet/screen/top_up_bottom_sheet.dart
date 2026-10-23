@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../model/wallet_model.dart';
 import '../repos/wallet_repository.dart';
+import '../services/razorpay_service.dart';
+import 'payment_successful_screen.dart';
 import 'razorpay_checkout_screen.dart';
 
 class TopUpBottomSheet extends StatefulWidget {
@@ -41,6 +45,65 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
   late int _minAmount;
   late int _maxAmount;
   bool _isProcessing = false;
+  RazorpayService? _razorpayService;
+
+  Future<void> _startRazorpayPayment(double amount) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final onSuccess = widget.onTopUpSuccess;
+
+    setState(() => _isProcessing = true);
+    final order = await _walletRepository.createTopupOrder(amount: amount);
+    if (!mounted) return;
+
+    if (order == null ||
+        order.razorpayOrderId == null ||
+        order.razorpayOrderId!.isEmpty ||
+        order.keyId == null ||
+        order.keyId!.isEmpty) {
+      setState(() => _isProcessing = false);
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Could not create payment order. Please try again.')));
+      return;
+    }
+
+    _razorpayService?.dispose();
+    _razorpayService = RazorpayService();
+    _razorpayService!.openCheckout(
+      order: order,
+      onSuccess: (PaymentSuccessResponse r) async {
+        final verified = await _walletRepository.verifyPayment(
+          transactionId: order.transactionId is int
+              ? order.transactionId as int
+              : int.tryParse('${order.transactionId}'),
+          razorpayOrderId: r.orderId ?? order.razorpayOrderId!,
+          razorpayPaymentId: r.paymentId ?? '',
+          razorpaySignature: r.signature ?? '',
+        );
+        if (mounted) setState(() => _isProcessing = false);
+        if (verified) {
+          onSuccess?.call();
+          navigator.pop();
+          navigator.push(MaterialPageRoute(
+            settings:
+                const RouteSettings(name: PaymentSuccessfulScreen.routeName),
+            builder: (_) => PaymentSuccessfulScreen(amount: amount),
+          ));
+        } else {
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Payment verification failed. Contact support.')));
+        }
+      },
+      onError: (PaymentFailureResponse r) {
+        if (mounted) setState(() => _isProcessing = false);
+        messenger.showSnackBar(SnackBar(
+            content: Text(r.message ?? 'Payment cancelled or failed.')));
+      },
+      onExternalWallet: (_) {
+        if (mounted) setState(() => _isProcessing = false);
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -87,6 +150,7 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
 
   @override
   void dispose() {
+    _razorpayService?.dispose();
     _amountController.dispose();
     super.dispose();
   }
@@ -221,6 +285,8 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
                 fontWeight: FontWeight.w500,
               ),
               floatingLabelBehavior: FloatingLabelBehavior.always,
+              filled: true,
+              fillColor: Colors.white,
               prefixIcon: const Padding(
                 padding: EdgeInsets.only(left: 14, right: 8),
                 child: Text(
@@ -279,6 +345,11 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
 
                       final amountText = _amountController.text.trim();
                       final amount = double.tryParse(amountText) ?? 500.00;
+
+                      if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+                        await _startRazorpayPayment(amount);
+                        return;
+                      }
 
                       String razorpayOrderId = 'order_123';
                       int? transactionId;

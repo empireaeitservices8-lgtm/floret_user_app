@@ -14,9 +14,9 @@ class UserProfileModel {
     required this.mobileNumber,
     required this.email,
     required this.location,
-    this.totalCollections = 14,
-    this.totalWeightKg = 42.5,
-    this.ecoRewardPoints = 250,
+    this.totalCollections = 0,
+    this.totalWeightKg = 0.0,
+    this.ecoRewardPoints = 0,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
@@ -25,9 +25,11 @@ class UserProfileModel {
       mobileNumber: json['mobileNumber'] as String? ?? json['phone_number'] as String? ?? '',
       email: json['email'] as String? ?? '',
       location: json['location'] as String? ?? 'Kerala, India',
-      totalCollections: json['totalCollections'] as int? ?? 14,
-      totalWeightKg: (json['totalWeightKg'] as num?)?.toDouble() ?? 42.5,
-      ecoRewardPoints: json['ecoRewardPoints'] as int? ?? 250,
+      totalCollections: json['totalCollections'] as int? ?? 0,
+      totalWeightKg: (json['totalWeightKg'] as num?)?.toDouble() ?? 0.0,
+      ecoRewardPoints: (json['ecoRewardPoints'] as num?)?.toInt() ??
+          (json['available_points'] as num?)?.toInt() ??
+          0,
     );
   }
 

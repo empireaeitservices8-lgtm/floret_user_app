@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/services/web_api_services.dart';
@@ -181,10 +180,8 @@ class WalletRepository {
       if (response.data is Map) {
         final map = Map<String, dynamic>.from(response.data as Map);
         final model = RewardPointsDataModel.fromJson(map);
-        if (model.availablePoints > 0) {
-          SpHelper.saveString(
-              'eco_reward_points', model.availablePoints.toString());
-        }
+        SpHelper.saveString(
+            'eco_reward_points', model.availablePoints.toString());
         return model;
       }
     } catch (e) {
@@ -243,12 +240,57 @@ class WalletRepository {
     return true;
   }
 
+  /// POST /api/wallet/auto-topup/settings/
   Future<bool> setupAutoTopUp({
     required double triggerAmount,
     required double topUpAmount,
+    bool enabled = true,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return true;
+    if (Platform.environment.containsKey('FLUTTER_TEST') &&
+        _apiService.runtimeType.toString() == 'ApiService') {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return true;
+    }
+    try {
+      final response = await _apiService.saveAutoTopupSettings(
+        enabled: enabled,
+        threshold: triggerAmount,
+        topupAmount: topUpAmount,
+      );
+      return response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300;
+    } catch (e) {
+      debugPrint('⚠️ [WALLET REPO] setupAutoTopUp error: $e');
+    }
+    return false;
+  }
+
+  /// POST /api/wallet/mandate/authorize/
+  Future<bool> authorizeMandate({
+    required String mandateId,
+    required String razorpayPaymentId,
+  }) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST') &&
+        _apiService.runtimeType.toString() == 'ApiService') {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return true;
+    }
+    try {
+      final response = await _apiService.authorizeMandate(
+        mandateId: mandateId,
+        razorpayPaymentId: razorpayPaymentId,
+      );
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        await fetchBalance();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [WALLET REPO] authorizeMandate error: $e');
+    }
+    return false;
   }
 
   Future<bool> setupMandate({

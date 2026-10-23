@@ -554,34 +554,55 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
-                    controller: vm.phoneController,
-                    focusNode: vm.phoneFocusNode,
-                    keyboardType: TextInputType.phone,
-                    cursorColor: const Color(0xFF1E242F),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    onChanged: (val) {
-                      vm.clearStep1Error();
-                      vm.onMobileChanged(val);
-                    },
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E242F),
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: '10-digit mobile number',
-                      hintStyle: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF9CA3AF),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      inputDecorationTheme: const InputDecorationTheme(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        filled: false,
+                        fillColor: Colors.transparent,
                       ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: TextField(
+                      controller: vm.phoneController,
+                      focusNode: vm.phoneFocusNode,
+                      keyboardType: TextInputType.phone,
+                      cursorColor: const Color(0xFF1E242F),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      onChanged: (val) {
+                        vm.clearStep1Error();
+                        vm.onMobileChanged(val);
+                      },
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E242F),
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '10-digit mobile number',
+                        hintStyle: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        filled: false,
+                        fillColor: Colors.transparent,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                 ),
@@ -793,31 +814,52 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
-                    controller: vm.otpController,
-                    keyboardType: TextInputType.number,
-                    autofocus: true,
-                    cursorColor: const Color(0xFF1E242F),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(4),
-                    ],
-                    onChanged: (val) => vm.clearStep1Error(),
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E242F),
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'Enter 4-digit OTP',
-                      hintStyle: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF9CA3AF),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      inputDecorationTheme: const InputDecorationTheme(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        filled: false,
+                        fillColor: Colors.transparent,
                       ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: TextField(
+                      controller: vm.otpController,
+                      keyboardType: TextInputType.number,
+                      autofocus: true,
+                      cursorColor: const Color(0xFF1E242F),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      onChanged: (val) => vm.clearStep1Error(),
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E242F),
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter 4-digit OTP',
+                        hintStyle: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        filled: false,
+                        fillColor: Colors.transparent,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                 ),
@@ -1744,28 +1786,49 @@ class _SignupScreenState extends State<SignupScreen> {
           ] else
             const SizedBox(width: 12),
           Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: keyboardType,
-              inputFormatters: inputFormatters,
-              onChanged: onChanged,
-              enabled: true,
-              cursorColor: const Color(0xFF1E242F),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E242F),
-              ),
-              decoration: InputDecoration(
-                hintText: hintText,
-                hintStyle: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF9CA3AF),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                inputDecorationTheme: const InputDecorationTheme(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
+                  fillColor: Colors.transparent,
                 ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: TextField(
+                controller: controller,
+                keyboardType: keyboardType,
+                inputFormatters: inputFormatters,
+                onChanged: onChanged,
+                enabled: true,
+                cursorColor: const Color(0xFF1E242F),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E242F),
+                ),
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
+                  fillColor: Colors.transparent,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ),
           ),

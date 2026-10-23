@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -64,6 +66,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
   bool _isLoadingCurrentLocation = false;
   bool _isGeocoding = false;
   bool _hasLocationPermission = false;
+  bool _isCameraMoving = false;
 
   final TextEditingController _searchController = TextEditingController();
   final Geocoding _geocoding = Geocoding();
@@ -153,6 +156,11 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
 
   /// Triggers debounced reverse geocoding when camera stops moving.
   void _onCameraIdle() {
+    if (_isCameraMoving) {
+      setState(() {
+        _isCameraMoving = false;
+      });
+    }
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       _reverseGeocode(_currentCenter);
@@ -410,64 +418,105 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
               _mapController = controller;
               _onCameraIdle();
             },
+            onCameraMoveStarted: () {
+              if (!_isCameraMoving) {
+                setState(() {
+                  _isCameraMoving = true;
+                });
+              }
+            },
             onCameraMove: (position) {
               _currentCenter = position.target;
             },
             onCameraIdle: _onCameraIdle,
+            onTap: (target) {
+              _currentCenter = target;
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLng(target),
+              );
+              _reverseGeocode(target);
+            },
+            scrollGesturesEnabled: true,
+            zoomGesturesEnabled: true,
+            rotateGesturesEnabled: true,
+            tiltGesturesEnabled: true,
             myLocationEnabled: _hasLocationPermission,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             compassEnabled: false,
             mapToolbarEnabled: false,
+            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+              Factory<OneSequenceGestureRecognizer>(
+                () => EagerGestureRecognizer(),
+              ),
+            },
             padding: const EdgeInsets.only(bottom: bottomCardHeight, top: 75),
           ),
 
-          // 2. Fixed Center Pin (Matches Reference Image 3: Dark circle with yellow center dot & shadow)
+          // 2. Animated Center Pin with Ground Shadow & Lift/Drop Effect
           Positioned.fill(
             bottom: bottomCardHeight,
             top: 75,
             child: IgnorePointer(
               child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF161D2A),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2.2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF59E0B),
-                            shape: BoxShape.circle,
+                child: SizedBox(
+                  width: 60,
+                  height: 70,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Ground drop shadow (stays at ground level, scales down when pin lifts)
+                      Positioned(
+                        bottom: 4,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          width: _isCameraMoving ? 8 : 16,
+                          height: _isCameraMoving ? 3 : 5,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(
+                              alpha: _isCameraMoving ? 0.2 : 0.45,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Oval drop shadow on map surface
-                    Container(
-                      width: 14,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(10),
+                      // Pin icon (lifts up smoothly while camera is moving)
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
+                        bottom: _isCameraMoving ? 22 : 8,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF161D2A),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(
+                                  alpha: _isCameraMoving ? 0.25 : 0.4,
+                                ),
+                                blurRadius: _isCameraMoving ? 14 : 8,
+                                offset: Offset(0, _isCameraMoving ? 12 : 3),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF59E0B),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
