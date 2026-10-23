@@ -45,6 +45,7 @@ class NotificationsViewModel extends ViewModel {
   @visibleForTesting
   void setNowProvider(DateTime Function() provider) {
     _now = provider;
+    _buildNotificationsFromOrders(_readIds);
     notifyListeners();
   }
 
@@ -111,19 +112,26 @@ class NotificationsViewModel extends ViewModel {
 
     _notifications = orders.map((order) {
       final isCancelled = order.status == OrderStatus.cancelled;
-      final isUpcoming = !isCancelled &&
+      final isDelivered =
+          !isCancelled && order.status == OrderStatus.completed;
+      final isPendingOrReschedule = !isCancelled &&
+          !isDelivered &&
           (order.status == OrderStatus.pending ||
               order.status == OrderStatus.reschedule);
-      final isDelivered =
-          !isCancelled && !isUpcoming && order.status == OrderStatus.completed;
+
+      final isPastDate = !isScheduledTodayOrFuture(order.pickupDate);
+      final isMissed = isPendingOrReschedule && isPastDate;
+      final isUpcoming = isPendingOrReschedule && !isPastDate;
 
       final category = isCancelled
           ? 'Cancelled'
-          : isUpcoming
-              ? 'Upcoming'
-              : 'Delivered';
+          : isMissed
+              ? 'Missed'
+              : isUpcoming
+                  ? 'Upcoming'
+                  : 'Delivered';
 
-      // Scheduled pickup date (preserved for upcoming and cancelled)
+      // Scheduled pickup date (preserved for upcoming, missed, and cancelled)
       final scheduledDateStr = formatDate(order.pickupDate);
 
       // Actual completion date (for delivered notifications, use actual completedDate if available; safely fall back to pickupDate)
@@ -134,21 +142,25 @@ class NotificationsViewModel extends ViewModel {
 
       final title = isCancelled
           ? 'Pickup Cancelled • ${order.bookingId}'
-          : order.status == OrderStatus.reschedule
-              ? 'Pickup Rescheduled • ${order.bookingId}'
-              : isUpcoming
-                  ? 'Pickup Scheduled • ${order.bookingId}'
-                  : 'Pickup Delivered • ${order.bookingId}';
+          : isMissed
+              ? 'Pickup Missed • ${order.bookingId}'
+              : order.status == OrderStatus.reschedule
+                  ? 'Pickup Rescheduled • ${order.bookingId}'
+                  : isUpcoming
+                      ? 'Pickup Scheduled • ${order.bookingId}'
+                      : 'Pickup Delivered • ${order.bookingId}';
 
       final description = isCancelled
           ? 'Your ${order.wasteType} pickup scheduled for $scheduledDateStr was cancelled.'
-          : order.status == OrderStatus.reschedule
-              ? 'Your ${order.wasteType} pickup has been rescheduled for $scheduledDateStr. Address: ${order.address}.'
-              : isUpcoming
-                  ? 'Your ${order.wasteType} pickup is scheduled for $scheduledDateStr. '
-                    'Address: ${order.address}.'
-                  : 'Your ${order.wasteType} pickup on $actualDateStr has been delivered. '
-                    'Thank you for recycling!';
+          : isMissed
+              ? 'Your ${order.wasteType} pickup scheduled for $scheduledDateStr was missed. Address: ${order.address}.'
+              : order.status == OrderStatus.reschedule
+                  ? 'Your ${order.wasteType} pickup has been rescheduled for $scheduledDateStr. Address: ${order.address}.'
+                  : isUpcoming
+                      ? 'Your ${order.wasteType} pickup is scheduled for $scheduledDateStr. '
+                        'Address: ${order.address}.'
+                      : 'Your ${order.wasteType} pickup on $actualDateStr has been delivered. '
+                        'Thank you for recycling!';
 
       final isMarkedRead = (persistedReadIds != null &&
               persistedReadIds.contains(order.bookingId)) ||
@@ -191,7 +203,14 @@ class NotificationsViewModel extends ViewModel {
           return false;
         }).map((n) {
           final isRead = _readIds.contains(n.id) || n.isRead;
-          return n.copyWith(isRead: isRead);
+          var updated = n.copyWith(isRead: isRead);
+          if (updated.category.toLowerCase() == 'upcoming') {
+            final date = updated.effectiveScheduledDate;
+            if (date != null && !isScheduledTodayOrFuture(date)) {
+              updated = updated.copyWith(category: 'Missed');
+            }
+          }
+          return updated;
         }).toList();
         _notifications = [..._notifications, ...userRemote];
       }

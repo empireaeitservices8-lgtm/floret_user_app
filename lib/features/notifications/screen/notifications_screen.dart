@@ -225,15 +225,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildNotificationCard(
       NotificationItemModel item, NotificationsViewModel vm) {
+    final isMissed = item.category.toLowerCase() == 'missed';
     final isUpcoming = item.category == 'Upcoming';
-    final iconColor =
-        isUpcoming ? const Color(0xFF0284C7) : const Color(0xFF0F9B58);
-    final iconBg = isUpcoming
-        ? const Color(0xFFE0F2FE)
-        : const Color(0xFFD1FAE5);
-    final icon = isUpcoming
-        ? Icons.local_shipping_outlined
-        : Icons.check_circle_outline_rounded;
+    final isCancelled = item.category.toLowerCase() == 'cancelled';
+
+    final Color iconColor;
+    final Color iconBg;
+    final IconData icon;
+
+    if (isMissed) {
+      iconColor = const Color(0xFFDC2626);
+      iconBg = const Color(0xFFFEE2E2);
+      icon = Icons.event_busy_rounded;
+    } else if (isCancelled) {
+      iconColor = const Color(0xFFEF4444);
+      iconBg = const Color(0xFFFEE2E2);
+      icon = Icons.cancel_outlined;
+    } else if (isUpcoming) {
+      iconColor = const Color(0xFF0284C7);
+      iconBg = const Color(0xFFE0F2FE);
+      icon = Icons.local_shipping_outlined;
+    } else {
+      iconColor = const Color(0xFF0F9B58);
+      iconBg = const Color(0xFFD1FAE5);
+      icon = Icons.check_circle_outline_rounded;
+    }
 
     return GestureDetector(
       onTap: () => vm.markAsRead(item.id),
