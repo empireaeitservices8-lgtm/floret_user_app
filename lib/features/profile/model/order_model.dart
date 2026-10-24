@@ -20,7 +20,7 @@ class OrderModel {
   final double? weight;
   final int? bagsUsed;
   String? rawStatus;
-  final String? paymentStatus;
+  String? paymentStatus;
 
   OrderModel({
     this.id,
@@ -573,6 +573,18 @@ class OrderStore {
         } else if (status == OrderStatus.reschedule) {
           o.rawStatus = 'reschedule';
         }
+      }
+    }
+    orders.value = List<OrderModel>.from(orders.value);
+    _saveToStorage();
+  }
+
+  void markPaymentCompleted(String bookingId, {String? transactionId}) {
+    for (final o in orders.value) {
+      if (o.bookingId == bookingId) {
+        o.paymentStatus = 'paid';
+        o.status = OrderStatus.completed;
+        o.rawStatus = 'paid';
       }
     }
     orders.value = List<OrderModel>.from(orders.value);

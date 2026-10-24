@@ -444,6 +444,89 @@ class ApiService {
     }
   }
 
+  /// Sends an authenticated DELETE request to /api/profile/ using saved token
+  Future<Response> deleteProfile({String? token}) async {
+    final String fullUrl = '$baseUrl$profileEndpoint';
+
+    // 1. Retrieve authentication token if not explicitly provided
+    String? authToken = token;
+    if (authToken == null || authToken.trim().isEmpty) {
+      authToken = await _resolveAuthToken(token);
+    }
+
+    if (authToken == null || authToken.trim().isEmpty) {
+      debugPrint('❌ [DELETE PROFILE API] No authentication token found.');
+      throw Exception('Authentication token not found. Please log in again.');
+    }
+
+    // 🚀 Debug: Log API Request Details
+    debugPrint(
+        '================================================================');
+    debugPrint('🚀 [DELETE PROFILE API REQUEST]');
+    debugPrint('URL: $fullUrl');
+    debugPrint('Method: DELETE');
+    debugPrint('Authorization: Token $authToken');
+    debugPrint('Default Headers: ${_dio.options.headers}');
+    debugPrint(
+        '================================================================');
+
+    try {
+      final response = await _dio.delete(
+        profileEndpoint,
+        options: Options(
+          headers: {
+            'Authorization': 'Token ${authToken.trim()}',
+          },
+        ),
+      );
+
+      // ✅ Debug: Log API Response Details
+      debugPrint(
+          '================================================================');
+      debugPrint('✅ [DELETE PROFILE API RESPONSE]');
+      debugPrint('URL: $fullUrl');
+      debugPrint(
+          'Status Code: ${response.statusCode} ${response.statusMessage ?? ""}');
+      debugPrint('Response Body (JSON):');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
+      } catch (_) {
+        debugPrint('${response.data}');
+      }
+      debugPrint(
+          '================================================================');
+
+      return response;
+    } on DioException catch (dioError) {
+      // ❌ Debug: Log Dio Error Details
+      debugPrint(
+          '================================================================');
+      debugPrint('❌ [DELETE PROFILE API ERROR]');
+      debugPrint('Status Code: ${dioError.response?.statusCode}');
+      debugPrint('Response Data: ${dioError.response?.data}');
+      debugPrint('Error Type: ${dioError.type}');
+      debugPrint('Error Message: ${dioError.message}');
+      debugPrint(
+          '================================================================');
+
+      if (dioError.response?.statusCode == 401) {
+        rethrow;
+      }
+
+      final errorMessage = parseDioError(dioError);
+      throw Exception(errorMessage);
+    } catch (e) {
+      if (e is DioException) rethrow;
+      debugPrint(
+          '================================================================');
+      debugPrint('❌ [DELETE PROFILE UNEXPECTED ERROR]: $e');
+      debugPrint(
+          '================================================================');
+      throw Exception(
+          'An unexpected error occurred while deleting profile: $e');
+    }
+  }
+
   /// Helper to resolve authentication token from argument, SpHelper, or SharedPreferences
   Future<String?> _resolveAuthToken(String? token) async {
     if (token != null && token.trim().isNotEmpty) {

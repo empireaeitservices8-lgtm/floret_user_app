@@ -187,4 +187,10 @@ class ProfileRepository {
     );
     return response.statusCode == 200 || response.statusCode == 204;
   }
+
+  /// Deletes the user profile/account via DELETE /api/profile/
+  Future<bool> deleteProfile({String? token}) async {
+    final response = await _apiService.deleteProfile(token: token);
+    return response.statusCode == 200 || response.statusCode == 204;
+  }
 }

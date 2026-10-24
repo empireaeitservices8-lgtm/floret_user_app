@@ -298,7 +298,11 @@ class MyAccountViewModel extends ViewModel {
 
   Future<void> deleteAccount(BuildContext context) async {
     showLoading();
-    await Future.delayed(const Duration(milliseconds: 600));
+    try {
+      await _apiProfileRepository.deleteProfile();
+    } catch (e) {
+      debugPrint('❌ [DELETE ACCOUNT] API call failed: $e');
+    }
     hideLoading();
 
     if (context.mounted) {

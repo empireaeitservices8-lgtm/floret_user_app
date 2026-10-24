@@ -158,4 +158,9 @@ class ProfileRepository {
 
     return profileModel;
   }
+
+  /// Sends an authenticated DELETE request to /api/profile/ to delete user profile
+  Future<void> deleteProfile({String? token}) async {
+    await _apiService.deleteProfile(token: token);
+  }
 }
