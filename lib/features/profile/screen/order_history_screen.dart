@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../model/bill_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../home/screen/home_screen.dart';
 import '../../settings/screen/settings_screen.dart';
@@ -12,6 +15,7 @@ import '../../booking/screen/receipt_ticket_screen.dart';
 import 'pickup_bill_bottom_sheet.dart';
 import 'official_invoice_screen.dart';
 import '../../map/screen/location_picker_map_screen.dart';
+import '../../../services/api_service.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   static const String routeName = '/order_history';
@@ -905,11 +909,37 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   Widget _buildInvoiceButton(OrderModel order) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        final pickupId = order.pickupId ??
+            int.tryParse(order.bookingId.replaceAll(RegExp(r'[^0-9]'), '')) ??
+            182;
+        BillModel? fetchedBill;
+        if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+          try {
+            final res =
+                await ApiService().downloadBillInvoice(pickupId: pickupId);
+            dynamic data = res.data;
+            if (data is String) {
+              try {
+                data = jsonDecode(data);
+              } catch (_) {}
+            }
+            if (data is Map) {
+              fetchedBill =
+                  BillModel.fromJson(Map<String, dynamic>.from(data));
+            }
+          } catch (e) {
+            debugPrint('[OrderHistoryScreen] downloadBillInvoice on tap: $e');
+          }
+        }
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => OfficialInvoiceScreen(order: order),
+            builder: (_) => OfficialInvoiceScreen(
+              order: order,
+              initialBill: fetchedBill,
+            ),
           ),
         );
       },

@@ -27,6 +27,8 @@ class ApiService {
       '/api/reward-points/transactions/';
   static const String pickupsEndpoint = '/api/pickups/';
   static const String receiveBillEndpoint = '/api/receive-bill/';
+  static const String downloadBillInvoiceEndpoint =
+      '/api/download-bill-invoice/';
   //static const String razorpayGenerateQr = '/api/razorpay/generate-qr/';
 
   final Dio _dio;
@@ -917,6 +919,17 @@ class ApiService {
     return await _dio.get(
       receiveBillEndpoint,
       queryParameters: pickupId != null ? {'pickup_id': pickupId} : null,
+    );
+  }
+
+  /// Sends a GET request to /api/download-bill-invoice/
+  Future<Response> downloadBillInvoice({dynamic pickupId}) async {
+    final cleanId = pickupId?.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    return await _dio.get(
+      downloadBillInvoiceEndpoint,
+      queryParameters: cleanId != null && cleanId.isNotEmpty
+          ? {'pickup_id': int.tryParse(cleanId) ?? cleanId}
+          : null,
     );
   }
 }

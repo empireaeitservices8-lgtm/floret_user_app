@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:floret_app/services/api_client.dart';
-import 'package:floret_app/services/api_endpoints.dart';
+import 'package:floret_app/services/api_service.dart';
 import '../model/order_model.dart';
 import '../model/bill_model.dart';
 
@@ -51,18 +51,21 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
       return BillModel.sample;
     }
     try {
-      final response = await ApiClient()
-          .get(ApiEndpoints.receiveBill)
+      final pickupId = widget.order.pickupId ??
+          int.tryParse(
+              widget.order.bookingId.replaceAll(RegExp(r'[^0-9]'), '')) ??
+          182;
+      final response = await ApiService()
+          .downloadBillInvoice(pickupId: pickupId)
           .timeout(const Duration(seconds: 10));
-      if (response.data is Map) {
-        final data = response.data as Map;
-        if (data.containsKey('bill') && data['bill'] is Map) {
-          return BillModel.fromJson(
-            Map<String, dynamic>.from(data['bill'] as Map),
-          );
-        } else {
-          return BillModel.fromJson(Map<String, dynamic>.from(data));
-        }
+      dynamic data = response.data;
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+      if (data is Map) {
+        return BillModel.fromJson(Map<String, dynamic>.from(data));
       }
       return BillModel.sample;
     } catch (e) {
@@ -241,7 +244,10 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
         final wasteProcessingValue =
             '₹${bill.wasteProcessingAmount.toStringAsFixed(2)}';
         final disposalFeeValue = '₹${bill.disposalFeeGst.toStringAsFixed(2)}';
-        final grandTotalValue = '₹${bill.totalAmount.toStringAsFixed(2)}';
+        final grandTotalVal = (bill.subtotal != null && bill.subtotal! > 0)
+            ? bill.subtotal!
+            : bill.totalAmount;
+        final grandTotalValue = '₹${grandTotalVal.toStringAsFixed(2)}';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

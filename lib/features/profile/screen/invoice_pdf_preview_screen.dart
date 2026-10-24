@@ -145,14 +145,18 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
         : 'Recyclable Waste Collection';
     final weightStr = bill.weight.toStringAsFixed(2);
     final rateStr = bill.rate.toStringAsFixed(2);
-    final totalStr = bill.totalAmount.toStringAsFixed(2);
+    final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
+        ? bill.subtotal!
+        : bill.totalAmount;
+    final subtotalStr = subtotalVal.toStringAsFixed(2);
+    final totalStr = subtotalStr;
     final methodStr = bill.paymentMethod.isNotEmpty
         ? bill.paymentMethod.toUpperCase()
         : 'CASH';
     final txnId = bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
     final remarks = bill.remarks.isNotEmpty
         ? bill.remarks
-        : 'Gross: ₹49.56 | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹49.56 via cash';
+        : 'Gross: ₹$subtotalStr | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹$subtotalStr via ${methodStr.toLowerCase()}';
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 420),
@@ -487,7 +491,7 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Rs. $totalStr',
+                        'Rs. $subtotalStr',
                         style: const TextStyle(
                           fontSize: 8.5,
                           fontWeight: FontWeight.w600,

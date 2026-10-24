@@ -1,8 +1,8 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:floret_app/services/api_client.dart';
-import 'package:floret_app/services/api_endpoints.dart';
+import 'package:floret_app/services/api_service.dart';
 import '../model/order_model.dart';
 import '../model/bill_model.dart';
 import 'invoice_pdf_preview_screen.dart';
@@ -37,58 +37,61 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
       return widget.initialBill!;
     }
     if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return _generateFallbackBill();
+      return BillModel.sample;
     }
     try {
-      final response = await ApiClient()
-          .get(ApiEndpoints.receiveBill)
+      final pickupId = widget.order.pickupId ??
+          int.tryParse(
+              widget.order.bookingId.replaceAll(RegExp(r'[^0-9]'), '')) ??
+          182;
+      final response = await ApiService()
+          .downloadBillInvoice(pickupId: pickupId)
           .timeout(const Duration(seconds: 10));
-      if (response.data is Map) {
-        final data = response.data as Map;
-        if (data.containsKey('bill') && data['bill'] is Map) {
-          return BillModel.fromJson(
-            Map<String, dynamic>.from(data['bill'] as Map),
-          );
-        } else {
-          return BillModel.fromJson(Map<String, dynamic>.from(data));
-        }
+      dynamic data = response.data;
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
       }
-      return _generateFallbackBill();
+      if (data is Map) {
+        return BillModel.fromJson(Map<String, dynamic>.from(data));
+      }
+      throw Exception("Bill not found");
     } catch (e) {
       debugPrint('[OfficialInvoiceScreen] Error fetching bill: $e');
-      return _generateFallbackBill();
+      throw Exception("Bill not found");
     }
   }
 
-  BillModel _generateFallbackBill() {
-    // Extract numeric pickup reference from bookingId e.g. WC-168 -> 168 or WC-182 -> 182
-    final numericOnly = widget.order.bookingId.replaceAll(RegExp(r'[^0-9]'), '');
-    final pickupId = int.tryParse(numericOnly) ?? 182;
-    final billId = pickupId > 100 ? (pickupId - 100) : 68;
-    final weight = widget.order.weight ?? 1.00;
-    const rate = 42.00;
-    const totalAmount = 49.56;
+  // BillModel _generateFallbackBill() {
+  //   // Extract numeric pickup reference from bookingId e.g. WC-168 -> 168 or WC-182 -> 182
+  //   final numericOnly = widget.order.bookingId.replaceAll(RegExp(r'[^0-9]'), '');
+  //   final pickupId = int.tryParse(numericOnly) ?? 182;
+  //   final billId = pickupId > 100 ? (pickupId - 100) : 68;
+  //   final weight = widget.order.weight ?? 1.00;
+  //   const rate = 42.00;
+  //   const totalAmount = 49.56;
 
-    final customerContact = widget.order.contact.trim();
-    final userName = (RegExp(r'^[0-9+]+$').hasMatch(customerContact) && customerContact.isNotEmpty)
-        ? customerContact
-        : '917306929058';
+  //   final customerContact = widget.order.contact.trim();
+  //   final userName = (RegExp(r'^[0-9+]+$').hasMatch(customerContact) && customerContact.isNotEmpty)
+  //       ? customerContact
+  //       : '917306929058';
 
-    return BillModel(
-      userName: userName,
-      pickupId: pickupId,
-      billId: billId,
-      weight: weight,
-      rate: rate,
-      totalAmount: totalAmount,
-      paymentMethod: 'CASH',
-      paymentStatus: 'paid',
-      transactionId: 'BILL-252',
-      paymentGateway: '',
-      remarks:
-          'Gross: ₹49.56 | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹49.56 via cash',
-    );
-  }
+  //   return BillModel(
+  //     userName: userName,
+  //     pickupId: pickupId,
+  //     billId: billId,
+  //     weight: weight,
+  //     rate: rate,
+  //     totalAmount: totalAmount,
+  //     paymentMethod: 'CASH',
+  //     paymentStatus: 'paid',
+  //     transactionId: 'BILL-252',
+  //     paymentGateway: '',
+  //     remarks:
+  //         'Gross: ₹49.56 | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹49.56 via cash',
+  //   );
+  // }
 
   String _formatDateTime(DateTime dt) {
     final day = dt.day.toString().padLeft(2, '0');
@@ -140,10 +143,10 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
           FutureBuilder<BillModel>(
             future: _billFuture,
             builder: (context, snapshot) {
-              final bill = snapshot.data ?? _generateFallbackBill();
+              final bill = snapshot.data;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => _navigateToPdfPreview(bill),
+                onTap: bill != null ? () => _navigateToPdfPreview(bill) : null,
                 child: Container(
                   margin: const EdgeInsets.only(right: 16),
                   padding:
@@ -185,7 +188,20 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
             );
           }
 
-          final bill = snapshot.data ?? _generateFallbackBill();
+          if (snapshot.hasError || !snapshot.hasData) {
+            return const Center(
+              child: Text(
+                'Bill not found',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+            );
+          }
+
+          final bill = snapshot.data!;
+          debugPrint('[OfficialInvoiceScreen] Bill: $bill');
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -273,7 +289,8 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
         ? _formatDateTime(widget.order.completedDate!)
         : _formatDateTime(DateTime(2026, 10, 15, 12, 56, 09));
 
-    final invoiceNumber = bill.billId > 0 ? 'FLT-INV-${bill.billId}' : 'FLT-INV-68';
+    final invoiceNumber =
+        bill.billId > 0 ? 'FLT-INV-${bill.billId}' : 'FLT-INV-68';
 
     return Container(
       decoration: BoxDecoration(
@@ -491,7 +508,11 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
             : '${widget.order.wasteType} Collection')
         : 'Recyclable Waste Collection';
 
-    final totalStr = bill.totalAmount.toStringAsFixed(2);
+    final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
+        ? bill.subtotal!
+        : bill.totalAmount;
+    final subtotalStr = subtotalVal.toStringAsFixed(2);
+    final totalStr = subtotalStr;
     final weightStr = bill.weight.toStringAsFixed(2);
     final rateStr = bill.rate.toStringAsFixed(2);
 
@@ -547,7 +568,7 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '₹$totalStr',
+                      '₹$subtotalStr',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -594,7 +615,7 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
                 ),
               ),
               Text(
-                '₹$totalStr',
+                '₹$subtotalStr',
                 style: const TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
@@ -671,10 +692,14 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
     final methodStr = bill.paymentMethod.isNotEmpty
         ? bill.paymentMethod.toUpperCase()
         : 'CASH';
-    final txnId = bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
+    final txnId =
+        bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
+    final totalFormatted = (bill.subtotal != null && bill.subtotal! > 0)
+        ? bill.subtotal!.toStringAsFixed(2)
+        : bill.totalAmount.toStringAsFixed(2);
     final remarks = bill.remarks.isNotEmpty
         ? bill.remarks
-        : 'Gross: ₹49.56 | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹49.56 via cash';
+        : 'Gross: ₹$totalFormatted | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹$totalFormatted via ${methodStr.toLowerCase()}';
 
     return Container(
       decoration: BoxDecoration(
