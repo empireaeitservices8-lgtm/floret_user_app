@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../viewmodels/profile_viewmodel.dart';
@@ -52,10 +53,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (cached != null && int.tryParse(cached) != null) {
         if (mounted) setState(() => _ecoPoints = int.parse(cached));
       }
-      final model = await HomeRepository().fetchRewardPoints();
-      await SpHelper.saveString(
-          'eco_reward_points', model.availablePoints.toString());
-      if (mounted) setState(() => _ecoPoints = model.availablePoints);
+      if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+        final model = await HomeRepository().fetchRewardPoints();
+        await SpHelper.saveString(
+            'eco_reward_points', model.availablePoints.toString());
+        if (mounted) setState(() => _ecoPoints = model.availablePoints);
+      }
     } catch (e) {
       debugPrint('⚠️ [PROFILE] _loadPoints error: $e');
     }

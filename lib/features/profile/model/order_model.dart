@@ -486,7 +486,16 @@ class OrderStore {
   Future<void> _loadFromStorage() async {
     try {
       final key = await _getStorageKey();
-      final jsonStr = await SpHelper.getString(key);
+      var jsonStr = await SpHelper.getString(key);
+      if (jsonStr == null || jsonStr.trim().isEmpty) {
+        final fallbackKey = 'saved_user_orders';
+        if (key != fallbackKey) {
+          final fallbackStr = await SpHelper.getString(fallbackKey);
+          if (fallbackStr != null && fallbackStr.trim().isNotEmpty) {
+            jsonStr = fallbackStr;
+          }
+        }
+      }
       if (jsonStr != null && jsonStr.trim().isNotEmpty) {
         final decoded = jsonDecode(jsonStr);
         if (decoded is List && decoded.isNotEmpty) {
@@ -495,8 +504,8 @@ class OrderStore {
                   OrderModel.fromJson(Map<String, dynamic>.from(e as Map)))
               .where((o) =>
                   _currentUserId.isEmpty ||
-                  !isSampleOrder(o) &&
-                      (o.userId == null || o.userId == _currentUserId))
+                  (!isSampleOrder(o) &&
+                      (o.userId == null || o.userId == _currentUserId)))
               .toList();
           for (final o in orders.value) {
             final match = RegExp(r'WC-(\d+)').firstMatch(o.bookingId);
@@ -530,13 +539,24 @@ class OrderStore {
     }
   }
 
-  Future<void> _saveToStorage() async {
+  Future<void> _saveToStorage([List<OrderModel>? explicitOrders, String? explicitUid]) async {
     try {
-      final key = await _getStorageKey();
-      final data = orders.value.map((o) => o.toJson()).toList();
-      SpHelper.saveString(key, jsonEncode(data));
+      final currentOrders = explicitOrders ?? List<OrderModel>.from(orders.value);
+      final uid = explicitUid ?? _currentUserId;
+      if (currentOrders.isEmpty && uid.isEmpty) {
+        return;
+      }
+      final key = uid.isNotEmpty ? 'saved_user_orders_$uid' : 'saved_user_orders';
+      final data = currentOrders.map((o) => o.toJson()).toList();
+      final encoded = jsonEncode(data);
+      await SpHelper.saveString(key, encoded);
+      if (uid.isNotEmpty) {
+        await SpHelper.saveString('saved_user_orders_$uid', encoded);
+      }
     } catch (_) {}
   }
+
+  Future<void> saveToStorage() => _saveToStorage(orders.value, _currentUserId);
 
   String generateBookingId() => 'WC-${_nextId++}';
 
@@ -555,20 +575,22 @@ class OrderStore {
           )
         : order;
     orders.value = [orderWithUser, ...orders.value];
-    _saveToStorage();
+    _saveToStorage(orders.value, _currentUserId);
   }
 
   void removeOrder(String bookingId) {
     orders.value =
         orders.value.where((o) => o.bookingId != bookingId).toList();
-    _saveToStorage();
+    _saveToStorage(orders.value, _currentUserId);
   }
 
   void updateStatus(String bookingId, OrderStatus status) {
     for (final o in orders.value) {
       if (o.bookingId == bookingId) {
         o.status = status;
-        if (status == OrderStatus.cancelled) {
+        if (status == OrderStatus.completed) {
+          o.completedDate ??= DateTime.now();
+        } else if (status == OrderStatus.cancelled) {
           o.rawStatus = 'cancelled';
         } else if (status == OrderStatus.reschedule) {
           o.rawStatus = 'reschedule';
@@ -576,7 +598,7 @@ class OrderStore {
       }
     }
     orders.value = List<OrderModel>.from(orders.value);
-    _saveToStorage();
+    _saveToStorage(orders.value, _currentUserId);
   }
 
   void markPaymentCompleted(String bookingId, {String? transactionId}) {
@@ -585,16 +607,16 @@ class OrderStore {
         o.paymentStatus = 'paid';
         o.status = OrderStatus.completed;
         o.rawStatus = 'paid';
+        o.completedDate ??= DateTime.now();
       }
     }
     orders.value = List<OrderModel>.from(orders.value);
-    _saveToStorage();
+    _saveToStorage(orders.value, _currentUserId);
   }
 
   /// Merges remote orders retrieved from backend API into local store.
-  /// The backend is the source of truth: orders that no longer exist on the
-  /// server (e.g. deleted from admin) are removed from the local cache.
-  /// Duplicate records sharing the same bookingId are never created.
+  /// Preserves existing local orders and previous months' records,
+  /// updating matching items with latest server info without reverting completions.
   void mergeRemoteOrders(List<OrderModel> remoteOrders) {
     final effectiveUserId = _currentUserId;
     final List<OrderModel> filteredRemote = effectiveUserId.isNotEmpty
@@ -603,8 +625,50 @@ class OrderStore {
             .toList()
         : remoteOrders;
 
-    final seen = <String>{};
-    orders.value = filteredRemote.where((o) => seen.add(o.bookingId)).toList();
-    _saveToStorage();
+    final Map<String, OrderModel> map = {};
+
+    // 1. Keep existing orders (preserves previous months' records & locally completed statuses)
+    for (final o in orders.value) {
+      map[o.bookingId] = o;
+    }
+
+    // 2. Merge remote orders
+    for (final remote in filteredRemote) {
+      if (map.containsKey(remote.bookingId)) {
+        final existing = map[remote.bookingId]!;
+        final isLocallyCompleted = existing.status == OrderStatus.completed;
+        final isRemoteCompleted = remote.status == OrderStatus.completed;
+
+        map[remote.bookingId] = OrderModel(
+          id: remote.id ?? existing.id,
+          bookingId: remote.bookingId,
+          wasteType: remote.wasteType.isNotEmpty ? remote.wasteType : existing.wasteType,
+          pickupDate: remote.pickupDate,
+          completedDate: (isLocallyCompleted && existing.completedDate != null)
+              ? existing.completedDate
+              : (remote.completedDate ?? existing.completedDate),
+          address: remote.address.isNotEmpty ? remote.address : existing.address,
+          fullAddress: remote.fullAddress.isNotEmpty ? remote.fullAddress : existing.fullAddress,
+          contact: remote.contact.isNotEmpty ? remote.contact : existing.contact,
+          status: (isLocallyCompleted && !isRemoteCompleted)
+              ? existing.status
+              : remote.status,
+          userId: remote.userId ?? existing.userId ?? effectiveUserId,
+          weight: remote.weight ?? existing.weight,
+          bagsUsed: remote.bagsUsed ?? existing.bagsUsed,
+          rawStatus: (isLocallyCompleted && !isRemoteCompleted)
+              ? existing.rawStatus
+              : remote.rawStatus,
+          paymentStatus: (isLocallyCompleted && existing.isPaid)
+              ? existing.paymentStatus
+              : remote.paymentStatus,
+        );
+      } else {
+        map[remote.bookingId] = remote;
+      }
+    }
+
+    orders.value = map.values.toList();
+    _saveToStorage(orders.value, effectiveUserId);
   }
 }

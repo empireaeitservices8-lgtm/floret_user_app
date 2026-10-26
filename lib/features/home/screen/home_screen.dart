@@ -256,19 +256,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ValueListenableBuilder<List<OrderModel>>(
                                 valueListenable: OrderStore.instance.orders,
                                 builder: (context, orders, _) {
-                                  final completed = orders
-                                      .where((o) =>
-                                          o.status == OrderStatus.completed)
-                                      .toList();
-                                  final valid = orders
-                                      .where((o) =>
-                                          o.status != OrderStatus.cancelled)
-                                      .toList();
-                                  final targetList =
-                                      completed.isNotEmpty ? completed : valid;
-
-                                  final co2Reduced = (targetList.length * 14.3)
-                                      .toStringAsFixed(1);
+                                  final now = DateTime.now();
+                                  final double co2Val =
+                                      vm.getUserCo2Reduced(orders, now);
+                                  final co2Reduced = co2Val.toStringAsFixed(1);
                                   return Row(
                                     children: [
                                       Expanded(
@@ -932,7 +923,7 @@ class _HomeScreenState extends State<HomeScreen> {
               .where((o) => o.status != OrderStatus.cancelled)
               .toList();
           final target = completed.isNotEmpty ? completed : valid;
-          return target.fold<double>(0.0, (sum, o) => sum + o.effectiveWeight);
+          return target.length * 5.0;
         })();
 
     final double progressFraction = (userWeight / targetWeight).clamp(0.0, 1.0);

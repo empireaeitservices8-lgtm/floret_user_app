@@ -7,6 +7,7 @@ import 'package:floret_app/features/profile/screen/order_history_screen.dart';
 import 'package:floret_app/features/profile/screen/official_invoice_screen.dart';
 import 'package:floret_app/features/profile/screen/invoice_pdf_preview_screen.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:floret_app/services/invoice_pdf_service.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -208,6 +209,54 @@ void main() {
 
       expect(find.text('Select a printer'), findsOneWidget);
       expect(find.text('1/1'), findsOneWidget);
+    });
+
+    test('5. InvoicePdfService generates valid vector PDF bytes with order and bill details', () async {
+      final pdfBytes = await InvoicePdfService.instance.generateInvoicePdfBytes(
+        order: completedOrder,
+        bill: BillModel.sample,
+      );
+
+      // Verify PDF header magic bytes "%PDF-"
+      expect(pdfBytes.length, greaterThan(1000));
+      final header = String.fromCharCodes(pdfBytes.sublist(0, 5));
+      expect(header, equals('%PDF-'));
+    });
+
+    testWidgets(
+        '6. InvoicePdfPreviewScreen contains working Download Invoice and Print Invoice buttons',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: InvoicePdfPreviewScreen(
+            order: completedOrder,
+            bill: BillModel.sample,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find Download Invoice and Print Invoice buttons
+      final printBtn = find.byKey(const Key('print_invoice_button'));
+      final downloadBtn = find.byKey(const Key('download_invoice_button'));
+
+      expect(printBtn, findsOneWidget);
+      expect(downloadBtn, findsOneWidget);
+      expect(find.text('Print Invoice'), findsOneWidget);
+      expect(find.text('Download Invoice'), findsOneWidget);
+      expect(find.byIcon(Icons.check), findsOneWidget);
+
+      // Verify tapping print button works
+      await tester.tap(printBtn);
+      await tester.pump();
+
+      // Verify tapping download button works
+      await tester.tap(downloadBtn);
+      await tester.pump();
     });
   });
 }

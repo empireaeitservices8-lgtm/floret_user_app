@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../services/invoice_pdf_service.dart';
 import '../model/order_model.dart';
 import '../model/bill_model.dart';
 
@@ -70,42 +71,68 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                 constraints: const BoxConstraints(),
               ),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      'Select a printer',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => InvoicePdfService.instance.printInvoice(
+                    context: context,
+                    order: order,
+                    bill: bill,
+                  ),
+                  child: const Row(
+                    children: [
+                      Text(
+                        'Select a printer',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      color: Color(0xFF475569),
-                      size: 22,
-                    ),
-                  ],
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        color: Color(0xFF475569),
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.print_rounded, color: Color(0xFF1E293B), size: 22),
+                tooltip: 'Print Invoice',
+                onPressed: () => InvoicePdfService.instance.printInvoice(
+                  context: context,
+                  order: order,
+                  bill: bill,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.share_rounded, color: Color(0xFF1E293B), size: 20),
+                tooltip: 'Share Invoice',
+                onPressed: () => InvoicePdfService.instance.shareInvoice(
+                  context: context,
+                  order: order,
+                  bill: bill,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Text(
+                const Text(
                   'Copies:   1',
                   style: TextStyle(
                     fontSize: 13,
                     color: Color(0xFF64748B),
                   ),
                 ),
-                SizedBox(width: 24),
-                Text(
+                const SizedBox(width: 24),
+                const Text(
                   'Paper size:   ISO A4',
                   style: TextStyle(
                     fontSize: 13,
@@ -116,10 +143,18 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF94A3B8),
-            size: 20,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => InvoicePdfService.instance.printInvoice(
+              context: context,
+              order: order,
+              bill: bill,
+            ),
+            child: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF94A3B8),
+              size: 20,
+            ),
           ),
         ],
       ),
@@ -640,6 +675,28 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
+          ElevatedButton.icon(
+            key: const Key('print_invoice_button'),
+            onPressed: () => InvoicePdfService.instance.printInvoice(
+              context: context,
+              order: order,
+              bill: bill,
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF1E293B),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: const Icon(Icons.print_rounded, size: 16),
+            label: const Text(
+              'Print Invoice',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
           const Spacer(),
           const Text(
             '1/1',
@@ -650,28 +707,35 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Invoice PDF downloaded successfully!'),
-                  behavior: SnackBarBehavior.floating,
-                  duration: Duration(seconds: 2),
-                ),
+          ElevatedButton.icon(
+            key: const Key('download_invoice_button'),
+            onPressed: () async {
+              await InvoicePdfService.instance.downloadAndSaveInvoice(
+                context: context,
+                order: order,
+                bill: bill,
               );
             },
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: const BoxDecoration(
-                color: Color(0xFF3B82F6),
-                shape: BoxShape.circle,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.check,
+            ),
+            icon: const Icon(
+              Icons.check,
+              color: Colors.white,
+              size: 16,
+            ),
+            label: const Text(
+              'Download Invoice',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
-                size: 22,
               ),
             ),
           ),

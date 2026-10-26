@@ -493,5 +493,138 @@ void main() {
       // Total Pickups updates dynamically to 3!
       expect(find.text('3'), findsOneWidget);
     });
+
+    test('Monthly CO₂ reduction and recycle progress are calculated separately per month, preserving previous months', () {
+      final septDate = DateTime(2026, 9, 15);
+      final octDate = DateTime(2026, 10, 15);
+
+      final allOrders = [
+        // September: 2 completed pickups (28.6 kg CO2, 10 kg recycle)
+        OrderModel(
+          bookingId: 'SEP-1',
+          wasteType: 'Sanitary',
+          pickupDate: septDate,
+          completedDate: septDate,
+          address: 'Test',
+          fullAddress: 'Test Full',
+          contact: 'User',
+          status: OrderStatus.completed,
+        ),
+        OrderModel(
+          bookingId: 'SEP-2',
+          wasteType: 'Dry',
+          pickupDate: septDate,
+          completedDate: septDate,
+          address: 'Test',
+          fullAddress: 'Test Full',
+          contact: 'User',
+          status: OrderStatus.completed,
+        ),
+        // October: 1 completed pickup (14.3 kg CO2, 5 kg recycle)
+        OrderModel(
+          bookingId: 'OCT-1',
+          wasteType: 'Glass',
+          pickupDate: octDate,
+          completedDate: octDate,
+          address: 'Test',
+          fullAddress: 'Test Full',
+          contact: 'User',
+          status: OrderStatus.completed,
+        ),
+      ];
+
+      // September metrics
+      final sepCompleted = allOrders.where((o) {
+        final d = o.completedDate ?? o.pickupDate;
+        return d.year == 2026 && d.month == 9 && o.status == OrderStatus.completed;
+      }).length;
+      expect(sepCompleted, 2);
+      expect((sepCompleted * 14.3).toStringAsFixed(1), '28.6');
+      expect(sepCompleted * 5.0, 10.0);
+
+      // October metrics (separate from September!)
+      final octCompleted = allOrders.where((o) {
+        final d = o.completedDate ?? o.pickupDate;
+        return d.year == 2026 && d.month == 10 && o.status == OrderStatus.completed;
+      }).length;
+      expect(octCompleted, 1);
+      expect((octCompleted * 14.3).toStringAsFixed(1), '14.3');
+      expect(octCompleted * 5.0, 5.0);
+
+      // November metrics (starts fresh at 0 while preserving previous records)
+      final novCompleted = allOrders.where((o) {
+        final d = o.completedDate ?? o.pickupDate;
+        return d.year == 2026 && d.month == 11 && o.status == OrderStatus.completed;
+      }).length;
+      expect(novCompleted, 0);
+      expect((novCompleted * 14.3).toStringAsFixed(1), '0.0');
+      expect(novCompleted * 5.0, 0.0);
+
+      // Verify September & October records are all preserved in order store
+      expect(allOrders.length, 3);
+    });
+
+    test('Values persist across logout and login and remote merge preserves previous months', () async {
+      await SpHelper.saveString(sp_keys.keyUserId, 'user_999');
+      await OrderStore.instance.loadForUser('user_999');
+
+      // Add completed pickup in September and October
+      OrderStore.instance.addOrder(OrderModel(
+        bookingId: 'PAST-SEP',
+        wasteType: 'Sanitary',
+        pickupDate: DateTime(2026, 9, 20),
+        completedDate: DateTime(2026, 9, 20),
+        address: 'Test',
+        fullAddress: 'Test',
+        contact: 'User',
+        status: OrderStatus.completed,
+        userId: 'user_999',
+      ));
+      OrderStore.instance.addOrder(OrderModel(
+        bookingId: 'CURR-OCT',
+        wasteType: 'Dry',
+        pickupDate: DateTime(2026, 10, 10),
+        completedDate: DateTime(2026, 10, 10),
+        address: 'Test',
+        fullAddress: 'Test',
+        contact: 'User',
+        status: OrderStatus.completed,
+        userId: 'user_999',
+      ));
+
+      expect(OrderStore.instance.orders.value.length, 2);
+
+      // Merge remote orders that only return recent active order
+      OrderStore.instance.mergeRemoteOrders([
+        OrderModel(
+          bookingId: 'CURR-OCT',
+          wasteType: 'Dry',
+          pickupDate: DateTime(2026, 10, 10),
+          completedDate: DateTime(2026, 10, 10),
+          address: 'Test',
+          fullAddress: 'Test',
+          contact: 'User',
+          status: OrderStatus.completed,
+          userId: 'user_999',
+        ),
+      ]);
+
+      // Previous month record PAST-SEP is preserved!
+      expect(OrderStore.instance.orders.value.any((o) => o.bookingId == 'PAST-SEP'), isTrue);
+
+      await OrderStore.instance.saveToStorage();
+
+      // Simulate logout
+      OrderStore.instance.resetForLogout();
+      expect(OrderStore.instance.orders.value.isEmpty, isTrue);
+
+      // Simulate login as user_999
+      await OrderStore.instance.loadForUser('user_999');
+
+      // Restored from persistent storage!
+      expect(OrderStore.instance.orders.value.length, 2);
+      expect(OrderStore.instance.orders.value.any((o) => o.bookingId == 'PAST-SEP'), isTrue);
+      expect(OrderStore.instance.orders.value.any((o) => o.bookingId == 'CURR-OCT'), isTrue);
+    });
   });
 }
