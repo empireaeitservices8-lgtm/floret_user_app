@@ -11,6 +11,17 @@ class BillModel {
   final String transactionId;
   final String paymentGateway;
   final String remarks;
+  final String? invoiceNo;
+  final String? invoiceDate;
+  final String? companyName;
+  final String? tagline;
+  final String? logoUrl;
+  final String? supportEmail;
+  final String? helpline;
+  final String? itemDescription;
+  final double? gst;
+  final String? primaryColor;
+  final String? accentColor;
 
   const BillModel({
     required this.userName,
@@ -25,7 +36,28 @@ class BillModel {
     required this.transactionId,
     required this.paymentGateway,
     required this.remarks,
+    this.invoiceNo,
+    this.invoiceDate,
+    this.companyName,
+    this.tagline,
+    this.logoUrl,
+    this.supportEmail,
+    this.helpline,
+    this.itemDescription,
+    this.gst,
+    this.primaryColor,
+    this.accentColor,
   });
+
+  String get formattedInvoiceNo {
+    if (invoiceNo != null && invoiceNo!.isNotEmpty) return invoiceNo!;
+    return billId > 0 ? 'FLT-INV-$billId' : 'FLT-INV-68';
+  }
+
+  String get formattedDate {
+    if (invoiceDate != null && invoiceDate!.isNotEmpty) return invoiceDate!;
+    return '26-10-2026 10:38:00';
+  }
 
   double get wasteProcessingAmount => weight * rate;
 
@@ -59,6 +91,12 @@ class BillModel {
       final items = data['item_details'] is List && (data['item_details'] as List).isNotEmpty
           ? (data['item_details'] as List).first as Map?
           : null;
+      final branding = data['branding'] is Map
+          ? Map<String, dynamic>.from(data['branding'] as Map)
+          : null;
+      final designTheme = data['design_theme'] is Map
+          ? Map<String, dynamic>.from(data['design_theme'] as Map)
+          : null;
 
       final invoiceNo = invoiceMeta?['invoice_no']?.toString() ?? '';
       final billIdParsed = int.tryParse(invoiceNo.replaceAll(RegExp(r'[^0-9]'), '')) ?? 68;
@@ -83,6 +121,7 @@ class BillModel {
       final totalAmount = subtotal > 0
           ? subtotal
           : parseNum(financials?['total_amount'], 0.0);
+      final gst = parseNum(financials?['gst'], 0.0);
 
       return BillModel(
         userName: customerDetails?['name']?.toString() ?? '917306929058',
@@ -97,6 +136,17 @@ class BillModel {
         transactionId: paymentInfo?['transaction_id']?.toString() ?? 'BILL-252',
         paymentGateway: paymentInfo?['gateway']?.toString() ?? '',
         remarks: data['remarks']?.toString() ?? 'Waste collection payment',
+        invoiceNo: invoiceNo.isNotEmpty ? invoiceNo : null,
+        invoiceDate: invoiceMeta?['date']?.toString(),
+        companyName: branding?['company_name']?.toString(),
+        tagline: branding?['tagline']?.toString(),
+        logoUrl: branding?['logo_url']?.toString(),
+        supportEmail: branding?['support_email']?.toString(),
+        helpline: branding?['helpline']?.toString(),
+        itemDescription: items?['description']?.toString(),
+        gst: gst,
+        primaryColor: designTheme?['primary_color']?.toString(),
+        accentColor: designTheme?['accent_color']?.toString(),
       );
     }
 

@@ -623,7 +623,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 if (streetController.text.trim().isEmpty ||
                                     cityController.text.trim().isEmpty ||
                                     zipController.text.trim().isEmpty) {
@@ -638,7 +638,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                                   return;
                                 }
 
-                                _viewModel.addAddress(
+                                await _viewModel.addAddress(
                                   addressLine: streetController.text.trim(),
                                   city: cityController.text.trim(),
                                   pincode: zipController.text.trim(),

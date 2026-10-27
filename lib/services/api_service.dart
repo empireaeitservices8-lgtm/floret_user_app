@@ -938,6 +938,30 @@ class ApiService {
     );
   }
 
+  /// Sends a PATCH request to /api/pickups/{pickup_id}/ to reschedule pickup
+  Future<Response> reschedulePickup({
+    required dynamic pickupId,
+    required DateTime pickupDate,
+    String? pickupTimeSlot,
+    String? token,
+  }) async {
+    final cleanId = pickupId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    final data = <String, dynamic>{
+      'status': 'rescheduled',
+      'pickup_date':
+          '${pickupDate.year}-${pickupDate.month.toString().padLeft(2, '0')}-${pickupDate.day.toString().padLeft(2, '0')}',
+    };
+    if (pickupTimeSlot != null && pickupTimeSlot.isNotEmpty) {
+      data['pickup_time_slot'] = pickupTimeSlot;
+    }
+    return _authenticatedPatch(
+      endpoint: '$pickupsEndpoint$cleanId/',
+      requestName: 'RESCHEDULE PICKUP',
+      data: data,
+      token: token,
+    );
+  }
+
   /// Helper to convert DioException into clear user-friendly error messages
   String parseDioError(DioException error) => _parseDioError(error);
 

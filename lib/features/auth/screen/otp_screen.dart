@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/viewmodels/otp_viewmodel.dart';
 import 'safai_logo_widget.dart';
 import 'signup_screen.dart';
 import '../../home/screen/home_screen.dart';
 import '../../wallet/screen/razorpay_checkout_screen.dart';
+import '../../wallet/screen/payment_successful_screen.dart';
+import '../../wallet/services/razorpay_service.dart';
+import '../../wallet/repos/wallet_repository.dart';
 
 class OtpScreen extends StatefulWidget {
   static const String routeName = '/otp';
@@ -33,6 +38,72 @@ class _OtpScreenState extends State<OtpScreen> {
   Timer? _timer;
   bool _isOtpFocused = false;
   late final OtpViewModel _otpViewModel;
+  RazorpayService? _razorpayService;
+
+  Future<void> _startCommercialRazorpayPayment(double amount) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    _razorpayService?.dispose();
+    _razorpayService = RazorpayService();
+    _razorpayService!.openCheckout(
+      amount: amount,
+      description: 'Commercial Registration Fee',
+      onSuccess: (PaymentSuccessResponse r) async {
+        try {
+          final walletRepo = WalletRepository();
+          final order =
+              await walletRepo.createTopupOrder(amount: amount);
+          final txnId = order?.transactionId is int
+              ? order!.transactionId as int
+              : int.tryParse('${order?.transactionId}');
+
+          if (txnId != null) {
+            await walletRepo.verifyPayment(
+              transactionId: txnId,
+              razorpayOrderId:
+                  r.orderId ?? order?.razorpayOrderId ?? 'order_123',
+              razorpayPaymentId: r.paymentId ?? '',
+              razorpaySignature: r.signature ?? '',
+            );
+          }
+        } catch (e) {
+          debugPrint(' [COMMERCIAL LOGIN] post-payment error: $e');
+        }
+
+        await SpHelper.saveBoolean('commercial_fee_paid', true);
+        final p = await SharedPreferences.getInstance();
+        await p.setBool('commercial_fee_paid', true);
+
+        if (!mounted) return;
+        navigator.pushNamedAndRemoveUntil(
+          PaymentSuccessfulScreen.routeName,
+          (route) => false,
+          arguments: amount,
+        );
+      },
+      onError: (PaymentFailureResponse r) {
+        messenger.showSnackBar(SnackBar(
+            content: Text(r.message ?? 'Payment cancelled.')));
+        if (!mounted) return;
+        navigator.pushNamedAndRemoveUntil(
+          RazorpayCheckoutScreen.routeName,
+          (route) => false,
+          arguments: {
+            'amount': amount,
+            'isCommercialRegistration': true,
+            'orderId': 'comm_reg_${DateTime.now().millisecondsSinceEpoch}',
+            'onTopUpSuccess': () async {
+              await SpHelper.saveBoolean('commercial_fee_paid', true);
+              final p = await SharedPreferences.getInstance();
+              await p.setBool('commercial_fee_paid', true);
+            },
+          },
+        );
+      },
+      onExternalWallet: (_) {},
+    );
+  }
 
   @override
   void initState() {
@@ -62,6 +133,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void dispose() {
+    _razorpayService?.dispose();
     _timer?.cancel();
     _otpController.dispose();
     _otpFocusNode.dispose();
@@ -121,6 +193,11 @@ class _OtpScreenState extends State<OtpScreen> {
       if (!mounted) return;
 
       if (isCommercial && !isFeePaid) {
+        if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+          await _startCommercialRazorpayPayment(1000.00);
+          return;
+        }
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           RazorpayCheckoutScreen.routeName,

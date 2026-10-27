@@ -136,7 +136,20 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
   void initState() {
     super.initState();
     _checkPersistedPayment();
-    _billFuture = _fetchBill();
+    final raw = (widget.order.rawStatus ?? '').toLowerCase().trim();
+    final isPendingOrRescheduled = (widget.order.status == OrderStatus.pending ||
+            widget.order.status == OrderStatus.reschedule ||
+            raw == 'pending' ||
+            raw == 'rescheduled' ||
+            raw == 'reschedule') &&
+        widget.order.status != OrderStatus.completed &&
+        widget.initialBill == null;
+
+    if (isPendingOrRescheduled) {
+      _billFuture = Future.value(BillModel.sample);
+    } else {
+      _billFuture = _fetchBill();
+    }
   }
 
   void _checkPersistedPayment() {
@@ -223,8 +236,15 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isPendingWithoutBill =
-        widget.order.status == OrderStatus.pending && widget.initialBill == null;
+    final raw = (widget.order.rawStatus ?? '').toLowerCase().trim();
+    final isPendingOrRescheduledWithoutBill =
+        (widget.order.status == OrderStatus.pending ||
+            widget.order.status == OrderStatus.reschedule ||
+            raw == 'pending' ||
+            raw == 'rescheduled' ||
+            raw == 'reschedule') &&
+        widget.order.status != OrderStatus.completed &&
+        widget.initialBill == null;
 
     return Container(
       decoration: const BoxDecoration(
@@ -291,8 +311,7 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
               const SizedBox(height: 20),
 
               // 4. Content Switcher
-              if (isPendingWithoutBill &&
-                  Platform.environment.containsKey('FLUTTER_TEST'))
+              if (isPendingOrRescheduledWithoutBill)
                 _buildPendingBillContent()
               else
                 _buildCompletedBillContent(),

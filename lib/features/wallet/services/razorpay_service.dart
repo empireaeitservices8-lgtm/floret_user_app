@@ -22,11 +22,12 @@ class RazorpayService {
     });
   }
 
-  /// Opens the Razorpay checkout. Can accept an optional [order] or direct [amount] and [keyId].
+  /// Opens the Razorpay checkout. Can accept an optional [order] or direct [amount], [keyId], and [description].
   void openCheckout({
     WalletTopupOrderResponseModel? order,
     double? amount,
     String? keyId,
+    String? description,
     required void Function(PaymentSuccessResponse) onSuccess,
     required void Function(PaymentFailureResponse) onError,
     void Function(ExternalWalletResponse)? onExternalWallet,
@@ -48,7 +49,8 @@ class RazorpayService {
       'amount': amtInPaise,
       'currency': order?.currency ?? 'INR',
       'name': order?.name ?? 'Floret Technologies',
-      'description': order?.description ?? 'Wallet Balance Top-Up',
+      'description':
+          order?.description ?? description ?? 'Wallet Balance Top-Up',
       if (order?.prefill != null)
         'prefill': order!.prefill
       else

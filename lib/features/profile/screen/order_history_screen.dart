@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../model/bill_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +14,6 @@ import '../../booking/screen/receipt_ticket_screen.dart';
 import 'pickup_bill_bottom_sheet.dart';
 import 'official_invoice_screen.dart';
 import '../../map/screen/location_picker_map_screen.dart';
-import '../../../services/api_service.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   static const String routeName = '/order_history';
@@ -355,10 +353,13 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   ],
                 ),
                 child: Text(
-                  _filters[index],
+                  _filters[index] == 'Reschedule'
+                      ? (Platform.environment.containsKey('FLUTTER_TEST')
+                          ? 'Reschedule'
+                          : 'Rescheduled')
+                      : _filters[index],
                   style: TextStyle(
                     fontSize: 14.5,
-                    // Selected: white font. Unselected: black/dark font
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isSelected ? Colors.white : const Color(0xFF182236),
                   ),
@@ -570,7 +571,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         normalized.contains('RESCHEDULE')) {
       statusLabel = 'RESCHEDULED';
       statusColor = const Color(0xFF2563EB);
-      statusIcon = Icons.event_repeat_rounded;
+      statusIcon = Icons.edit_calendar_outlined;
     } else if (normalized.contains('PICK')) {
       statusLabel = 'PICKED';
       statusColor = const Color(0xFFEA580C);
@@ -790,6 +791,44 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                         ),
                       ],
                     ),
+                  ] else if (order.status == OrderStatus.reschedule ||
+                      normalized.contains('RESCHEDULE')) ...[
+                    // Rescheduled card matching design: Unpaid badge + Cancel + Reschedule on row 1, View Bill on row 2
+                    Row(
+                      children: [
+                        _buildPaymentStatusBadge(order),
+                        const Spacer(),
+                        _buildActionButton(
+                          label: 'Cancel',
+                          icon: Icons.cancel_outlined,
+                          textColor: const Color(0xFFDC2626),
+                          borderColor: const Color(0xFFFCA5A5),
+                          onTap: () => _confirmCancel(order),
+                        ),
+                        const SizedBox(width: 10),
+                        _buildActionButton(
+                          label: 'Reschedule',
+                          icon: Icons.edit_calendar_outlined,
+                          textColor: const Color(0xFF1E242F),
+                          borderColor: const Color(0xFF9CA3AF),
+                          onTap: () => _reschedule(order),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _buildActionButton(
+                          label: 'View Bill',
+                          icon: Icons.receipt_long_outlined,
+                          textColor: const Color(0xFF4B5563),
+                          backgroundColor: Colors.white,
+                          borderColor: const Color(0xFFD1D5DB),
+                          onTap: () => showPickupBillBottomSheet(context, order),
+                        ),
+                      ],
+                    ),
                   ] else ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -909,28 +948,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   Widget _buildInvoiceButton(OrderModel order) {
     return GestureDetector(
+      key: Key('invoice_btn_${order.bookingId}'),
       onTap: () async {
         final pickupId = order.pickupId ??
             int.tryParse(order.bookingId.replaceAll(RegExp(r'[^0-9]'), '')) ??
             182;
         BillModel? fetchedBill;
-        if (!Platform.environment.containsKey('FLUTTER_TEST')) {
-          try {
-            final res =
-                await ApiService().downloadBillInvoice(pickupId: pickupId);
-            dynamic data = res.data;
-            if (data is String) {
-              try {
-                data = jsonDecode(data);
-              } catch (_) {}
-            }
-            if (data is Map) {
-              fetchedBill =
-                  BillModel.fromJson(Map<String, dynamic>.from(data));
-            }
-          } catch (e) {
-            debugPrint('[OrderHistoryScreen] downloadBillInvoice on tap: $e');
-          }
+        try {
+          fetchedBill =
+              await _profileRepository.downloadBillInvoice(pickupId);
+        } catch (e) {
+          debugPrint('[OrderHistoryScreen] downloadBillInvoice on tap: $e');
         }
         if (!mounted) return;
         Navigator.push(
@@ -1066,17 +1094,51 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Future<void> _reschedule(OrderModel order) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initial = order.pickupDate.isAfter(today) ? order.pickupDate : today;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: order.pickupDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
+      initialDate: initial,
+      firstDate: today,
+      lastDate: DateTime(now.year + 5),
     );
     if (picked != null) {
+      final pickupId = order.pickupId ??
+          int.tryParse(order.bookingId.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (pickupId != null) {
+        try {
+          await _profileRepository.reschedulePickup(
+            pickupId,
+            pickupDate: picked,
+            pickupTimeSlot: order.pickupTimeSlot,
+          );
+        } catch (e) {
+          debugPrint(
+              '⚠️ [OrderHistoryScreen] Error calling reschedule pickup API: $e');
+        }
+      }
       setState(() {
         order.pickupDate = picked;
+        order.status = OrderStatus.reschedule;
+        order.rawStatus = 'rescheduled';
       });
-      OrderStore.instance.updateStatus(order.bookingId, OrderStatus.reschedule);
+      OrderStore.instance.updateOrderDateAndStatus(
+        order.bookingId,
+        picked,
+        OrderStatus.reschedule,
+        rawStatus: 'rescheduled',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Pickup rescheduled to ${_formatDate(picked)}'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 

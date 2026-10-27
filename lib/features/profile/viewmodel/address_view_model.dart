@@ -32,7 +32,7 @@ class AddressViewModel extends ViewModel {
     }
   }
 
-  void addAddress({
+  Future<void> addAddress({
     String type = 'Home',
     required String addressLine,
     String area = '',
@@ -43,7 +43,7 @@ class AddressViewModel extends ViewModel {
     String? localBody,
     String? ward,
     bool isDefault = false,
-  }) {
+  }) async {
     final bool makeDefault = isDefault || _addresses.isEmpty;
 
     if (makeDefault) {
@@ -67,7 +67,7 @@ class AddressViewModel extends ViewModel {
     );
 
     _addresses.add(newAddress);
-    _repository.saveAddress(newAddress);
+    await _repository.saveAddress(newAddress);
     notifyListeners();
   }
 

@@ -13,11 +13,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class MockProfileRepository extends ProfileRepository {
   final List<OrderModel> mockOrders;
-  MockProfileRepository(this.mockOrders);
+  final BillModel? Function(dynamic pickupId)? onDownloadBill;
+  MockProfileRepository(this.mockOrders, {this.onDownloadBill});
 
   @override
   Future<List<OrderModel>> fetchOrderHistory({String? token}) async {
     return mockOrders;
+  }
+
+  @override
+  Future<BillModel?> downloadBillInvoice(dynamic pickupId, {String? token}) async {
+    if (onDownloadBill != null) {
+      return onDownloadBill!(pickupId);
+    }
+    return null;
   }
 }
 
@@ -257,6 +266,115 @@ void main() {
       // Verify tapping download button works
       await tester.tap(downloadBtn);
       await tester.pump();
+    });
+
+    testWidgets(
+        '7. Tapping on Invoice under completed calls downloadBillInvoice API and displays backend invoice data',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final completedOrder357 = OrderModel(
+        id: 357,
+        bookingId: 'WC-357',
+        wasteType: 'Recyclable Waste',
+        pickupDate: DateTime(2026, 10, 26),
+        completedDate: DateTime(2026, 10, 26, 10, 38, 00),
+        address: 'Sunset Blvd, Thiruvananthapuram',
+        fullAddress: 'Sunset Blvd, Thiruvananthapuram',
+        contact: '917306929058',
+        status: OrderStatus.completed,
+        userId: '101',
+        paymentStatus: 'paid',
+      );
+
+      final Map<String, dynamic> sampleBackendInvoice = {
+        'invoice': {
+          'branding': {
+            'company_name': 'Florettechnologies',
+            'tagline': 'Clean City, Green Future',
+            'logo_url':
+                'https://florettechuser.pythonanywhere.com/static/images/canvas.png',
+            'support_email': 'support@florettech.com',
+            'helpline': '+91 94460 02666',
+          },
+          'invoice_meta': {
+            'invoice_no': 'FLT-INV-115',
+            'date': '26-10-2026 10:38:00',
+            'status': 'PAID',
+          },
+          'customer_details': {
+            'name': '917306929058_471',
+            'pickup_id': 357,
+          },
+          'item_details': [
+            {
+              'description': 'Recyclable Waste Collection',
+              'weight_kg': '5.00 kg',
+              'rate_per_kg': 'Rs. 42.00',
+              'amount': 'Rs. 256.06',
+            }
+          ],
+          'financials': {
+            'subtotal': 'Rs. 256.06',
+            'gst': 'Rs. 0.00',
+            'total_amount': 'Rs. 256.06',
+          },
+          'payment_info': {
+            'method': 'cash',
+            'transaction_id': 'BILL-315',
+            'gateway': 'N/A',
+          },
+          'remarks':
+              'Gross: ₹256.06 | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹256.06 via cash',
+          'design_theme': {
+            'primary_color': '#2E7D32',
+            'accent_color': '#81C784',
+            'font_family': 'Roboto, sans-serif',
+          },
+        }
+      };
+
+      dynamic capturedPickupId;
+      final repo = MockProfileRepository(
+        [completedOrder357],
+        onDownloadBill: (id) {
+          capturedPickupId = id;
+          return BillModel.fromJson(sampleBackendInvoice);
+        },
+      );
+      OrderStore.instance.orders.value = [completedOrder357];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OrderHistoryScreen(repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on Invoice button
+      final invoiceBtn = find.text('Invoice');
+      expect(invoiceBtn, findsOneWidget);
+      await tester.tap(invoiceBtn);
+      await tester.pumpAndSettle();
+
+      // Verify API was called with pickupId 357
+      expect(capturedPickupId, equals(357));
+
+      // Verify OfficialInvoiceScreen displays parsed data from API
+      expect(find.text('Official Invoice'), findsOneWidget);
+      expect(find.text('INVOICE #FLT-INV-115'), findsOneWidget);
+      expect(find.text('26-10-2026 10:38:00'), findsOneWidget);
+      expect(find.text('917306929058_471'), findsOneWidget);
+      expect(find.text('#357'), findsOneWidget);
+      expect(find.text('Recyclable Waste Collection'), findsOneWidget);
+      expect(find.text('Weight: 5.00 kg'), findsOneWidget);
+      expect(find.text('Rate: ₹42.00/kg'), findsOneWidget);
+      expect(find.text('₹256.06'), findsWidgets);
+      expect(
+          find.textContaining('Paid: ₹256.06 via cash', findRichText: true),
+          findsOneWidget);
     });
   });
 }

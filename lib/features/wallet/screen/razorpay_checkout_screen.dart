@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:floret_app/helpers/sp_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth/screen/login_screen.dart';
 import '../repos/wallet_repository.dart';
+import '../services/razorpay_service.dart';
 import 'payment_successful_screen.dart';
 import 'wallet_screen.dart';
 
@@ -39,7 +44,73 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
   late final TextEditingController _cardCvvController;
   late final TextEditingController _cardHolderController;
 
-  final bool _isProcessing = false;
+  bool _isProcessing = false;
+  RazorpayService? _razorpayService;
+  final WalletRepository _walletRepository = WalletRepository();
+
+  Future<void> _startRazorpayPayment(double amount) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final onSuccess = widget.onTopUpSuccess;
+
+    setState(() => _isProcessing = true);
+
+    _razorpayService?.dispose();
+    _razorpayService = RazorpayService();
+    _razorpayService!.openCheckout(
+      amount: amount,
+      description: widget.isCommercialRegistration
+          ? 'Commercial Registration Fee'
+          : 'Wallet Balance Top-Up',
+      onSuccess: (PaymentSuccessResponse r) async {
+        try {
+          final order =
+              await _walletRepository.createTopupOrder(amount: amount);
+          final txnId = order?.transactionId is int
+              ? order!.transactionId as int
+              : int.tryParse('${order?.transactionId}') ?? widget.transactionId;
+
+          if (txnId != null) {
+            await _walletRepository.verifyPayment(
+              transactionId: txnId,
+              razorpayOrderId:
+                  r.orderId ?? order?.razorpayOrderId ?? widget.orderId,
+              razorpayPaymentId: r.paymentId ?? '',
+              razorpaySignature: r.signature ?? '',
+            );
+          }
+        } catch (e) {
+          debugPrint(' [RAZORPAY CHECKOUT] post-payment error: $e');
+        }
+
+        if (widget.isCommercialRegistration) {
+          await SpHelper.saveBoolean('commercial_fee_paid', true);
+          final p = await SharedPreferences.getInstance();
+          await p.setBool('commercial_fee_paid', true);
+        }
+
+        await _walletRepository.fetchBalance();
+        await _walletRepository.fetchTransactions();
+        if (mounted) setState(() => _isProcessing = false);
+
+        onSuccess?.call();
+
+        navigator.pushReplacement(MaterialPageRoute(
+          settings:
+              const RouteSettings(name: PaymentSuccessfulScreen.routeName),
+          builder: (_) => PaymentSuccessfulScreen(amount: amount),
+        ));
+      },
+      onError: (PaymentFailureResponse r) {
+        if (mounted) setState(() => _isProcessing = false);
+        messenger.showSnackBar(SnackBar(
+            content: Text(r.message ?? 'Payment cancelled.')));
+      },
+      onExternalWallet: (_) {
+        if (mounted) setState(() => _isProcessing = false);
+      },
+    );
+  }
 
   void _onClosePressed() {
     if (Navigator.canPop(context)) {
@@ -58,6 +129,10 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
   }
 
   void _onPayPressed() {
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _startRazorpayPayment(widget.amount);
+      return;
+    }
     _show3DSecureModal();
   }
 
@@ -88,6 +163,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
 
   @override
   void dispose() {
+    _razorpayService?.dispose();
     _vpaController.dispose();
     _cardNumberController.dispose();
     _cardExpiryController.dispose();
@@ -1256,8 +1332,18 @@ class _ThreeDSecureAuthDialogState extends State<ThreeDSecureAuthDialog> {
           razorpaySignature: signature,
         );
       }
+      if (widget.isCommercialRegistration) {
+        await SpHelper.saveBoolean('commercial_fee_paid', true);
+        final p = await SharedPreferences.getInstance();
+        await p.setBool('commercial_fee_paid', true);
+      }
       widget.onTopUpSuccess?.call();
     } catch (_) {
+      if (widget.isCommercialRegistration) {
+        await SpHelper.saveBoolean('commercial_fee_paid', true);
+        final p = await SharedPreferences.getInstance();
+        await p.setBool('commercial_fee_paid', true);
+      }
       widget.onTopUpSuccess?.call();
     }
 

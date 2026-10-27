@@ -21,6 +21,7 @@ class OrderModel {
   final int? bagsUsed;
   String? rawStatus;
   String? paymentStatus;
+  final String? pickupTimeSlot;
 
   OrderModel({
     this.id,
@@ -37,6 +38,7 @@ class OrderModel {
     this.bagsUsed,
     this.rawStatus,
     this.paymentStatus,
+    this.pickupTimeSlot,
   });
 
   int? get pickupId =>
@@ -73,6 +75,7 @@ class OrderModel {
         if (bagsUsed != null) 'bagsUsed': bagsUsed,
         if (rawStatus != null) 'rawStatus': rawStatus,
         if (paymentStatus != null) 'paymentStatus': paymentStatus,
+        if (pickupTimeSlot != null) 'pickupTimeSlot': pickupTimeSlot,
       };
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -336,6 +339,8 @@ class OrderModel {
       bagsUsed: parsedBags,
       rawStatus: originalStatus.isNotEmpty ? originalStatus : null,
       paymentStatus: paymentStatus,
+      pickupTimeSlot: json['pickup_time_slot']?.toString() ??
+          json['pickupTimeSlot']?.toString(),
     );
   }
 }
@@ -593,7 +598,28 @@ class OrderStore {
         } else if (status == OrderStatus.cancelled) {
           o.rawStatus = 'cancelled';
         } else if (status == OrderStatus.reschedule) {
-          o.rawStatus = 'reschedule';
+          o.rawStatus = 'rescheduled';
+        }
+      }
+    }
+    orders.value = List<OrderModel>.from(orders.value);
+    _saveToStorage(orders.value, _currentUserId);
+  }
+
+  void updateOrderDateAndStatus(
+    String bookingId,
+    DateTime newDate,
+    OrderStatus status, {
+    String? rawStatus,
+  }) {
+    for (final o in orders.value) {
+      if (o.bookingId == bookingId) {
+        o.pickupDate = newDate;
+        o.status = status;
+        if (rawStatus != null) {
+          o.rawStatus = rawStatus;
+        } else if (status == OrderStatus.reschedule) {
+          o.rawStatus = 'rescheduled';
         }
       }
     }

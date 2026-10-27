@@ -32,21 +32,24 @@ class InvoicePdfService {
   }) async {
     final pdf = pw.Document();
 
-    final invoiceNumber =
-        bill.billId > 0 ? 'FLT-INV-${bill.billId}' : 'FLT-INV-68';
+    final invoiceNumber = bill.formattedInvoiceNo;
     final pickupRef = bill.pickupId > 0
         ? '#${bill.pickupId}'
         : '#${order.bookingId.replaceAll(RegExp(r'[^0-9]'), '')}';
     final customerName =
         bill.userName.isNotEmpty ? bill.userName : '917306929058';
-    final invoiceDateStr = order.completedDate != null
-        ? _formatDateTime(order.completedDate!)
-        : '15-10-2026 12:56:09';
-    final wasteTitle = order.wasteType.toLowerCase().contains('waste')
-        ? (order.wasteType.toLowerCase().contains('collection')
-            ? order.wasteType
-            : '${order.wasteType} Collection')
-        : 'Recyclable Waste Collection';
+    final invoiceDateStr = (bill.invoiceDate != null && bill.invoiceDate!.isNotEmpty)
+        ? bill.invoiceDate!
+        : (order.completedDate != null
+            ? _formatDateTime(order.completedDate!)
+            : '15-10-2026 12:56:09');
+    final wasteTitle = (bill.itemDescription != null && bill.itemDescription!.isNotEmpty)
+        ? bill.itemDescription!
+        : (order.wasteType.toLowerCase().contains('waste')
+            ? (order.wasteType.toLowerCase().contains('collection')
+                ? order.wasteType
+                : '${order.wasteType} Collection')
+            : 'Recyclable Waste Collection');
     final weightStr = bill.weight.toStringAsFixed(2);
     final rateStr = bill.rate.toStringAsFixed(2);
     final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)

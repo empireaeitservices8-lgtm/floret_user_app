@@ -264,10 +264,10 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
                 const SizedBox(height: 16),
 
                 // 6. Help / Support Footer Text
-                const Text(
-                  'Questions? Contact support@florettech.com or call +91 94460 02666',
+                Text(
+                  'Questions? Contact ${bill.supportEmail ?? 'support@florettech.com'} or call ${bill.helpline ?? '+91 94460 02666'}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF64748B),
                     height: 1.4,
@@ -285,12 +285,13 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
 
   // Card 1: Green Header Card matching Image 2
   Widget _buildGreenHeroCard(BillModel bill) {
-    final invoiceDateStr = widget.order.completedDate != null
-        ? _formatDateTime(widget.order.completedDate!)
-        : _formatDateTime(DateTime(2026, 10, 15, 12, 56, 09));
+    final invoiceDateStr = (bill.invoiceDate != null && bill.invoiceDate!.isNotEmpty)
+        ? bill.invoiceDate!
+        : (widget.order.completedDate != null
+            ? _formatDateTime(widget.order.completedDate!)
+            : _formatDateTime(DateTime(2026, 10, 15, 12, 56, 09)));
 
-    final invoiceNumber =
-        bill.billId > 0 ? 'FLT-INV-${bill.billId}' : 'FLT-INV-68';
+    final invoiceNumber = bill.formattedInvoiceNo;
 
     return Container(
       decoration: BoxDecoration(
@@ -329,23 +330,23 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Florettechnologies',
-                      style: TextStyle(
+                      bill.companyName ?? 'Florettechnologies',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                         letterSpacing: -0.2,
                       ),
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(height: 3),
                     Text(
-                      'Clean City, Green Future',
-                      style: TextStyle(
+                      bill.tagline ?? 'Clean City, Green Future',
+                      style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w400,
                         color: Colors.white70,
@@ -502,11 +503,13 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
 
   // Card 3: Line Items & Pricing matching Image 2 & 3
   Widget _buildLineItemsCard(BillModel bill) {
-    final wasteTitle = widget.order.wasteType.toLowerCase().contains('waste')
-        ? (widget.order.wasteType.toLowerCase().contains('collection')
-            ? widget.order.wasteType
-            : '${widget.order.wasteType} Collection')
-        : 'Recyclable Waste Collection';
+    final wasteTitle = (bill.itemDescription != null && bill.itemDescription!.isNotEmpty)
+        ? bill.itemDescription!
+        : (widget.order.wasteType.toLowerCase().contains('waste')
+            ? (widget.order.wasteType.toLowerCase().contains('collection')
+                ? widget.order.wasteType
+                : '${widget.order.wasteType} Collection')
+            : 'Recyclable Waste Collection');
 
     final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
         ? bill.subtotal!
@@ -628,10 +631,10 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
           const SizedBox(height: 10),
 
           // GST / Tax Row
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'GST / Tax',
                 style: TextStyle(
                   fontSize: 14,
@@ -639,8 +642,8 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
                 ),
               ),
               Text(
-                '₹0.00',
-                style: TextStyle(
+                '₹${(bill.gst ?? 0.0).toStringAsFixed(2)}',
+                style: const TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1E293B),

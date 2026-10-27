@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:floret_app/services/web_api_services.dart';
 import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import '../model/address_model.dart';
 import '../model/order_model.dart';
 import '../model/profile_model.dart';
+import '../model/bill_model.dart';
 
 class ProfileRepository {
   final WebAPIService _webAPIService;
@@ -186,6 +188,47 @@ class ProfileRepository {
       token: token,
     );
     return response.statusCode == 200 || response.statusCode == 204;
+  }
+
+  /// Updates pickup status to rescheduled and updates date via PATCH /api/pickups/{pickup_id}/
+  Future<bool> reschedulePickup(
+    dynamic pickupId, {
+    required DateTime pickupDate,
+    String? pickupTimeSlot,
+    String? token,
+  }) async {
+    final cleanId = pickupId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanId.isEmpty) return false;
+    final parsedId = int.tryParse(cleanId) ?? cleanId;
+    final response = await _apiService.reschedulePickup(
+      pickupId: parsedId,
+      pickupDate: pickupDate,
+      pickupTimeSlot: pickupTimeSlot,
+      token: token,
+    );
+    return response.statusCode == 200 || response.statusCode == 204;
+  }
+
+  /// Downloads bill/invoice for a pickup via GET /api/download-bill-invoice/?pickup_id={id}
+  Future<BillModel?> downloadBillInvoice(dynamic pickupId, {String? token}) async {
+    final cleanId = pickupId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanId.isEmpty) return null;
+    final parsedId = int.tryParse(cleanId) ?? cleanId;
+    try {
+      final response = await _apiService.downloadBillInvoice(pickupId: parsedId);
+      dynamic data = response.data;
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+      if (data is Map) {
+        return BillModel.fromJson(Map<String, dynamic>.from(data));
+      }
+    } catch (e) {
+      debugPrint('[ProfileRepository] downloadBillInvoice error: $e');
+    }
+    return null;
   }
 
   /// Deletes the user profile/account via DELETE /api/profile/
