@@ -285,11 +285,12 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
 
   // Card 1: Green Header Card matching Image 2
   Widget _buildGreenHeroCard(BillModel bill) {
-    final invoiceDateStr = (bill.invoiceDate != null && bill.invoiceDate!.isNotEmpty)
-        ? bill.invoiceDate!
-        : (widget.order.completedDate != null
-            ? _formatDateTime(widget.order.completedDate!)
-            : _formatDateTime(DateTime(2026, 10, 15, 12, 56, 09)));
+    final invoiceDateStr =
+        (bill.invoiceDate != null && bill.invoiceDate!.isNotEmpty)
+            ? bill.invoiceDate!
+            : (widget.order.completedDate != null
+                ? _formatDateTime(widget.order.completedDate!)
+                : _formatDateTime(DateTime(2026, 10, 15, 12, 56, 09)));
 
     final invoiceNumber = bill.formattedInvoiceNo;
 
@@ -503,13 +504,14 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
 
   // Card 3: Line Items & Pricing matching Image 2 & 3
   Widget _buildLineItemsCard(BillModel bill) {
-    final wasteTitle = (bill.itemDescription != null && bill.itemDescription!.isNotEmpty)
-        ? bill.itemDescription!
-        : (widget.order.wasteType.toLowerCase().contains('waste')
-            ? (widget.order.wasteType.toLowerCase().contains('collection')
-                ? widget.order.wasteType
-                : '${widget.order.wasteType} Collection')
-            : 'Recyclable Waste Collection');
+    final wasteTitle =
+        (bill.itemDescription != null && bill.itemDescription!.isNotEmpty)
+            ? bill.itemDescription!
+            : (widget.order.wasteType.toLowerCase().contains('waste')
+                ? (widget.order.wasteType.toLowerCase().contains('collection')
+                    ? widget.order.wasteType
+                    : '${widget.order.wasteType} Collection')
+                : 'Recyclable Waste Collection');
 
     final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
         ? bill.subtotal!
@@ -518,6 +520,15 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
     final totalStr = subtotalStr;
     final weightStr = bill.weight.toStringAsFixed(2);
     final rateStr = bill.rate.toStringAsFixed(2);
+    final wasteProcessingVal =
+        (bill.wasteProcessingAmount > 0 && bill.weight > 0)
+            ? bill.wasteProcessingAmount
+            : bill.weight * bill.rate;
+    final rawGst = subtotalVal - wasteProcessingVal;
+    final gstVal = rawGst.abs() > 0.001
+        ? rawGst.abs()
+        : ((bill.gst != null && bill.gst! > 0) ? bill.gst! : 0.0);
+    final gstStr = gstVal.toStringAsFixed(2);
 
     return Container(
       decoration: BoxDecoration(
@@ -642,7 +653,7 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
                 ),
               ),
               Text(
-                '₹${(bill.gst ?? 0.0).toStringAsFixed(2)}',
+                '₹$gstStr',
                 style: const TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,

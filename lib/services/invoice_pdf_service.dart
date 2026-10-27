@@ -38,18 +38,20 @@ class InvoicePdfService {
         : '#${order.bookingId.replaceAll(RegExp(r'[^0-9]'), '')}';
     final customerName =
         bill.userName.isNotEmpty ? bill.userName : '917306929058';
-    final invoiceDateStr = (bill.invoiceDate != null && bill.invoiceDate!.isNotEmpty)
-        ? bill.invoiceDate!
-        : (order.completedDate != null
-            ? _formatDateTime(order.completedDate!)
-            : '15-10-2026 12:56:09');
-    final wasteTitle = (bill.itemDescription != null && bill.itemDescription!.isNotEmpty)
-        ? bill.itemDescription!
-        : (order.wasteType.toLowerCase().contains('waste')
-            ? (order.wasteType.toLowerCase().contains('collection')
-                ? order.wasteType
-                : '${order.wasteType} Collection')
-            : 'Recyclable Waste Collection');
+    final invoiceDateStr =
+        (bill.invoiceDate != null && bill.invoiceDate!.isNotEmpty)
+            ? bill.invoiceDate!
+            : (order.completedDate != null
+                ? _formatDateTime(order.completedDate!)
+                : '15-10-2026 12:56:09');
+    final wasteTitle =
+        (bill.itemDescription != null && bill.itemDescription!.isNotEmpty)
+            ? bill.itemDescription!
+            : (order.wasteType.toLowerCase().contains('waste')
+                ? (order.wasteType.toLowerCase().contains('collection')
+                    ? order.wasteType
+                    : '${order.wasteType} Collection')
+                : 'Recyclable Waste Collection');
     final weightStr = bill.weight.toStringAsFixed(2);
     final rateStr = bill.rate.toStringAsFixed(2);
     final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
@@ -57,10 +59,20 @@ class InvoicePdfService {
         : bill.totalAmount;
     final subtotalStr = subtotalVal.toStringAsFixed(2);
     final totalStr = subtotalStr;
+    final wasteProcessingVal =
+        (bill.wasteProcessingAmount > 0 && bill.weight > 0)
+            ? bill.wasteProcessingAmount
+            : bill.weight * bill.rate;
+    final rawGst = subtotalVal - wasteProcessingVal;
+    final gstVal = rawGst.abs() > 0.001
+        ? rawGst.abs()
+        : ((bill.gst != null && bill.gst! > 0) ? bill.gst! : 0.0);
+    final gstStr = gstVal.toStringAsFixed(2);
     final methodStr = bill.paymentMethod.isNotEmpty
         ? bill.paymentMethod.toUpperCase()
         : 'CASH';
-    final txnId = bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
+    final txnId =
+        bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
     final remarks = bill.remarks.isNotEmpty
         ? bill.remarks
         : 'Gross: Rs. $subtotalStr | Voucher (FLT-250): -Rs. 0.00 | Wallet: -Rs. 0.00 | Paid: Rs. $subtotalStr via ${methodStr.toLowerCase()}';
@@ -436,7 +448,7 @@ class InvoicePdfService {
                             ),
                           ),
                           pw.Text(
-                            'Rs. 0.00',
+                            'Rs. $gstStr',
                             style: pw.TextStyle(
                               fontSize: 10,
                               fontWeight: pw.FontWeight.bold,
@@ -616,8 +628,7 @@ class InvoicePdfService {
       File file = File('${targetDir.path}/$fileName');
 
       // 3. Generate real PDF bytes
-      final pdfBytes =
-          await generateInvoicePdfBytes(order: order, bill: bill);
+      final pdfBytes = await generateInvoicePdfBytes(order: order, bill: bill);
 
       // 4. Write bytes to file on phone with fallback
       try {
@@ -685,8 +696,7 @@ class InvoicePdfService {
     required BillModel bill,
   }) async {
     try {
-      final pdfBytes =
-          await generateInvoicePdfBytes(order: order, bill: bill);
+      final pdfBytes = await generateInvoicePdfBytes(order: order, bill: bill);
       final invoiceNumber =
           bill.billId > 0 ? 'FLT-INV-${bill.billId}' : 'FLT-INV-68';
       await Printing.layoutPdf(
@@ -714,8 +724,7 @@ class InvoicePdfService {
     required BillModel bill,
   }) async {
     try {
-      final pdfBytes =
-          await generateInvoicePdfBytes(order: order, bill: bill);
+      final pdfBytes = await generateInvoicePdfBytes(order: order, bill: bill);
       final invoiceNumber =
           bill.billId > 0 ? 'FLT-INV-${bill.billId}' : 'FLT-INV-68';
       await Printing.sharePdf(

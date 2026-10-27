@@ -100,7 +100,8 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.print_rounded, color: Color(0xFF1E293B), size: 22),
+                icon: const Icon(Icons.print_rounded,
+                    color: Color(0xFF1E293B), size: 22),
                 tooltip: 'Print Invoice',
                 onPressed: () => InvoicePdfService.instance.printInvoice(
                   context: context,
@@ -109,7 +110,8 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.share_rounded, color: Color(0xFF1E293B), size: 20),
+                icon: const Icon(Icons.share_rounded,
+                    color: Color(0xFF1E293B), size: 20),
                 tooltip: 'Share Invoice',
                 onPressed: () => InvoicePdfService.instance.shareInvoice(
                   context: context,
@@ -185,10 +187,20 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
         : bill.totalAmount;
     final subtotalStr = subtotalVal.toStringAsFixed(2);
     final totalStr = subtotalStr;
+    final wasteProcessingVal =
+        (bill.wasteProcessingAmount > 0 && bill.weight > 0)
+            ? bill.wasteProcessingAmount
+            : bill.weight * bill.rate;
+    final rawGst = subtotalVal - wasteProcessingVal;
+    final gstVal = rawGst.abs() > 0.001
+        ? rawGst.abs()
+        : ((bill.gst != null && bill.gst! > 0) ? bill.gst! : 0.0);
+    final gstStr = gstVal.toStringAsFixed(2);
     final methodStr = bill.paymentMethod.isNotEmpty
         ? bill.paymentMethod.toUpperCase()
         : 'CASH';
-    final txnId = bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
+    final txnId =
+        bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
     final remarks = bill.remarks.isNotEmpty
         ? bill.remarks
         : 'Gross: ₹$subtotalStr | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹$subtotalStr via ${methodStr.toLowerCase()}';
@@ -536,10 +548,10 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 3),
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
+                      const Text(
                         'GST / Tax:',
                         style: TextStyle(
                           fontSize: 8.5,
@@ -547,8 +559,8 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Rs. 0.00',
-                        style: TextStyle(
+                        'Rs. $gstStr',
+                        style: const TextStyle(
                           fontSize: 8.5,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF1E293B),
@@ -623,9 +635,7 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  remarks.startsWith('Remarks')
-                      ? remarks
-                      : 'Remarks: $remarks',
+                  remarks.startsWith('Remarks') ? remarks : 'Remarks: $remarks',
                   style: const TextStyle(
                     fontSize: 8,
                     color: Color(0xFF475569),

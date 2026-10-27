@@ -10,12 +10,14 @@ import 'official_invoice_screen.dart';
 
 /// Shows the pickup bill bottom sheet based on the order status.
 /// - Matches the Pickup Bill Details design shown in user screenshots
-void showPickupBillBottomSheet(BuildContext context, OrderModel order) {
+void showPickupBillBottomSheet(BuildContext context, OrderModel order,
+    {BillModel? initialBill}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => PickupBillBottomSheet(order: order),
+    builder: (ctx) =>
+        PickupBillBottomSheet(order: order, initialBill: initialBill),
   );
 }
 
@@ -33,80 +35,80 @@ void showBillingAndRatingDoneBottomSheet(BuildContext context,
         }
       });
       return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 38, 24, 42),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Green checkmark with soft mint halo
-            Container(
-              width: 76,
-              height: 76,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE8F8EE),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Container(
-                  width: 46,
-                  height: 46,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF22C55E),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 28,
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 38, 24, 42),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Green checkmark with soft mint halo
+              Container(
+                width: 76,
+                height: 76,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8F8EE),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF22C55E),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 22),
+              const SizedBox(height: 22),
 
-            // Title
-            const Text(
-              'Billing & Rating Done!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E242F),
-                letterSpacing: -0.2,
+              // Title
+              const Text(
+                'Billing & Rating Done!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E242F),
+                  letterSpacing: -0.2,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // Subtitle
-            const Text(
-              'Your pickup was recorded. Please pay cash to collector.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF64748B),
-                height: 1.4,
+              // Subtitle
+              const Text(
+                'Your pickup was recorded. Please pay cash to collector.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF64748B),
+                  height: 1.4,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 10),
-          ],
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
-      ),
-    );
-  },
-);
+      );
+    },
+  );
 }
 
 class PickupBillBottomSheet extends StatefulWidget {
@@ -137,13 +139,14 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
     super.initState();
     _checkPersistedPayment();
     final raw = (widget.order.rawStatus ?? '').toLowerCase().trim();
-    final isPendingOrRescheduled = (widget.order.status == OrderStatus.pending ||
-            widget.order.status == OrderStatus.reschedule ||
-            raw == 'pending' ||
-            raw == 'rescheduled' ||
-            raw == 'reschedule') &&
-        widget.order.status != OrderStatus.completed &&
-        widget.initialBill == null;
+    final isPendingOrRescheduled =
+        (widget.order.status == OrderStatus.pending ||
+                widget.order.status == OrderStatus.reschedule ||
+                raw == 'pending' ||
+                raw == 'rescheduled' ||
+                raw == 'reschedule') &&
+            widget.order.status != OrderStatus.completed &&
+            widget.initialBill == null;
 
     if (isPendingOrRescheduled) {
       _billFuture = Future.value(BillModel.sample);
@@ -153,7 +156,8 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
   }
 
   void _checkPersistedPayment() {
-    SpHelper.getString('online_paid_${widget.order.bookingId}').then((savedTxn) {
+    SpHelper.getString('online_paid_${widget.order.bookingId}')
+        .then((savedTxn) {
       if (savedTxn != null && savedTxn.isNotEmpty && mounted) {
         setState(() {
           _completedOnlineTxnMap[widget.order.bookingId] = savedTxn;
@@ -239,12 +243,12 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
     final raw = (widget.order.rawStatus ?? '').toLowerCase().trim();
     final isPendingOrRescheduledWithoutBill =
         (widget.order.status == OrderStatus.pending ||
-            widget.order.status == OrderStatus.reschedule ||
-            raw == 'pending' ||
-            raw == 'rescheduled' ||
-            raw == 'reschedule') &&
-        widget.order.status != OrderStatus.completed &&
-        widget.initialBill == null;
+                widget.order.status == OrderStatus.reschedule ||
+                raw == 'pending' ||
+                raw == 'rescheduled' ||
+                raw == 'reschedule') &&
+            widget.order.status != OrderStatus.completed &&
+            widget.initialBill == null;
 
     return Container(
       decoration: const BoxDecoration(
@@ -407,10 +411,11 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
         }
 
         final bill = snapshot.data ?? BillModel.sample;
-        final weight = (widget.order.effectiveWeight > 0 &&
-                !Platform.environment.containsKey('FLUTTER_TEST'))
-            ? widget.order.effectiveWeight
-            : (bill.weight > 0 ? bill.weight : 5.0);
+        final weight = bill.weight > 0
+            ? bill.weight
+            : (widget.order.effectiveWeight > 0
+                ? widget.order.effectiveWeight
+                : 5.0);
         final rate = bill.rate > 0 ? bill.rate : 42.0;
         final wasteProcessingVal = (bill.weight > 0 &&
                 bill.weight == weight &&
@@ -421,17 +426,17 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
             'Waste processing (${weight.toStringAsFixed(1)} kg @ ₹${rate.toStringAsFixed(0)}/kg)';
         final wasteProcessingValue =
             '₹${wasteProcessingVal.toStringAsFixed(2)}';
-        final disposalFeeValue = '₹${bill.disposalFeeGst.toStringAsFixed(2)}';
-        final grandTotalVal = Platform.environment.containsKey('FLUTTER_TEST')
-            ? 49.56
-            : ((bill.subtotal != null &&
-                    bill.subtotal! > 0 &&
-                    bill.subtotal != 49.56)
-                ? bill.subtotal!
-                : (bill.totalAmount > 0 && bill.totalAmount != 49.56
-                    ? bill.totalAmount
-                    : (weight >= 5.0 ? 256.06 : wasteProcessingVal + 46.06)));
+        final grandTotalVal = (bill.subtotal != null && bill.subtotal! > 0)
+            ? bill.subtotal!
+            : (bill.totalAmount > 0 ? bill.totalAmount : wasteProcessingVal);
         final grandTotalValue = '₹${grandTotalVal.toStringAsFixed(2)}';
+        final rawGstVal = grandTotalVal - wasteProcessingVal;
+        final gstAmountVal = rawGstVal.abs() > 0.001
+            ? rawGstVal.abs()
+            : ((bill.gst != null && bill.gst! > 0)
+                ? bill.gst!
+                : (bill.disposalFeeGst > 0 ? bill.disposalFeeGst : 0.0));
+        final gstValue = '₹${gstAmountVal.toStringAsFixed(2)}';
 
         final cardHolder = (bill.userName.isNotEmpty &&
                 !RegExp(r'^[0-9+]+$').hasMatch(bill.userName.trim()))
@@ -440,8 +445,8 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
 
         final isOnlinePaidLocally =
             _completedOnlineTxnMap.containsKey(widget.order.bookingId);
-        final isPaymentCompleted = isOnlinePaidLocally ||
-            widget.order.paymentStatus == 'online_paid';
+        final isPaymentCompleted =
+            isOnlinePaidLocally || widget.order.paymentStatus == 'online_paid';
 
         String txnIdDisplay;
         if (isOnlinePaidLocally) {
@@ -481,14 +486,12 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
               value: wasteProcessingValue,
             ),
 
-            // Disposal fee + GST (legacy test support)
-            if (Platform.environment.containsKey('FLUTTER_TEST')) ...[
-              const SizedBox(height: 12),
-              _buildBreakdownRow(
-                title: 'Disposal fee + GST',
-                value: disposalFeeValue,
-              ),
-            ],
+            // Row 2: Disposal fee + GST
+            const SizedBox(height: 12),
+            _buildBreakdownRow(
+              title: 'Disposal fee + GST',
+              value: gstValue,
+            ),
 
             const SizedBox(height: 12),
 
