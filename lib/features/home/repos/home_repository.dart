@@ -51,6 +51,10 @@ class HomeRepository {
             model.username!.toLowerCase() != 'user') {
           await SpHelper.saveString('home_username', model.username!);
         }
+        if (model.totalRecycledWeight > 0) {
+          await SpHelper.saveString(
+              'total_recycled_weight', model.totalRecycledWeight.toString());
+        }
         return model;
       }
     } catch (e) {

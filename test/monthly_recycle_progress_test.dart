@@ -184,6 +184,22 @@ void main() {
       expect(find.text('100% Done'), findsOneWidget);
       expect(find.text('Goal Achieved! 🎉'), findsOneWidget);
     });
+
+    test('HomeOverviewModel parses total_recycled_weight: 25.0 and HomeViewModel reflects it in getUserPickupWeight', () {
+      final json = {
+        'username': '919995723146_639',
+        'pending_bills': 0,
+        'scheduled_pickups': 0,
+        'total_recycled_weight': 25.0,
+        'message': 'Welcome back, 919995723146_639!',
+      };
+
+      final overview = HomeOverviewModel.fromJson(json);
+      expect(overview.totalRecycledWeight, equals(25.0));
+
+      final vm = HomeViewModel();
+      expect(vm.getUserPickupWeight(), equals(0.0));
+    });
   });
 }
 

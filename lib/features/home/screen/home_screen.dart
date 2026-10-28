@@ -911,6 +911,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     final double userWeight = vm?.getUserPickupWeight(orders, now) ??
         (() {
+          final apiWeight = vm?.homeOverview.totalRecycledWeight ?? 0.0;
           final list = orders ?? OrderStore.instance.orders.value;
           final monthlyList = list.where((o) {
             final date = o.completedDate ?? o.pickupDate;
@@ -923,7 +924,8 @@ class _HomeScreenState extends State<HomeScreen> {
               .where((o) => o.status != OrderStatus.cancelled)
               .toList();
           final target = completed.isNotEmpty ? completed : valid;
-          return target.length * 5.0;
+          final ordersWeight = target.length * 5.0;
+          return apiWeight > ordersWeight ? apiWeight : ordersWeight;
         })();
 
     final double progressFraction = (userWeight / targetWeight).clamp(0.0, 1.0);

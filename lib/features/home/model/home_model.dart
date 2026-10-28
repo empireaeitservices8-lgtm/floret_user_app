@@ -47,20 +47,50 @@ class HomeOverviewModel {
   final String? username;
   final int pendingBills;
   final int scheduledPickups;
+  final double totalRecycledWeight;
   final String? message;
 
   const HomeOverviewModel({
     this.username,
     this.pendingBills = 0,
     this.scheduledPickups = 0,
+    this.totalRecycledWeight = 0.0,
     this.message,
   });
 
+  HomeOverviewModel copyWith({
+    String? username,
+    int? pendingBills,
+    int? scheduledPickups,
+    double? totalRecycledWeight,
+    String? message,
+  }) {
+    return HomeOverviewModel(
+      username: username ?? this.username,
+      pendingBills: pendingBills ?? this.pendingBills,
+      scheduledPickups: scheduledPickups ?? this.scheduledPickups,
+      totalRecycledWeight: totalRecycledWeight ?? this.totalRecycledWeight,
+      message: message ?? this.message,
+    );
+  }
+
   factory HomeOverviewModel.fromJson(Map<String, dynamic> json) {
+    double parseWeight(dynamic val) {
+      if (val == null) return 0.0;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString()) ?? 0.0;
+    }
+
     return HomeOverviewModel(
       username: json['username']?.toString(),
       pendingBills: (json['pending_bills'] as num?)?.toInt() ?? 0,
       scheduledPickups: (json['scheduled_pickups'] as num?)?.toInt() ?? 0,
+      totalRecycledWeight: parseWeight(
+        json['total_recycled_weight'] ??
+            json['totalRecycledWeight'] ??
+            json['recycled_weight'] ??
+            json['recycledWeight'],
+      ),
       message: json['message'] as String?,
     );
   }
@@ -69,6 +99,7 @@ class HomeOverviewModel {
         'username': username,
         'pending_bills': pendingBills,
         'scheduled_pickups': scheduledPickups,
+        'total_recycled_weight': totalRecycledWeight,
         'message': message,
       };
 }

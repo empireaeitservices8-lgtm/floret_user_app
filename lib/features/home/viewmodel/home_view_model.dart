@@ -1,3 +1,4 @@
+import 'package:floret_app/helpers/sp_helper.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:floret_app/providers/view_model.dart';
@@ -23,6 +24,19 @@ class HomeViewModel extends ViewModel {
     if (cached.isNotEmpty) {
       _userName = cached;
       notifyListeners();
+    }
+    final cachedWeightStr = await SpHelper.getString('total_recycled_weight');
+    if (cachedWeightStr != null && cachedWeightStr.isNotEmpty) {
+      final cachedWeight = double.tryParse(cachedWeightStr) ?? 0.0;
+      if (cachedWeight > 0 &&
+          _homeBundle.homeOverview.totalRecycledWeight == 0) {
+        _homeBundle = _homeBundle.copyWith(
+          homeOverview: _homeBundle.homeOverview.copyWith(
+            totalRecycledWeight: cachedWeight,
+          ),
+        );
+        notifyListeners();
+      }
     }
   }
 
@@ -133,6 +147,7 @@ class HomeViewModel extends ViewModel {
   int get selectedNavIndex => _selectedNavIndex;
   HomeDataBundle get homeBundle => _homeBundle;
   HomeOverviewModel get homeOverview => _homeBundle.homeOverview;
+  double get totalRecycledWeight => _homeBundle.homeOverview.totalRecycledWeight;
   WalletBalanceDataModel get walletBalance => _homeBundle.walletBalance;
   WalletTransactionsResponseModel get walletTransactions =>
       _homeBundle.walletTransactions;
@@ -246,6 +261,10 @@ class HomeViewModel extends ViewModel {
   /// Automatically resets and updates at the start of every month while preserving records.
   double getUserPickupWeight([List<OrderModel>? ordersList, DateTime? forMonth]) {
     final now = forMonth ?? DateTime.now();
+    final isCurrentMonth =
+        now.year == DateTime.now().year && now.month == DateTime.now().month;
+
+    double ordersWeight = 0.0;
     final list = ordersList ??
         (OrderStore.instance.orders.value.isNotEmpty
             ? OrderStore.instance.orders.value
@@ -261,10 +280,8 @@ class HomeViewModel extends ViewModel {
       final valid =
           monthlyList.where((o) => o.status != OrderStatus.cancelled).toList();
       final target = completed.isNotEmpty ? completed : valid;
-      return target.length * 5.0;
-    }
-
-    if (_homeBundle.pickups.isNotEmpty) {
+      ordersWeight = target.length * 5.0;
+    } else if (_homeBundle.pickups.isNotEmpty) {
       final monthlyPickups = _homeBundle.pickups.where((p) {
         if (p.pickupDate != null && p.pickupDate!.isNotEmpty) {
           final s = p.pickupDate!.trim();
@@ -290,10 +307,15 @@ class HomeViewModel extends ViewModel {
         }
         return false;
       }).toList();
-      return monthlyPickups.length * 5.0;
+      ordersWeight = monthlyPickups.length * 5.0;
     }
 
-    return 0.0;
+    if (isCurrentMonth && _homeBundle.homeOverview.totalRecycledWeight > 0) {
+      final apiWeight = _homeBundle.homeOverview.totalRecycledWeight;
+      return apiWeight > ordersWeight ? apiWeight : ordersWeight;
+    }
+
+    return ordersWeight;
   }
 
   /// Fetches order history from backend API, updates local state,
