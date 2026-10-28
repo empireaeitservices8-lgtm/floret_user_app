@@ -641,12 +641,12 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
 
           const SizedBox(height: 10),
 
-          // GST / Tax Row
+          //bag fee / GST  Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'GST / Tax',
+                'Bag fee / GST',
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF64748B),

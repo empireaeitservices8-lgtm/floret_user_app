@@ -486,10 +486,10 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
               value: wasteProcessingValue,
             ),
 
-            // Row 2: Disposal fee + GST
+            // Row 2: Bag fee + GST
             const SizedBox(height: 12),
             _buildBreakdownRow(
-              title: 'Disposal fee + GST',
+              title: 'Bag fee(₹7/bag) + GST',
               value: gstValue,
             ),
 

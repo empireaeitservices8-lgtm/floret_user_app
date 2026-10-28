@@ -201,84 +201,27 @@ class AuthRepository {
             : (signupResponse.username ?? fullName);
 
         debugPrint(
-            '[RegisterProvider] Registration successful. Generated OTP: ');
+            '[RegisterProvider] Registration successful.');
 
-        // Sequence of APIs after successful registration:
-        // 1. POST /api/otp/send/
-        // 2. POST /api/login/ with phone & returned otp
-        // 3. GET /api/profile/ with obtained token
         String retrievedToken = signupResponse.token ?? '';
         String retrievedUserId = signupResponse.userId?.toString() ??
             resData['user_id']?.toString() ??
             '';
+        if (retrievedUserId.isEmpty && resData['data'] is Map) {
+          retrievedUserId = (resData['data'] as Map)['user_id']?.toString() ??
+              (resData['data'] as Map)['id']?.toString() ??
+              '';
+        }
+        if (retrievedUserId.isEmpty && resData['user'] is Map) {
+          retrievedUserId = (resData['user'] as Map)['user_id']?.toString() ??
+              (resData['user'] as Map)['id']?.toString() ??
+              '';
+        }
         String retrievedUsername = signupResponse.username ?? primaryName;
         String retrievedAccountType =
             signupResponse.accountType ?? request.accountType;
         String retrievedMouStatus = '';
         bool canAccessApp = true;
-
-        try {
-          final otpResponse = await _apiService.sendOtp(phone);
-          final otpData =
-              otpResponse.data is Map ? otpResponse.data as Map : {};
-          final generatedOtp = otpData['otp']?.toString() ?? '';
-
-          if (generatedOtp.isNotEmpty) {
-            final loginResponse = await _apiService.login(
-              phoneNumber: phone,
-              otp: generatedOtp,
-            );
-            final loginData =
-                loginResponse.data is Map ? loginResponse.data as Map : {};
-            if (loginData['token'] != null &&
-                loginData['token'].toString().trim().isNotEmpty) {
-              retrievedToken = loginData['token'].toString().trim();
-            }
-            if (loginData['user_id'] != null) {
-              retrievedUserId = loginData['user_id'].toString();
-            }
-            if (loginData['username'] != null &&
-                loginData['username'].toString().trim().isNotEmpty) {
-              retrievedUsername = loginData['username'].toString().trim();
-            }
-            if (loginData['account_type'] != null &&
-                loginData['account_type'].toString().trim().isNotEmpty) {
-              retrievedAccountType =
-                  loginData['account_type'].toString().trim();
-            }
-            if (loginData['mou_status'] != null) {
-              retrievedMouStatus = loginData['mou_status'].toString().trim();
-            }
-            if (loginData['can_access_app'] != null) {
-              canAccessApp = loginData['can_access_app'] == true;
-            }
-
-            if (retrievedToken.isNotEmpty) {
-              await SpHelper.saveString(sp_keys.keyToken, retrievedToken);
-              await SpHelper.saveString('token', retrievedToken);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString(sp_keys.keyToken, retrievedToken);
-              await prefs.setString('token', retrievedToken);
-              if (retrievedUserId.isNotEmpty) {
-                await SpHelper.saveString(sp_keys.keyUserId, retrievedUserId);
-                await prefs.setString(sp_keys.keyUserId, retrievedUserId);
-                await prefs.setString('user_id', retrievedUserId);
-                await AddressStorageService.loadForUser(retrievedUserId);
-              }
-              await _webAPIService.initTokenToHeader();
-
-              try {
-                await _apiService.getProfile(token: retrievedToken);
-              } catch (profileErr) {
-                debugPrint(
-                    '⚠️ [SIGNUP] Profile fetch error (non-fatal): $profileErr');
-              }
-            }
-          }
-        } catch (chainErr) {
-          debugPrint(
-              '⚠️ [SIGNUP] Post-registration OTP/Login sequence error: $chainErr');
-        }
 
         // Save session credentials
         if (retrievedToken.isNotEmpty) {
