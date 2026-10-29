@@ -215,8 +215,18 @@ class WalletRepository {
     }
     try {
       final response = await _apiService.getRewardPoints();
-      if (response.data is Map) {
-        final map = Map<String, dynamic>.from(response.data as Map);
+      dynamic responseData = response.data;
+      if (responseData is String) {
+        try {
+          responseData = jsonDecode(responseData);
+        } catch (_) {}
+      }
+      if (responseData is Map) {
+        final map = Map<String, dynamic>.from(
+          (responseData['data'] is Map)
+              ? responseData['data'] as Map
+              : responseData,
+        );
         final model = RewardPointsDataModel.fromJson(map);
         SpHelper.saveString(
             'eco_reward_points', model.availablePoints.toString());
@@ -237,8 +247,18 @@ class WalletRepository {
     }
     try {
       final response = await _apiService.getRewardPointsTransactions();
-      if (response.data is Map) {
-        final map = Map<String, dynamic>.from(response.data as Map);
+      dynamic responseData = response.data;
+      if (responseData is String) {
+        try {
+          responseData = jsonDecode(responseData);
+        } catch (_) {}
+      }
+      if (responseData is Map) {
+        final map = Map<String, dynamic>.from(
+          (responseData['data'] is Map)
+              ? responseData['data'] as Map
+              : responseData,
+        );
         return RewardPointsTransactionsResponseModel.fromJson(map);
       }
     } catch (e) {

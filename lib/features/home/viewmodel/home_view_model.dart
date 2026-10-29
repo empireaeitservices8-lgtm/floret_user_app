@@ -354,6 +354,19 @@ class HomeViewModel extends ViewModel {
     }
   }
 
+  /// Fetches reward points directly from GET /api/reward-points/
+  Future<RewardPointsDataModel> fetchRewardPoints() async {
+    try {
+      final points = await _repository.fetchRewardPoints();
+      _homeBundle = _homeBundle.copyWith(rewardPoints: points);
+      notifyListeners();
+      return points;
+    } catch (e) {
+      debugPrint('⚠️ [HOME VIEWMODEL] fetchRewardPoints error: $e');
+      return _homeBundle.rewardPoints;
+    }
+  }
+
   Future<void> loadHomeData({bool isRefresh = false}) async {
     if (isRefresh) {
       _isRefreshing = true;

@@ -282,9 +282,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                           title: 'Eco Points',
                                           value: '${vm.ecoPoints} Pts',
                                           onTap: () async {
-                                            await Navigator.pushNamed(context,
-                                                WalletScreen.routeName);
+                                            await Navigator.pushNamed(
+                                              context,
+                                              WalletScreen.routeName,
+                                              arguments: {'initialTab': 1},
+                                            );
                                             _viewModel.fetchWalletBalance();
+                                            _viewModel.fetchRewardPoints();
                                           },
                                           gradientColors: const [
                                             Color(0xFFF59E0B),

@@ -193,6 +193,39 @@ class WalletViewModel extends ViewModel {
       _selectedActivityTab = index;
       notifyListeners();
     }
+    if (index == 1) {
+      fetchRewardPoints();
+      fetchRewardPointsTransactions();
+    }
+  }
+
+  /// Fetches reward points directly from GET /api/reward-points/
+  Future<RewardPointsDataModel> fetchRewardPoints() async {
+    try {
+      final points = await _repository.fetchRewardPoints();
+      _walletBundle = _walletBundle.copyWith(rewardPoints: points);
+      notifyListeners();
+      return points;
+    } catch (e) {
+      debugPrint('⚠️ [WALLET VIEWMODEL] fetchRewardPoints error: $e');
+      return _walletBundle.rewardPoints;
+    }
+  }
+
+  /// Fetches reward points transactions directly from GET /api/reward-points/transactions/
+  Future<RewardPointsTransactionsResponseModel>
+      fetchRewardPointsTransactions() async {
+    try {
+      final transactions = await _repository.fetchRewardPointsTransactions();
+      _walletBundle =
+          _walletBundle.copyWith(rewardPointsTransactions: transactions);
+      notifyListeners();
+      return transactions;
+    } catch (e) {
+      debugPrint(
+          '⚠️ [WALLET VIEWMODEL] fetchRewardPointsTransactions error: $e');
+      return _walletBundle.rewardPointsTransactions;
+    }
   }
 
   void setAvailablePoints(int points) {

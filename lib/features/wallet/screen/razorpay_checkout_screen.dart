@@ -21,8 +21,8 @@ class RazorpayCheckoutScreen extends StatefulWidget {
 
   const RazorpayCheckoutScreen({
     super.key,
-    this.amount = 500.00,
-    this.orderId = 'order_u6Fx1O',
+    this.amount = 0,
+    this.orderId = '',
     this.transactionId,
     this.onTopUpSuccess,
     this.isCommercialRegistration = false,
@@ -33,7 +33,8 @@ class RazorpayCheckoutScreen extends StatefulWidget {
 }
 
 class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
-  int _selectedPaymentMethod = 0; // 0: UPI / QR, 1: Card, 2: NetBanking, 3: Wallets
+  int _selectedPaymentMethod =
+      0; // 0: UPI / QR, 1: Card, 2: NetBanking, 3: Wallets
   int _selectedAppIndex = 0; // 0: Google Pay, 1: PhonePe, 2: Paytm, 3: BHIM UPI
   String _selectedBank = 'HDFC';
   String _selectedWallet = 'Mobikwik';
@@ -103,8 +104,8 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
       },
       onError: (PaymentFailureResponse r) {
         if (mounted) setState(() => _isProcessing = false);
-        messenger.showSnackBar(SnackBar(
-            content: Text(r.message ?? 'Payment cancelled.')));
+        messenger.showSnackBar(
+            SnackBar(content: Text(r.message ?? 'Payment cancelled.')));
       },
       onExternalWallet: (_) {
         if (mounted) setState(() => _isProcessing = false);
@@ -150,12 +151,12 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
       ),
     );
   }
+
   @override
   void initState() {
     super.initState();
     _vpaController = TextEditingController(text: 'user@okaxis');
-    _cardNumberController =
-        TextEditingController(text: '4532 8921 0041 9823');
+    _cardNumberController = TextEditingController(text: '4532 8921 0041 9823');
     _cardExpiryController = TextEditingController(text: '08/28');
     _cardCvvController = TextEditingController(text: '•••');
     _cardHolderController = TextEditingController(text: 'VALUED USER');
@@ -171,7 +172,6 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
     _cardHolderController.dispose();
     super.dispose();
   }
-
 
   void _navigateToSuccessScreen() {
     Navigator.pushReplacement(
@@ -904,7 +904,8 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
           color: Color(0xFF64748B),
         ),
         floatingLabelBehavior: FloatingLabelBehavior.always,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
@@ -1016,7 +1017,8 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
           color: isSelected ? const Color(0xFF0F1E36) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFF0F1E36) : const Color(0xFFE2E8F0),
+            color:
+                isSelected ? const Color(0xFF0F1E36) : const Color(0xFFE2E8F0),
             width: 1.2,
           ),
         ),
@@ -1162,9 +1164,8 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
                 color: isSel ? const Color(0xFFF0F6FF) : Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isSel
-                      ? const Color(0xFF388AF6)
-                      : const Color(0xFFE2E8F0),
+                  color:
+                      isSel ? const Color(0xFF388AF6) : const Color(0xFFE2E8F0),
                   width: isSel ? 1.5 : 1,
                 ),
               ),
@@ -1523,4 +1524,3 @@ class _ThreeDSecureAuthDialogState extends State<ThreeDSecureAuthDialog> {
     );
   }
 }
-

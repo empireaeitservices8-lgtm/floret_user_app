@@ -44,11 +44,13 @@ Future<void> _handleAutoTopUpSuccess(
 class WalletScreen extends StatefulWidget {
   static const String routeName = '/wallet';
   final int initialPoints;
+  final int initialTab;
   final WalletViewModel? viewModel;
 
   const WalletScreen({
     super.key,
     this.initialPoints = 0,
+    this.initialTab = 0,
     this.viewModel,
   });
 
@@ -64,10 +66,26 @@ class _WalletScreenState extends State<WalletScreen> {
     super.initState();
     _viewModel =
         widget.viewModel ?? WalletViewModel(initialPoints: widget.initialPoints);
+    if (widget.initialTab != 0) {
+      _viewModel.setActivityTab(widget.initialTab);
+    }
     if (widget.viewModel == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _viewModel.fetchWalletBalance();
+        if (widget.initialTab == 1) {
+          _viewModel.fetchRewardPoints();
+        }
       });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['initialTab'] == 1) {
+      _viewModel.setActivityTab(1);
+      _viewModel.fetchRewardPoints();
     }
   }
 

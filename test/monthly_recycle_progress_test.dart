@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:floret_app/features/home/screen/home_screen.dart';
 import 'package:floret_app/features/home/viewmodel/home_view_model.dart';
+import 'package:floret_app/features/home/model/home_model.dart';
 import 'package:floret_app/features/profile/model/order_model.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
