@@ -104,6 +104,86 @@ class HomeOverviewModel {
       };
 }
 
+/// Model for GET /api/recycle-progress/
+class RecycleProgressModel {
+  final String? username;
+  final double totalRecycledWeight;
+  final double totalPaidAmount;
+  final double totalPendingAmount;
+  final int totalPickups;
+
+  const RecycleProgressModel({
+    this.username,
+    this.totalRecycledWeight = 0.0,
+    this.totalPaidAmount = 0.0,
+    this.totalPendingAmount = 0.0,
+    this.totalPickups = 0,
+  });
+
+  RecycleProgressModel copyWith({
+    String? username,
+    double? totalRecycledWeight,
+    double? totalPaidAmount,
+    double? totalPendingAmount,
+    int? totalPickups,
+  }) {
+    return RecycleProgressModel(
+      username: username ?? this.username,
+      totalRecycledWeight: totalRecycledWeight ?? this.totalRecycledWeight,
+      totalPaidAmount: totalPaidAmount ?? this.totalPaidAmount,
+      totalPendingAmount: totalPendingAmount ?? this.totalPendingAmount,
+      totalPickups: totalPickups ?? this.totalPickups,
+    );
+  }
+
+  factory RecycleProgressModel.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic val) {
+      if (val == null) return 0.0;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString()) ?? 0.0;
+    }
+
+    int parseInt(dynamic val) {
+      if (val == null) return 0;
+      if (val is num) return val.toInt();
+      return int.tryParse(val.toString()) ?? 0;
+    }
+
+    return RecycleProgressModel(
+      username: json['username']?.toString(),
+      totalRecycledWeight: parseDouble(
+        json['total_recycled_weight'] ??
+            json['totalRecycledWeight'] ??
+            json['recycled_weight'],
+      ),
+      totalPaidAmount: parseDouble(
+        json['total_paid_amount'] ??
+            json['totalPaidAmount'] ??
+            json['paid_amount'],
+      ),
+      totalPendingAmount: parseDouble(
+        json['total_pending_amount'] ??
+            json['totalPendingAmount'] ??
+            json['pending_amount'],
+      ),
+      totalPickups: parseInt(
+        json['total_pickups'] ??
+            json['totalPickups'] ??
+            json['pickups_count'] ??
+            json['pickups'],
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'username': username,
+        'total_recycled_weight': totalRecycledWeight,
+        'total_paid_amount': totalPaidAmount,
+        'total_pending_amount': totalPendingAmount,
+        'total_pickups': totalPickups,
+      };
+}
+
 /// Model for GET /api/wallet/balance/
 class WalletBalanceDataModel {
   final int? id;
@@ -391,6 +471,7 @@ class PickupItemDataModel {
 /// Aggregate bundle model for HomeScreen state
 class HomeDataBundle {
   final HomeOverviewModel homeOverview;
+  final RecycleProgressModel recycleProgress;
   final WalletBalanceDataModel walletBalance;
   final WalletTransactionsResponseModel walletTransactions;
   final WalletTopupConfigModel walletTopupConfig;
@@ -400,6 +481,7 @@ class HomeDataBundle {
 
   const HomeDataBundle({
     this.homeOverview = const HomeOverviewModel(),
+    this.recycleProgress = const RecycleProgressModel(),
     this.walletBalance = const WalletBalanceDataModel(),
     this.walletTransactions = const WalletTransactionsResponseModel(),
     this.walletTopupConfig = const WalletTopupConfigModel(),
@@ -411,6 +493,7 @@ class HomeDataBundle {
 
   HomeDataBundle copyWith({
     HomeOverviewModel? homeOverview,
+    RecycleProgressModel? recycleProgress,
     WalletBalanceDataModel? walletBalance,
     WalletTransactionsResponseModel? walletTransactions,
     WalletTopupConfigModel? walletTopupConfig,
@@ -420,6 +503,7 @@ class HomeDataBundle {
   }) {
     return HomeDataBundle(
       homeOverview: homeOverview ?? this.homeOverview,
+      recycleProgress: recycleProgress ?? this.recycleProgress,
       walletBalance: walletBalance ?? this.walletBalance,
       walletTransactions: walletTransactions ?? this.walletTransactions,
       walletTopupConfig: walletTopupConfig ?? this.walletTopupConfig,

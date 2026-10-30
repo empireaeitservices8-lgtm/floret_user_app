@@ -13,8 +13,8 @@ class HomeViewModel extends ViewModel {
   HomeViewModel({
     HomeRepository? repository,
     ProfileRepository? profileRepository,
-  })  : _repository = repository ??
-            HomeRepository(profileRepository: profileRepository) {
+  }) : _repository =
+            repository ?? HomeRepository(profileRepository: profileRepository) {
     _initUserName();
     loadHomeData();
   }
@@ -96,6 +96,8 @@ class HomeViewModel extends ViewModel {
   }
 
   /// Dynamic greeting formatting with optional name override
+  String get getGreetingWithName => getGreeting();
+
   String getGreeting({String? name}) {
     final hour = DateTime.now().hour;
     String greetText;
@@ -147,7 +149,9 @@ class HomeViewModel extends ViewModel {
   int get selectedNavIndex => _selectedNavIndex;
   HomeDataBundle get homeBundle => _homeBundle;
   HomeOverviewModel get homeOverview => _homeBundle.homeOverview;
-  double get totalRecycledWeight => _homeBundle.homeOverview.totalRecycledWeight;
+  RecycleProgressModel get recycleProgress => _homeBundle.recycleProgress;
+  double get totalRecycledWeight =>
+      _homeBundle.homeOverview.totalRecycledWeight;
   WalletBalanceDataModel get walletBalance => _homeBundle.walletBalance;
   WalletTransactionsResponseModel get walletTransactions =>
       _homeBundle.walletTransactions;
@@ -170,8 +174,12 @@ class HomeViewModel extends ViewModel {
   bool get isLoadingOrders => _isLoadingOrders;
 
   /// Calculates monthly completed pickups count for the user for the given month.
-  int getMonthlyCompletedPickupsCount([List<OrderModel>? ordersList, DateTime? forMonth]) {
+  int getMonthlyCompletedPickupsCount(
+      [List<OrderModel>? ordersList, DateTime? forMonth]) {
     final now = forMonth ?? DateTime.now();
+    final isCurrentMonth =
+        now.year == DateTime.now().year && now.month == DateTime.now().month;
+    int ordersCompleted = 0;
     final list = ordersList ??
         (OrderStore.instance.orders.value.isNotEmpty
             ? OrderStore.instance.orders.value
@@ -184,10 +192,8 @@ class HomeViewModel extends ViewModel {
 
       final completed =
           monthlyList.where((o) => o.status == OrderStatus.completed).toList();
-      return completed.length;
-    }
-
-    if (_homeBundle.pickups.isNotEmpty) {
+      ordersCompleted = completed.length;
+    } else if (_homeBundle.pickups.isNotEmpty) {
       final monthlyPickups = _homeBundle.pickups.where((p) {
         final rawStatus = (p.status ?? '').toLowerCase().trim();
         final isCompleted = rawStatus.contains('complete') ||
@@ -223,43 +229,31 @@ class HomeViewModel extends ViewModel {
         }
         return false;
       }).toList();
-      return monthlyPickups.length;
+      ordersCompleted = monthlyPickups.length;
     }
 
-    return 0;
+    if (isCurrentMonth) {
+      final apiPickups = _homeBundle.recycleProgress.totalPickups;
+      if (apiPickups > 0) {
+        return ordersCompleted > apiPickups ? ordersCompleted : apiPickups;
+      }
+    }
+
+    return ordersCompleted;
   }
 
   /// Calculates monthly CO₂ reduced for the user in kg for the active month (14.3 kg per completed pickup).
   /// Preserves separate records per month.
   double getUserCo2Reduced([List<OrderModel>? ordersList, DateTime? forMonth]) {
-    final now = forMonth ?? DateTime.now();
-    final list = ordersList ??
-        (OrderStore.instance.orders.value.isNotEmpty
-            ? OrderStore.instance.orders.value
-            : _orderHistory);
-    if (list.isNotEmpty) {
-      final monthlyList = list.where((o) {
-        final date = o.completedDate ?? o.pickupDate;
-        return date.year == now.year && date.month == now.month;
-      }).toList();
-
-      final completed =
-          monthlyList.where((o) => o.status == OrderStatus.completed).toList();
-      return completed.length * 14.3;
-    }
-
-    if (_homeBundle.pickups.isNotEmpty) {
-      final count = getMonthlyCompletedPickupsCount([], now);
-      return count * 14.3;
-    }
-
-    return 0.0;
+    final count = getMonthlyCompletedPickupsCount(ordersList, forMonth);
+    return count * 14.3;
   }
 
   /// Calculates monthly pickup weight for the user in kg for the active month (target 50kg monthly).
   /// Increases by 5 kg per completed pickup.
   /// Automatically resets and updates at the start of every month while preserving records.
-  double getUserPickupWeight([List<OrderModel>? ordersList, DateTime? forMonth]) {
+  double getUserPickupWeight(
+      [List<OrderModel>? ordersList, DateTime? forMonth]) {
     final now = forMonth ?? DateTime.now();
     final isCurrentMonth =
         now.year == DateTime.now().year && now.month == DateTime.now().month;
@@ -310,9 +304,13 @@ class HomeViewModel extends ViewModel {
       ordersWeight = monthlyPickups.length * 5.0;
     }
 
-    if (isCurrentMonth && _homeBundle.homeOverview.totalRecycledWeight > 0) {
-      final apiWeight = _homeBundle.homeOverview.totalRecycledWeight;
-      return apiWeight > ordersWeight ? apiWeight : ordersWeight;
+    if (isCurrentMonth) {
+      final apiWeight = _homeBundle.recycleProgress.totalRecycledWeight > 0
+          ? _homeBundle.recycleProgress.totalRecycledWeight
+          : _homeBundle.homeOverview.totalRecycledWeight;
+      if (apiWeight > 0) {
+        return apiWeight > ordersWeight ? apiWeight : ordersWeight;
+      }
     }
 
     return ordersWeight;
@@ -367,6 +365,19 @@ class HomeViewModel extends ViewModel {
     }
   }
 
+  /// Fetches recycle progress directly from GET /api/recycle-progress/
+  Future<RecycleProgressModel> fetchRecycleProgress() async {
+    try {
+      final progress = await _repository.fetchRecycleProgress();
+      _homeBundle = _homeBundle.copyWith(recycleProgress: progress);
+      notifyListeners();
+      return progress;
+    } catch (e) {
+      debugPrint('⚠️ [HOME VIEWMODEL] fetchRecycleProgress error: $e');
+      return _homeBundle.recycleProgress;
+    }
+  }
+
   Future<void> loadHomeData({bool isRefresh = false}) async {
     if (isRefresh) {
       _isRefreshing = true;
@@ -390,7 +401,19 @@ class HomeViewModel extends ViewModel {
           _homeBundle = _homeBundle.copyWith(walletBalance: bal);
         }
       } catch (balErr) {
-        debugPrint('⚠️ [HOME VIEWMODEL] walletBalance in loadHomeData error: $balErr');
+        debugPrint(
+            '⚠️ [HOME VIEWMODEL] walletBalance in loadHomeData error: $balErr');
+      }
+
+      // Fetch recycle progress directly
+      try {
+        final rec = await _repository.fetchRecycleProgress();
+        if (rec.totalRecycledWeight > 0 || rec.totalPickups > 0) {
+          _homeBundle = _homeBundle.copyWith(recycleProgress: rec);
+        }
+      } catch (recErr) {
+        debugPrint(
+            '⚠️ [HOME VIEWMODEL] recycleProgress in loadHomeData error: $recErr');
       }
 
       // Call order history API in parallel or immediately after home bundle
@@ -402,7 +425,8 @@ class HomeViewModel extends ViewModel {
           OrderStore.instance.mergeRemoteOrders(remoteOrders);
         }
       } catch (orderErr) {
-        debugPrint('⚠️ [HOME VIEWMODEL] orderHistory in loadHomeData error: $orderErr');
+        debugPrint(
+            '⚠️ [HOME VIEWMODEL] orderHistory in loadHomeData error: $orderErr');
       }
     } catch (e) {
       // Retain previous state on error

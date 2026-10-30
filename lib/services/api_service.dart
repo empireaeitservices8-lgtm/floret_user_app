@@ -13,6 +13,7 @@ class ApiService {
   static const String verifyOtpEndpoint = '/api/otp/verify/';
   static const String profileEndpoint = '/api/profile/';
   static const String homeEndpoint = '/api/home/';
+  static const String recycleProgressEndpoint = '/api/recycle-progress/';
   static const String walletBalanceEndpoint = '/api/wallet/balance/';
   static const String walletTransactionsEndpoint = '/api/wallet/transactions/';
   static const String walletTopupEndpoint = '/api/wallet/topup/';
@@ -798,6 +799,16 @@ class ApiService {
         'razorpay_payment_id': razorpayPaymentId,
         'razorpay_signature': razorpaySignature,
       },
+      token: token,
+    );
+  }
+
+
+  /// Sends a GET request to /api/recycle-progress/
+  Future<Response> getRecycleProgress({String? token}) async {
+    return _authenticatedGet(
+      endpoint: recycleProgressEndpoint,
+      requestName: 'GET RECYCLE PROGRESS',
       token: token,
     );
   }

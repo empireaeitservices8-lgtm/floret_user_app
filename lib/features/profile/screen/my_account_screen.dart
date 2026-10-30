@@ -353,7 +353,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
             Expanded(
               child: _buildMetricItem(
                 icon: Icons.scale_rounded,
-                value: '${vm.wasteCollected.toStringAsFixed(1)} kg',
+                value: '${vm.getWasteCollected(orders).toStringAsFixed(1)} kg',
                 label: 'Waste\nCollected',
               ),
             ),

@@ -4,6 +4,7 @@ class ApiEndpoints {
   static const String register = "/api/register/";
   static const String profile = "/api/profile/";
   static const String home = "/api/home/";
+  static const String recycleProgress = "/api/recycle-progress/";
   static const String walletBalance = "/api/wallet/balance/";
   static const String walletTransactions = "/api/wallet/transactions/";
   static const String walletTopup = "/api/wallet/topup/";

@@ -11,13 +11,16 @@ import 'official_invoice_screen.dart';
 /// Shows the pickup bill bottom sheet based on the order status.
 /// - Matches the Pickup Bill Details design shown in user screenshots
 void showPickupBillBottomSheet(BuildContext context, OrderModel order,
-    {BillModel? initialBill}) {
+    {BillModel? initialBill, bool? isPendingBill}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) =>
-        PickupBillBottomSheet(order: order, initialBill: initialBill),
+    builder: (ctx) => PickupBillBottomSheet(
+      order: order,
+      initialBill: initialBill,
+      forcePendingBill: isPendingBill,
+    ),
   );
 }
 
@@ -114,11 +117,13 @@ void showBillingAndRatingDoneBottomSheet(BuildContext context,
 class PickupBillBottomSheet extends StatefulWidget {
   final OrderModel order;
   final BillModel? initialBill;
+  final bool? forcePendingBill;
 
   const PickupBillBottomSheet({
     super.key,
     required this.order,
     this.initialBill,
+    this.forcePendingBill,
   });
 
   @override
@@ -134,21 +139,30 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
   bool _isSubmittingReview = false;
   String _onlineTxnId = 'TXN507258';
 
+  bool get _isPendingOrRescheduled {
+    if (widget.forcePendingBill == true) return true;
+    if (widget.forcePendingBill == false) return false;
+    if (widget.initialBill != null) return false;
+
+    final raw = (widget.order.rawStatus ?? '').toLowerCase().trim();
+    final isReschedule = widget.order.status == OrderStatus.reschedule ||
+        raw.contains('reschedul');
+    final isPending =
+        widget.order.status == OrderStatus.pending || raw == 'pending';
+    final isCompletedAndPaid = widget.order.status == OrderStatus.completed &&
+        (widget.order.isPaid || raw.contains('paid'));
+
+    if (isReschedule || isPending) return true;
+    if (!isCompletedAndPaid) return true;
+
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
     _checkPersistedPayment();
-    final raw = (widget.order.rawStatus ?? '').toLowerCase().trim();
-    final isPendingOrRescheduled =
-        (widget.order.status == OrderStatus.pending ||
-                widget.order.status == OrderStatus.reschedule ||
-                raw == 'pending' ||
-                raw == 'rescheduled' ||
-                raw == 'reschedule') &&
-            widget.order.status != OrderStatus.completed &&
-            widget.initialBill == null;
-
-    if (isPendingOrRescheduled) {
+    if (_isPendingOrRescheduled) {
       _billFuture = Future.value(BillModel.sample);
     } else {
       _billFuture = _fetchBill();
@@ -240,15 +254,7 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final raw = (widget.order.rawStatus ?? '').toLowerCase().trim();
-    final isPendingOrRescheduledWithoutBill =
-        (widget.order.status == OrderStatus.pending ||
-                widget.order.status == OrderStatus.reschedule ||
-                raw == 'pending' ||
-                raw == 'rescheduled' ||
-                raw == 'reschedule') &&
-            widget.order.status != OrderStatus.completed &&
-            widget.initialBill == null;
+    final isPendingOrRescheduledWithoutBill = _isPendingOrRescheduled;
 
     return Container(
       decoration: const BoxDecoration(

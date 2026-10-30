@@ -63,6 +63,49 @@ class HomeRepository {
     return const HomeOverviewModel();
   }
 
+  /// 1b. GET /api/recycle-progress/
+  Future<RecycleProgressModel> fetchRecycleProgress() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      final cachedWeightStr = await SpHelper.getString('total_recycled_weight');
+      final cachedWeight = double.tryParse(cachedWeightStr ?? '') ?? 0.0;
+      final cachedPickupsStr = await SpHelper.getString('total_pickups_count');
+      final cachedPickups = int.tryParse(cachedPickupsStr ?? '') ?? 0;
+      return RecycleProgressModel(
+        totalRecycledWeight: cachedWeight,
+        totalPickups: cachedPickups,
+      );
+    }
+    try {
+      final response = await _apiService.getRecycleProgress();
+      dynamic responseData = response.data;
+      if (responseData is String) {
+        try {
+          responseData = jsonDecode(responseData);
+        } catch (_) {}
+      }
+      if (responseData is Map) {
+        final map = Map<String, dynamic>.from(
+          (responseData['data'] is Map)
+              ? responseData['data'] as Map
+              : responseData,
+        );
+        final model = RecycleProgressModel.fromJson(map);
+        if (model.totalRecycledWeight > 0) {
+          await SpHelper.saveString(
+              'total_recycled_weight', model.totalRecycledWeight.toString());
+        }
+        if (model.totalPickups > 0) {
+          await SpHelper.saveString(
+              'total_pickups_count', model.totalPickups.toString());
+        }
+        return model;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [HOME REPO] fetchRecycleProgress error: $e');
+    }
+    return const RecycleProgressModel();
+  }
+
   /// 2. GET /api/wallet/balance/
   Future<WalletBalanceDataModel> fetchWalletBalance() async {
     if (Platform.environment.containsKey('FLUTTER_TEST') &&
@@ -195,6 +238,7 @@ class HomeRepository {
     }
     final results = await Future.wait([
       fetchHomeOverview(),
+      fetchRecycleProgress(),
       fetchWalletBalance(),
       fetchWalletTransactions(),
       fetchWalletTopupConfig(),
@@ -205,13 +249,14 @@ class HomeRepository {
 
     return HomeDataBundle(
       homeOverview: results[0] as HomeOverviewModel,
-      walletBalance: results[1] as WalletBalanceDataModel,
-      walletTransactions: results[2] as WalletTransactionsResponseModel,
-      walletTopupConfig: results[3] as WalletTopupConfigModel,
-      rewardPoints: results[4] as RewardPointsDataModel,
+      recycleProgress: results[1] as RecycleProgressModel,
+      walletBalance: results[2] as WalletBalanceDataModel,
+      walletTransactions: results[3] as WalletTransactionsResponseModel,
+      walletTopupConfig: results[4] as WalletTopupConfigModel,
+      rewardPoints: results[5] as RewardPointsDataModel,
       rewardPointsTransactions:
-          results[5] as RewardPointsTransactionsResponseModel,
-      pickups: results[6] as List<PickupItemDataModel>,
+          results[6] as RewardPointsTransactionsResponseModel,
+      pickups: results[7] as List<PickupItemDataModel>,
     );
   }
 

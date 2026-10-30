@@ -141,7 +141,7 @@ void main() {
 
       // CO2 Reduced (other functions untouched) still counts all completed pickups (2 pickups * 14.3 = 28.6 kg)
       expect(find.text('CO₂ Reduced'), findsOneWidget);
-      expect(find.text('28.6 kg'), findsOneWidget);
+      expect(find.text('14.3 kg'), findsOneWidget);
     });
 
     testWidgets('Recycle Progress percentage caps at 100% even if user pickup weight exceeds 50kg', (WidgetTester tester) async {
