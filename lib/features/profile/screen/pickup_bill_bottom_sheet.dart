@@ -447,7 +447,7 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
         final cardHolder = (bill.userName.isNotEmpty &&
                 !RegExp(r'^[0-9+]+$').hasMatch(bill.userName.trim()))
             ? bill.userName.toUpperCase()
-            : 'SHILPA PR';
+            : '';
 
         final isOnlinePaidLocally =
             _completedOnlineTxnMap.containsKey(widget.order.bookingId);
@@ -558,345 +558,345 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
               const SizedBox(height: 22),
             ] else ...[
               // Select Payment Method heading
-              const Text(
-                'Select Payment Method',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF94A3B8),
-                ),
-              ),
+              // const Text(
+              //   'Select Payment Method',
+              //   style: TextStyle(
+              //     fontSize: 14,
+              //     fontWeight: FontWeight.w600,
+              //     color: Color(0xFF94A3B8),
+              //   ),
+              // ),
 
-              const SizedBox(height: 12),
+              // const SizedBox(height: 12),
 
-              // Segmented pill selector
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          setState(() {
-                            _selectedPaymentMethod = 0;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _selectedPaymentMethod == 0
-                                ? Colors.white
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: _selectedPaymentMethod == 0
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFF0F172A)
-                                          .withValues(alpha: 0.04),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Cash on Pickup',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: _selectedPaymentMethod == 0
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: _selectedPaymentMethod == 0
-                                    ? const Color(0xFF1E242F)
-                                    : const Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          setState(() {
-                            _selectedPaymentMethod = 1;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _selectedPaymentMethod == 1
-                                ? Colors.white
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: _selectedPaymentMethod == 1
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFF0F172A)
-                                          .withValues(alpha: 0.04),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Online Payment',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: _selectedPaymentMethod == 1
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: _selectedPaymentMethod == 1
-                                    ? const Color(0xFF1E242F)
-                                    : const Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // // Segmented pill selector
+              // Container(
+              //   width: double.infinity,
+              //   padding: const EdgeInsets.all(4),
+              //   decoration: BoxDecoration(
+              //     color: const Color(0xFFF3F4F6),
+              //     borderRadius: BorderRadius.circular(14),
+              //   ),
+              //   child: Row(
+              //     children: [
+              //       Expanded(
+              //         child: GestureDetector(
+              //           behavior: HitTestBehavior.opaque,
+              //           onTap: () {
+              //             setState(() {
+              //               _selectedPaymentMethod = 0;
+              //             });
+              //           },
+              //           child: Container(
+              //             padding: const EdgeInsets.symmetric(vertical: 12),
+              //             decoration: BoxDecoration(
+              //               color: _selectedPaymentMethod == 0
+              //                   ? Colors.white
+              //                   : Colors.transparent,
+              //               borderRadius: BorderRadius.circular(10),
+              //               boxShadow: _selectedPaymentMethod == 0
+              //                   ? [
+              //                       BoxShadow(
+              //                         color: const Color(0xFF0F172A)
+              //                             .withValues(alpha: 0.04),
+              //                         blurRadius: 4,
+              //                         offset: const Offset(0, 1),
+              //                       ),
+              //                     ]
+              //                   : null,
+              //             ),
+              //             child: Center(
+              //               child: Text(
+              //                 'Cash on Pickup',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   fontWeight: _selectedPaymentMethod == 0
+              //                       ? FontWeight.w700
+              //                       : FontWeight.w500,
+              //                   color: _selectedPaymentMethod == 0
+              //                       ? const Color(0xFF1E242F)
+              //                       : const Color(0xFF64748B),
+              //                 ),
+              //               ),
+              //             ),
+              //           ),
+              //         ),
+              //       ),
+              //       Expanded(
+              //         child: GestureDetector(
+              //           behavior: HitTestBehavior.opaque,
+              //           onTap: () {
+              //             setState(() {
+              //               _selectedPaymentMethod = 1;
+              //             });
+              //           },
+              //           child: Container(
+              //             padding: const EdgeInsets.symmetric(vertical: 12),
+              //             decoration: BoxDecoration(
+              //               color: _selectedPaymentMethod == 1
+              //                   ? Colors.white
+              //                   : Colors.transparent,
+              //               borderRadius: BorderRadius.circular(10),
+              //               boxShadow: _selectedPaymentMethod == 1
+              //                   ? [
+              //                       BoxShadow(
+              //                         color: const Color(0xFF0F172A)
+              //                             .withValues(alpha: 0.04),
+              //                         blurRadius: 4,
+              //                         offset: const Offset(0, 1),
+              //                       ),
+              //                     ]
+              //                   : null,
+              //             ),
+              //             child: Center(
+              //               child: Text(
+              //                 'Online Payment',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   fontWeight: _selectedPaymentMethod == 1
+              //                       ? FontWeight.w700
+              //                       : FontWeight.w500,
+              //                   color: _selectedPaymentMethod == 1
+              //                       ? const Color(0xFF1E242F)
+              //                       : const Color(0xFF64748B),
+              //                 ),
+              //               ),
+              //             ),
+              //           ),
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
 
-              if (_selectedPaymentMethod == 0) ...[
-                const SizedBox(height: 16),
-                // Handover cash directly banner
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: const Color(0xFFFFEDD5),
-                      width: 1.2,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            color: Color(0xFFC2410C),
-                            size: 19,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Handover Cash directly',
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFC2410C),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Please pay $grandTotalValue to the pickup collector when they arrive.',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF78350F),
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: 16),
-                // Online Payment: Credit Card View matching screenshot
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.12),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Icon(
-                            Icons.credit_card_rounded,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                          Text(
-                            'FLORET PAY',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 22),
-                      const Text(
-                        '••••  ••••  ••••  4892',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 2.2,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'CARD HOLDER',
-                                style: TextStyle(
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF94A3B8),
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                cardHolder,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'EXPIRES',
-                                style: TextStyle(
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF94A3B8),
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                              SizedBox(height: 3),
-                              Text(
-                                '12/29',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              // if (_selectedPaymentMethod == 0) ...[
+              //   const SizedBox(height: 16),
+              //   // Handover cash directly banner
+              //   Container(
+              //     width: double.infinity,
+              //     padding:
+              //         const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              //     decoration: BoxDecoration(
+              //       color: const Color(0xFFFFF7ED),
+              //       borderRadius: BorderRadius.circular(14),
+              //       border: Border.all(
+              //         color: const Color(0xFFFFEDD5),
+              //         width: 1.2,
+              //       ),
+              //     ),
+              //     child: Column(
+              //       crossAxisAlignment: CrossAxisAlignment.start,
+              //       children: [
+              //         const Row(
+              //           children: [
+              //             Icon(
+              //               Icons.info_outline_rounded,
+              //               color: Color(0xFFC2410C),
+              //               size: 19,
+              //             ),
+              //             SizedBox(width: 8),
+              //             Text(
+              //               'Handover Cash directly',
+              //               style: TextStyle(
+              //                 fontSize: 14.5,
+              //                 fontWeight: FontWeight.w700,
+              //                 color: Color(0xFFC2410C),
+              //               ),
+              //             ),
+              //           ],
+              //         ),
+              //         const SizedBox(height: 6),
+              //         Text(
+              //           'Please pay $grandTotalValue to the pickup collector when they arrive.',
+              //           style: const TextStyle(
+              //             fontSize: 13,
+              //             fontWeight: FontWeight.w400,
+              //             color: Color(0xFF78350F),
+              //             height: 1.35,
+              //           ),
+              //         ),
+              //       ],
+              //     ),
+              //   ),
+              // ] else ...[
+              //   const SizedBox(height: 16),
+              //   // Online Payment: Credit Card View matching screenshot
+              //   Container(
+              //     width: double.infinity,
+              //     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              //     decoration: BoxDecoration(
+              //       color: const Color(0xFF1E293B),
+              //       borderRadius: BorderRadius.circular(18),
+              //       boxShadow: [
+              //         BoxShadow(
+              //           color: const Color(0xFF0F172A).withValues(alpha: 0.12),
+              //           blurRadius: 10,
+              //           offset: const Offset(0, 4),
+              //         ),
+              //       ],
+              //     ),
+              //     child: Column(
+              //       crossAxisAlignment: CrossAxisAlignment.start,
+              //       children: [
+              //         const Row(
+              //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //           children: [
+              //             Icon(
+              //               Icons.credit_card_rounded,
+              //               color: Colors.white,
+              //               size: 26,
+              //             ),
+              //             Text(
+              //               'FLORET PAY',
+              //               style: TextStyle(
+              //                 fontSize: 12,
+              //                 fontWeight: FontWeight.w700,
+              //                 color: Colors.white,
+              //                 letterSpacing: 1.2,
+              //               ),
+              //             ),
+              //           ],
+              //         ),
+              //         const SizedBox(height: 22),
+              //         const Text(
+              //           '••••  ••••  ••••  4892',
+              //           style: TextStyle(
+              //             fontSize: 19,
+              //             fontWeight: FontWeight.w700,
+              //             color: Colors.white,
+              //             letterSpacing: 2.2,
+              //           ),
+              //         ),
+              //         const SizedBox(height: 20),
+              //         Row(
+              //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //           crossAxisAlignment: CrossAxisAlignment.end,
+              //           children: [
+              //             Column(
+              //               crossAxisAlignment: CrossAxisAlignment.start,
+              //               children: [
+              //                 const Text(
+              //                   'CARD HOLDER',
+              //                   style: TextStyle(
+              //                     fontSize: 8.5,
+              //                     fontWeight: FontWeight.w600,
+              //                     color: Color(0xFF94A3B8),
+              //                     letterSpacing: 0.6,
+              //                   ),
+              //                 ),
+              //                 const SizedBox(height: 3),
+              //                 Text(
+              //                   cardHolder,
+              //                   style: const TextStyle(
+              //                     fontSize: 13,
+              //                     fontWeight: FontWeight.w700,
+              //                     color: Colors.white,
+              //                     letterSpacing: 0.3,
+              //                   ),
+              //                 ),
+              //               ],
+              //             ),
+              //             const Column(
+              //               crossAxisAlignment: CrossAxisAlignment.end,
+              //               children: [
+              //                 Text(
+              //                   'EXPIRES',
+              //                   style: TextStyle(
+              //                     fontSize: 8.5,
+              //                     fontWeight: FontWeight.w600,
+              //                     color: Color(0xFF94A3B8),
+              //                     letterSpacing: 0.6,
+              //                   ),
+              //                 ),
+              //                 SizedBox(height: 3),
+              //                 Text(
+              //                   '12/29',
+              //                   style: TextStyle(
+              //                     fontSize: 13,
+              //                     fontWeight: FontWeight.w700,
+              //                     color: Colors.white,
+              //                     letterSpacing: 0.3,
+              //                   ),
+              //                 ),
+              //               ],
+              //             ),
+              //           ],
+              //         ),
+              //       ],
+              //     ),
+              //   ),
 
-                const SizedBox(height: 16),
+              //   const SizedBox(height: 16),
 
-                // Transaction ID dark box matching screenshot
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      height: 52,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.receipt_rounded,
-                            color: Color(0xFFCBD5E1),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              _onlineTxnId,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              setState(() {
-                                _onlineTxnId =
-                                    'TXN${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-                              });
-                            },
-                            child: const Icon(
-                              Icons.refresh_rounded,
-                              color: Color(0xFFCBD5E1),
-                              size: 20,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      left: 14,
-                      top: -8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        color: Colors.white,
-                        child: const Text(
-                          'Transaction ID',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              //   // Transaction ID dark box matching screenshot
+              //   Stack(
+              //     clipBehavior: Clip.none,
+              //     children: [
+              //       Container(
+              //         width: double.infinity,
+              //         height: 52,
+              //         padding: const EdgeInsets.symmetric(horizontal: 16),
+              //         decoration: BoxDecoration(
+              //           color: const Color(0xFF1E293B),
+              //           borderRadius: BorderRadius.circular(14),
+              //         ),
+              //         child: Row(
+              //           children: [
+              //             const Icon(
+              //               Icons.receipt_rounded,
+              //               color: Color(0xFFCBD5E1),
+              //               size: 20,
+              //             ),
+              //             const SizedBox(width: 14),
+              //             Expanded(
+              //               child: Text(
+              //                 _onlineTxnId,
+              //                 style: const TextStyle(
+              //                   fontSize: 15,
+              //                   fontWeight: FontWeight.w600,
+              //                   color: Colors.white,
+              //                   letterSpacing: 0.5,
+              //                 ),
+              //               ),
+              //             ),
+              //             GestureDetector(
+              //               behavior: HitTestBehavior.opaque,
+              //               onTap: () {
+              //                 setState(() {
+              //                   _onlineTxnId =
+              //                       'TXN${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+              //                 });
+              //               },
+              //               child: const Icon(
+              //                 Icons.refresh_rounded,
+              //                 color: Color(0xFFCBD5E1),
+              //                 size: 20,
+              //               ),
+              //             ),
+              //           ],
+              //         ),
+              //       ),
+              //       Positioned(
+              //         left: 14,
+              //         top: -8,
+              //         child: Container(
+              //           padding: const EdgeInsets.symmetric(horizontal: 6),
+              //           color: Colors.white,
+              //           child: const Text(
+              //             'Transaction ID',
+              //             style: TextStyle(
+              //               fontSize: 11,
+              //               fontWeight: FontWeight.w500,
+              //               color: Color(0xFF64748B),
+              //             ),
+              //           ),
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ],
 
-              const SizedBox(height: 22),
+              // const SizedBox(height: 22),
 
               // Rate the Collector heading
               Row(
