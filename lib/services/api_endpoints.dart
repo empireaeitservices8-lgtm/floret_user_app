@@ -15,4 +15,5 @@ class ApiEndpoints {
   static const String receiveBill = "/api/receive-bill/";
   static const String downloadBillInvoice = "/api/download-bill-invoice/";
   static const String wards = "/api/wards/";
+  static const String availablePickupSlots = "/api/available-pickup-slots/";
 }

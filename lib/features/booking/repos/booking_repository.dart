@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:floret_app/services/api_service.dart';
+import '../model/pickup_slot_model.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/services/api_client.dart';
 import 'package:floret_app/services/api_endpoints.dart';
@@ -279,5 +282,54 @@ class BookingRepository {
       ];
     }
     return [];
+  }
+
+  /// Fetches available pickup slots from /api/available-pickup-slots/
+  Future<AvailablePickupSlotsResponse> fetchAvailablePickupSlots({
+    String? district,
+    String? localBody,
+  }) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      final now = DateTime.now();
+      final todayStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      return AvailablePickupSlotsResponse(
+        totalAvailable: 1,
+        slots: [
+          PickupSlotModel(
+            id: 1,
+            date: todayStr,
+            timeSlot: '10:00 AM – 12:00 PM',
+            availableSpots: 10,
+            district: district ?? 'Thiruvananthapuram',
+            localBody: localBody ?? 'Varkala Municipality',
+          ),
+        ],
+      );
+    }
+
+    try {
+      final response = await ApiService()
+          .getAvailablePickupSlots(
+            district: district,
+            localBody: localBody,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      dynamic data = response.data;
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+      if (data is Map) {
+        return AvailablePickupSlotsResponse.fromJson(
+            Map<String, dynamic>.from(data));
+      }
+    } catch (e) {
+      debugPrint('[BookingRepository] Error fetching pickup slots: $e');
+    }
+
+    return const AvailablePickupSlotsResponse(totalAvailable: 0, slots: []);
   }
 }

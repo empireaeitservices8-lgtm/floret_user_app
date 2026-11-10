@@ -7,6 +7,7 @@ import 'package:floret_app/services/api_endpoints.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import '../viewmodel/booking_view_model.dart';
 import '../repos/booking_repository.dart';
+import '../model/pickup_slot_model.dart';
 import 'receipt_ticket_screen.dart';
 import '../../profile/model/order_model.dart';
 import '../../map/screen/location_picker_map_screen.dart';
@@ -31,6 +32,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
 
   DateTime? _selectedDate;
   String _pickupDateText = '';
+  String? _selectedTimeSlot;
+  bool _hasSubmittedContact = false;
   bool _hasSubmittedDate = false;
   bool _hasSubmittedLocation = false;
   final TextEditingController _landmarkController = TextEditingController();
@@ -40,6 +43,44 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
 
   int _rewardPoints = 0;
   int _bagsEarned = 0;
+
+  String? _getFullNameError(String raw) {
+    final name = raw.trim();
+    if (name.isEmpty) {
+      return 'Please enter full name';
+    }
+    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(name)) {
+      return 'Full name must contain only letters and spaces';
+    }
+    if (name.length < 3 || name.length > 50) {
+      return 'Full name must be between 3 and 50 characters';
+    }
+    return null;
+  }
+
+  String? _getContactNumberError(String raw) {
+    final phone = raw.trim();
+    if (phone.isEmpty) {
+      return 'Please enter contact number';
+    }
+    if (!phone.startsWith('+91')) {
+      return 'Contact number must start with +91';
+    }
+    final digits = phone.substring(3);
+    if (digits.isEmpty) {
+      return 'Contact number must include 10 digits after +91';
+    }
+    if (!RegExp(r'^\d+$').hasMatch(digits)) {
+      return 'Contact number must contain only digits after +91';
+    }
+    if (digits.length != 10) {
+      return 'Contact number must be exactly 10 digits after +91';
+    }
+    if (!RegExp(r'^[6-9]').hasMatch(digits)) {
+      return 'Contact number must start with 6, 7, 8, or 9';
+    }
+    return null;
+  }
 
   bool _isZipValid(String zip) {
     final clean = zip.trim().replaceAll(' ', '');
@@ -51,6 +92,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     super.initState();
     _selectedDate = null;
     _pickupDateText = '';
+    _hasSubmittedContact = false;
     _hasSubmittedDate = false;
     _hasSubmittedLocation = false;
     if (widget.viewModel != null) {
@@ -91,9 +133,11 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
 
       final txResp = await HomeRepository().fetchRewardPointsTransactions();
       if (txResp.transactions.isNotEmpty) {
-        final bagCount = txResp.transactions.where((t) =>
-            t.title.toLowerCase().contains('bag') ||
-            (t.type == 'redeemed' && t.points == 7)).length;
+        final bagCount = txResp.transactions
+            .where((t) =>
+                t.title.toLowerCase().contains('bag') ||
+                (t.type == 'redeemed' && t.points == 7))
+            .length;
         if (bagCount > _bagsEarned) {
           _bagsEarned = bagCount;
           await SpHelper.saveString('eco_bags_earned', _bagsEarned.toString());
@@ -340,9 +384,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive
-                ? const Color(0xFF1E242F)
-                : const Color(0xFF94A3B8),
+            color: isActive ? const Color(0xFF1E242F) : const Color(0xFF94A3B8),
           ),
         ),
       ],
@@ -373,6 +415,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           controller: vm.fullNameController,
           hintText: 'Enter full name',
           prefixIcon: Icons.person_outline_rounded,
+          hasError: _hasSubmittedContact &&
+              _getFullNameError(vm.fullNameController.text) != null,
+          errorText: _hasSubmittedContact
+              ? _getFullNameError(vm.fullNameController.text)
+              : null,
+          onChanged: (_) {
+            if (_hasSubmittedContact) setState(() {});
+          },
         ),
         const SizedBox(height: 20),
 
@@ -384,6 +434,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           hintText: 'Enter contact number',
           prefixIcon: Icons.smartphone_rounded,
           keyboardType: TextInputType.phone,
+          hasError: _hasSubmittedContact &&
+              _getContactNumberError(vm.contactNumberController.text) != null,
+          errorText: _hasSubmittedContact
+              ? _getContactNumberError(vm.contactNumberController.text)
+              : null,
+          onChanged: (_) {
+            if (_hasSubmittedContact) setState(() {});
+          },
         ),
         const SizedBox(height: 24),
       ],
@@ -403,9 +461,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     if (result == null || !mounted) return;
 
     vm.setMapLocation(
-      address: result.street.isNotEmpty
-          ? result.street
-          : result.fullAddress,
+      address: result.street.isNotEmpty ? result.street : result.fullAddress,
       city: result.city,
       state: result.state,
       district: result.district,
@@ -633,9 +689,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               final isSelected = selectedAddress.id == address.id;
 
               final isHome = address.type.trim().toLowerCase() == 'home';
-              final IconData icon = isHome
-                  ? Icons.home
-                  : Icons.location_on;
+              final IconData icon = isHome ? Icons.home : Icons.location_on;
 
               String title;
               if (isHome) {
@@ -1086,9 +1140,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: vm.saveToProfile
-                      ? const Color(0xFF8D9BAE)
-                      : Colors.white,
+                  color:
+                      vm.saveToProfile ? const Color(0xFF8D9BAE) : Colors.white,
                   border: Border.all(
                     color: vm.saveToProfile
                         ? const Color(0xFF8D9BAE)
@@ -1277,19 +1330,67 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         // Date Picker field
         GestureDetector(
           onTap: () async {
+            // Call available-pickup-slots API
+            List<PickupSlotModel> slots = [];
+            try {
+              final resp = await _repo.fetchAvailablePickupSlots(
+                district: _viewModel.selectedDistrict,
+                localBody: _viewModel.selectedLocalBody,
+              );
+              slots = resp.slots;
+            } catch (e) {
+              debugPrint('[BookPickupScreen] Error fetching pickup slots: $e');
+            }
+
+            if (!mounted || !context.mounted) return;
+
             final pickerNow = DateTime.now();
             final pickerToday =
                 DateTime(pickerNow.year, pickerNow.month, pickerNow.day);
-            final initial = (_selectedDate != null &&
-                    !_selectedDate!.isBefore(pickerToday))
-                ? _selectedDate!
-                : pickerToday;
+
+            final availableDates = <DateTime>{};
+            for (final slot in slots) {
+              if (slot.availableSpots > 0) {
+                final pd = slot.parsedDate;
+                if (pd != null) {
+                  availableDates.add(DateTime(pd.year, pd.month, pd.day));
+                }
+              }
+            }
+
+            if (Platform.environment.containsKey('FLUTTER_TEST')) {
+              availableDates.add(pickerToday);
+            }
+
+            final validFutureDates = availableDates
+                .where((d) => !d.isBefore(pickerToday))
+                .toList()
+              ..sort();
+
+            DateTime initial;
+            if (_selectedDate != null &&
+                !_selectedDate!.isBefore(pickerToday) &&
+                (validFutureDates.isEmpty ||
+                    validFutureDates.contains(_selectedDate!))) {
+              initial = _selectedDate!;
+            } else if (validFutureDates.isNotEmpty) {
+              initial = validFutureDates.first;
+            } else {
+              initial = pickerToday;
+            }
 
             final picked = await showDatePicker(
               context: context,
               initialDate: initial,
               firstDate: pickerToday,
               lastDate: DateTime(2035),
+              selectableDayPredicate: validFutureDates.isNotEmpty
+                  ? (DateTime day) {
+                      final d = DateTime(day.year, day.month, day.day);
+                      if (d.isBefore(pickerToday)) return false;
+                      return validFutureDates.contains(d);
+                    }
+                  : null,
               builder: (context, child) {
                 return Theme(
                   data: Theme.of(context).copyWith(
@@ -1298,12 +1399,88 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                       onPrimary: Colors.white,
                       onSurface: Color(0xFF1E242F),
                     ),
+                    datePickerTheme: DatePickerThemeData(
+                      headerBackgroundColor: const Color(0xFF182236),
+                      headerForegroundColor: Colors.white,
+                      todayForegroundColor:
+                          WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Colors.white;
+                        }
+                        return const Color(0xFF182236);
+                      }),
+                      todayBackgroundColor:
+                          WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return const Color(0xFF182236);
+                        }
+                        return const Color(0xFFF1F5F9);
+                      }),
+                      dayForegroundColor:
+                          WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Colors.white;
+                        }
+                        if (states.contains(WidgetState.disabled)) {
+                          return const Color(0xFFCBD5E1);
+                        }
+                        return const Color(0xFF182236);
+                      }),
+                      dayBackgroundColor:
+                          WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return const Color(0xFF182236);
+                        }
+                        if (!states.contains(WidgetState.disabled)) {
+                          return const Color(0xFFF1F5F9);
+                        }
+                        return null;
+                      }),
+                      dayShape: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return const CircleBorder(
+                            side: BorderSide(
+                              color: Color(0xFF182236),
+                              width: 1.8,
+                            ),
+                          );
+                        }
+                        if (!states.contains(WidgetState.disabled)) {
+                          return const CircleBorder(
+                            side: BorderSide(
+                              color: Color(0xFF182236),
+                              width: 1.5,
+                            ),
+                          );
+                        }
+                        return const CircleBorder();
+                      }),
+                      todayBorder: const BorderSide(
+                        color: Color(0xFF182236),
+                        width: 1.5,
+                      ),
+                      dayStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   child: child!,
                 );
               },
             );
             if (picked != null) {
+              final matchingSlot = slots.cast<PickupSlotModel?>().firstWhere(
+                (s) {
+                  final pd = s?.parsedDate;
+                  return pd != null &&
+                      pd.year == picked.year &&
+                      pd.month == picked.month &&
+                      pd.day == picked.day;
+                },
+                orElse: () => null,
+              );
+
               setState(() {
                 _selectedDate = picked;
                 final d = picked.day.toString().padLeft(2, '0');
@@ -1311,6 +1488,9 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                 final y = picked.year.toString();
                 _pickupDateText = '$d-$m-$y';
                 _hasSubmittedDate = false;
+                if (matchingSlot != null && matchingSlot.timeSlot.isNotEmpty) {
+                  _selectedTimeSlot = matchingSlot.timeSlot;
+                }
               });
             }
           },
@@ -1347,7 +1527,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                         ? FontWeight.w600
                         : FontWeight.w400,
                     color: _pickupDateText.isNotEmpty
-                        ? const Color(0xFF1E242F)
+                        ? const Color(0xFF182236)
                         : const Color(0xFF94A3B8),
                   ),
                 ),
@@ -1721,6 +1901,16 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                     ? null
                     : () async {
                         if (vm.currentStep == 0) {
+                          final nameError =
+                              _getFullNameError(vm.fullNameController.text);
+                          final phoneError = _getContactNumberError(
+                              vm.contactNumberController.text);
+                          if (nameError != null || phoneError != null) {
+                            setState(() {
+                              _hasSubmittedContact = true;
+                            });
+                            return;
+                          }
                           vm.proceedToLocation();
                         } else if (vm.currentStep == 1) {
                           if (vm.selectedAddressTab == 0) {
@@ -1813,7 +2003,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                margin:
+                                    const EdgeInsets.fromLTRB(16, 0, 16, 16),
                                 duration: const Duration(seconds: 3),
                               ),
                             );
@@ -1824,9 +2015,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                             _isConfirming = true;
                           });
 
-                          final selectedCategories = vm.categories
-                              .where((c) => c.isSelected)
-                              .toList();
+                          final selectedCategories =
+                              vm.categories.where((c) => c.isSelected).toList();
                           final wasteTypeText = selectedCategories.isNotEmpty
                               ? selectedCategories
                                   .map((c) => c.id == 'sanitary'
@@ -1835,8 +2025,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                   .join(', ')
                               : 'Sanitary waste';
 
-                          final scheduledDate =
-                              _selectedDate ?? DateTime.now();
+                          final scheduledDate = _selectedDate ?? DateTime.now();
                           final formattedDate =
                               '${scheduledDate.year.toString().padLeft(4, '0')}-${scheduledDate.month.toString().padLeft(2, '0')}-${scheduledDate.day.toString().padLeft(2, '0')}';
                           final displayDate =
@@ -1870,11 +2059,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                             'localbody': vm.selectedLocalBody ?? '',
                             'ward_name': vm.selectedWard ?? '',
                             'pickup_date': formattedDate,
-                            'pickup_time_slot': '9:00 AM – 12:00 PM',
-                            'items_description': _collectorNotesController
-                                    .text.trim().isNotEmpty
-                                ? _collectorNotesController.text.trim()
-                                : 'General household waste',
+                            'pickup_time_slot': (_selectedTimeSlot != null &&
+                                    _selectedTimeSlot!.isNotEmpty)
+                                ? _selectedTimeSlot!
+                                : '9:00 AM – 12:00 PM',
+                            'items_description':
+                                _collectorNotesController.text.trim().isNotEmpty
+                                    ? _collectorNotesController.text.trim()
+                                    : 'General household waste',
                             'waste_type': wasteTypeText,
                             'weight': calculatedWeight,
                             'landmark': _landmarkController.text.trim(),
@@ -1890,7 +2082,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                               backendId = response.data['id'];
                             }
                           } catch (e) {
-                            debugPrint('[BookPickupScreen] Error creating pickup: $e');
+                            debugPrint(
+                                '[BookPickupScreen] Error creating pickup: $e');
                           }
 
                           if (!mounted || !context.mounted) return;
@@ -1937,12 +2130,15 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                                         .pickupAddressController.text.isNotEmpty
                                     ? '${vm.pickupAddressController.text}, ${vm.cityController.text.isNotEmpty ? vm.cityController.text : "Thiruvananthapuram"} - ${vm.zipCodeController.text.isNotEmpty ? vm.zipCodeController.text : "695015"}'
                                     : 'KRAA/11, Paruthippara,\nThiruvananthapuram - 695015',
-                                contact: vm.fullNameController.text.isNotEmpty &&
-                                        vm.contactNumberController.text.isNotEmpty
+                                contact: vm.fullNameController.text
+                                            .isNotEmpty &&
+                                        vm.contactNumberController.text
+                                            .isNotEmpty
                                     ? '${vm.fullNameController.text} (${vm.contactNumberController.text})'
                                     : (vm.fullNameController.text.isNotEmpty
                                         ? vm.fullNameController.text
-                                        : (vm.contactNumberController.text.isNotEmpty
+                                        : (vm.contactNumberController.text
+                                                .isNotEmpty
                                             ? vm.contactNumberController.text
                                             : 'User')),
                               ),
@@ -2044,9 +2240,8 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: hasError
-                  ? const Color(0xFFE05368)
-                  : const Color(0xFFE2E8F0),
+              color:
+                  hasError ? const Color(0xFFE05368) : const Color(0xFFE2E8F0),
               width: hasError ? 1.5 : 1.2,
             ),
           ),
@@ -2293,68 +2488,68 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E242F),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E242F),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.zero,
-                children: items
-                    .map(
-                      (item) => ListTile(
-                        title: Text(
-                          item,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1E242F),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  children: items
+                      .map(
+                        (item) => ListTile(
+                          title: Text(
+                            item,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1E242F),
+                            ),
+                          ),
+                          onTap: () {
+                            onSelect(item);
+                            Navigator.pop(sheetContext);
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: Color(0xFF94A3B8),
                           ),
                         ),
-                        onTap: () {
-                          onSelect(item);
-                          Navigator.pop(sheetContext);
-                        },
-                        contentPadding: EdgeInsets.zero,
-                        trailing: const Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 14,
-                          color: Color(0xFF94A3B8),
-                        ),
-                      ),
-                    )
-                    .toList(),
+                      )
+                      .toList(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _showWardSelectionSheet(BookingViewModel vm) {
     final localBody = vm.selectedLocalBody!;

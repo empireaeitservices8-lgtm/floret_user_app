@@ -28,6 +28,8 @@ class ApiService {
       '/api/reward-points/transactions/';
   static const String pickupsEndpoint = '/api/pickups/';
   static const String receiveBillEndpoint = '/api/receive-bill/';
+  static const String availablePickupSlotsEndpoint =
+      '/api/available-pickup-slots/';
   static const String downloadBillInvoiceEndpoint =
       '/api/download-bill-invoice/';
   //static const String razorpayGenerateQr = '/api/razorpay/generate-qr/';
@@ -545,6 +547,7 @@ class ApiService {
   Future<Response> _authenticatedGet({
     required String endpoint,
     required String requestName,
+    Map<String, dynamic>? queryParameters,
     String? token,
   }) async {
     final String fullUrl = '$baseUrl$endpoint';
@@ -570,6 +573,7 @@ class ApiService {
     try {
       final response = await _dio.get(
         endpoint,
+        queryParameters: queryParameters,
         options: Options(headers: headers),
       );
 
@@ -620,6 +624,7 @@ class ApiService {
   Future<Response> _authenticatedPost({
     required String endpoint,
     required String requestName,
+    Map<String, dynamic>? queryParameters,
     Map<String, dynamic>? data,
     String? token,
   }) async {
@@ -653,6 +658,7 @@ class ApiService {
       final response = await _dio.post(
         endpoint,
         data: data,
+        queryParameters: queryParameters,
         options: Options(headers: headers),
       );
 
@@ -703,6 +709,7 @@ class ApiService {
   Future<Response> _authenticatedPatch({
     required String endpoint,
     required String requestName,
+    Map<String, dynamic>? queryParameters,
     Map<String, dynamic>? data,
     String? token,
   }) async {
@@ -736,6 +743,7 @@ class ApiService {
       final response = await _dio.patch(
         endpoint,
         data: data,
+        queryParameters: queryParameters,
         options: Options(headers: headers),
       );
 
@@ -802,7 +810,6 @@ class ApiService {
       token: token,
     );
   }
-
 
   /// Sends a GET request to /api/recycle-progress/
   Future<Response> getRecycleProgress({String? token}) async {
@@ -921,6 +928,27 @@ class ApiService {
     return _authenticatedGet(
       endpoint: rewardPointsTransactionsEndpoint,
       requestName: 'GET REWARD POINTS TRANSACTIONS',
+      token: token,
+    );
+  }
+
+  /// Sends a GET request to /api/available-pickup-slots/
+  Future<Response> getAvailablePickupSlots({
+    String? district,
+    String? localBody,
+    String? token,
+  }) async {
+    final Map<String, dynamic> params = {};
+    if (district != null && district.trim().isNotEmpty) {
+      params['district'] = district.trim();
+    }
+    if (localBody != null && localBody.trim().isNotEmpty) {
+      params['local_body'] = localBody.trim();
+    }
+    return _authenticatedGet(
+      endpoint: availablePickupSlotsEndpoint,
+      requestName: 'GET AVAILABLE PICKUP SLOTS',
+      queryParameters: params.isNotEmpty ? params : null,
       token: token,
     );
   }

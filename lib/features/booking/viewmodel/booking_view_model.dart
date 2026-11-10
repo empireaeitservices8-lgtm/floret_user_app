@@ -28,7 +28,17 @@ class BookingViewModel extends ViewModel {
       }
       if (contactNumberController.text.isEmpty &&
           contact.contactNumber.isNotEmpty) {
-        contactNumberController.text = contact.contactNumber;
+        String num = contact.contactNumber.trim();
+        if (!num.startsWith('+91')) {
+          if (RegExp(r'^[6-9]\d{9}$').hasMatch(num)) {
+            num = '+91$num';
+          } else if (num.startsWith('91') &&
+              num.length == 12 &&
+              RegExp(r'^\d+$').hasMatch(num)) {
+            num = '+$num';
+          }
+        }
+        contactNumberController.text = num;
       }
       notifyListeners();
     } catch (_) {}
