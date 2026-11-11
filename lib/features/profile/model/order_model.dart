@@ -21,7 +21,9 @@ class OrderModel {
   final int? bagsUsed;
   String? rawStatus;
   String? paymentStatus;
-  final String? pickupTimeSlot;
+  String? pickupTimeSlot;
+  final String? district;
+  final String? localBody;
 
   OrderModel({
     this.id,
@@ -39,6 +41,8 @@ class OrderModel {
     this.rawStatus,
     this.paymentStatus,
     this.pickupTimeSlot,
+    this.district,
+    this.localBody,
   });
 
   int? get pickupId =>
@@ -76,6 +80,8 @@ class OrderModel {
         if (rawStatus != null) 'rawStatus': rawStatus,
         if (paymentStatus != null) 'paymentStatus': paymentStatus,
         if (pickupTimeSlot != null) 'pickupTimeSlot': pickupTimeSlot,
+        if (district != null) 'district': district,
+        if (localBody != null) 'localBody': localBody,
       };
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -126,6 +132,11 @@ class OrderModel {
       paymentStatus: json['paymentStatus'] as String? ??
           json['payment_status'] as String? ??
           json['payment'] as String?,
+      pickupTimeSlot: json['pickupTimeSlot'] as String? ??
+          json['pickup_time_slot'] as String?,
+      district: json['district'] as String?,
+      localBody: (json['local_body'] ?? json['localBody'] ?? json['localbody'])
+          as String?,
     );
   }
 
@@ -239,9 +250,8 @@ class OrderModel {
     }
 
     // 7. Full Address
-    String fullAddress = json['fullAddress'] as String? ??
-        json['full_address'] as String? ??
-        '';
+    String fullAddress =
+        json['fullAddress'] as String? ?? json['full_address'] as String? ?? '';
     if (fullAddress.isEmpty) {
       final line1 = [
         json['street']?.toString().trim(),
@@ -341,6 +351,9 @@ class OrderModel {
       paymentStatus: paymentStatus,
       pickupTimeSlot: json['pickup_time_slot']?.toString() ??
           json['pickupTimeSlot']?.toString(),
+      district: json['district'] as String?,
+      localBody: (json['local_body'] ?? json['localBody'] ?? json['localbody'])
+          as String?,
     );
   }
 }
@@ -544,14 +557,17 @@ class OrderStore {
     }
   }
 
-  Future<void> _saveToStorage([List<OrderModel>? explicitOrders, String? explicitUid]) async {
+  Future<void> _saveToStorage(
+      [List<OrderModel>? explicitOrders, String? explicitUid]) async {
     try {
-      final currentOrders = explicitOrders ?? List<OrderModel>.from(orders.value);
+      final currentOrders =
+          explicitOrders ?? List<OrderModel>.from(orders.value);
       final uid = explicitUid ?? _currentUserId;
       if (currentOrders.isEmpty && uid.isEmpty) {
         return;
       }
-      final key = uid.isNotEmpty ? 'saved_user_orders_$uid' : 'saved_user_orders';
+      final key =
+          uid.isNotEmpty ? 'saved_user_orders_$uid' : 'saved_user_orders';
       final data = currentOrders.map((o) => o.toJson()).toList();
       final encoded = jsonEncode(data);
       await SpHelper.saveString(key, encoded);
@@ -584,8 +600,7 @@ class OrderStore {
   }
 
   void removeOrder(String bookingId) {
-    orders.value =
-        orders.value.where((o) => o.bookingId != bookingId).toList();
+    orders.value = orders.value.where((o) => o.bookingId != bookingId).toList();
     _saveToStorage(orders.value, _currentUserId);
   }
 
@@ -611,11 +626,15 @@ class OrderStore {
     DateTime newDate,
     OrderStatus status, {
     String? rawStatus,
+    String? pickupTimeSlot,
   }) {
     for (final o in orders.value) {
       if (o.bookingId == bookingId) {
         o.pickupDate = newDate;
         o.status = status;
+        if (pickupTimeSlot != null) {
+          o.pickupTimeSlot = pickupTimeSlot;
+        }
         if (rawStatus != null) {
           o.rawStatus = rawStatus;
         } else if (status == OrderStatus.reschedule) {
@@ -668,14 +687,20 @@ class OrderStore {
         map[remote.bookingId] = OrderModel(
           id: remote.id ?? existing.id,
           bookingId: remote.bookingId,
-          wasteType: remote.wasteType.isNotEmpty ? remote.wasteType : existing.wasteType,
+          wasteType: remote.wasteType.isNotEmpty
+              ? remote.wasteType
+              : existing.wasteType,
           pickupDate: remote.pickupDate,
           completedDate: (isLocallyCompleted && existing.completedDate != null)
               ? existing.completedDate
               : (remote.completedDate ?? existing.completedDate),
-          address: remote.address.isNotEmpty ? remote.address : existing.address,
-          fullAddress: remote.fullAddress.isNotEmpty ? remote.fullAddress : existing.fullAddress,
-          contact: remote.contact.isNotEmpty ? remote.contact : existing.contact,
+          address:
+              remote.address.isNotEmpty ? remote.address : existing.address,
+          fullAddress: remote.fullAddress.isNotEmpty
+              ? remote.fullAddress
+              : existing.fullAddress,
+          contact:
+              remote.contact.isNotEmpty ? remote.contact : existing.contact,
           status: (isLocallyCompleted && !isRemoteCompleted)
               ? existing.status
               : remote.status,

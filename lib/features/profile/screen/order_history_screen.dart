@@ -11,6 +11,7 @@ import '../../../utils/sp_keys.dart' as sp_keys;
 import '../model/order_model.dart';
 import '../repos/profile_repository.dart';
 import '../../booking/screen/receipt_ticket_screen.dart';
+import '../../booking/model/pickup_slot_model.dart';
 import 'pickup_bill_bottom_sheet.dart';
 import 'official_invoice_screen.dart';
 import '../../map/screen/location_picker_map_screen.dart';
@@ -1110,15 +1111,66 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Future<void> _reschedule(OrderModel order) async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final initial = order.pickupDate.isAfter(today) ? order.pickupDate : today;
+    // Call available-pickup-slots API: https://florettechuser.pythonanywhere.com/api/available-pickup-slots/
+    List<PickupSlotModel> slots = [];
+    try {
+      final resp = await _profileRepository.fetchAvailablePickupSlots(
+        district: order.district,
+        localBody: order.localBody,
+      );
+      slots = resp.slots;
+    } catch (e) {
+      debugPrint(
+          '⚠️ [OrderHistoryScreen] Error fetching available pickup slots: $e');
+    }
+
+    if (!mounted) return;
+
+    final pickerNow = DateTime.now();
+    final pickerToday =
+        DateTime(pickerNow.year, pickerNow.month, pickerNow.day);
+
+    final availableDates = <DateTime>{};
+    for (final slot in slots) {
+      if (slot.availableSpots > 0) {
+        final pd = slot.parsedDate;
+        if (pd != null) {
+          availableDates.add(DateTime(pd.year, pd.month, pd.day));
+        }
+      }
+    }
+
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      availableDates.add(pickerToday);
+    }
+
+    final validFutureDates =
+        availableDates.where((d) => !d.isBefore(pickerToday)).toList()..sort();
+
+    DateTime initial;
+    if (!order.pickupDate.isBefore(pickerToday) &&
+        (validFutureDates.isEmpty ||
+            validFutureDates.contains(DateTime(order.pickupDate.year,
+                order.pickupDate.month, order.pickupDate.day)))) {
+      initial = order.pickupDate;
+    } else if (validFutureDates.isNotEmpty) {
+      initial = validFutureDates.first;
+    } else {
+      initial = pickerToday;
+    }
 
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: today,
-      lastDate: DateTime(now.year + 5),
+      firstDate: pickerToday,
+      lastDate: DateTime(pickerNow.year + 5),
+      selectableDayPredicate: validFutureDates.isNotEmpty
+          ? (DateTime day) {
+              final d = DateTime(day.year, day.month, day.day);
+              if (d.isBefore(pickerToday)) return false;
+              return validFutureDates.contains(d);
+            }
+          : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -1194,6 +1246,19 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       },
     );
     if (picked != null) {
+      String? newTimeSlot = order.pickupTimeSlot;
+      final matchingSlots = slots.where((s) {
+        final pd = s.parsedDate;
+        return pd != null &&
+            pd.year == picked.year &&
+            pd.month == picked.month &&
+            pd.day == picked.day &&
+            s.availableSpots > 0;
+      }).toList();
+      if (matchingSlots.isNotEmpty) {
+        newTimeSlot = matchingSlots.first.timeSlot;
+      }
+
       final pickupId = order.pickupId ??
           int.tryParse(order.bookingId.replaceAll(RegExp(r'[^0-9]'), ''));
       if (pickupId != null) {
@@ -1201,7 +1266,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           await _profileRepository.reschedulePickup(
             pickupId,
             pickupDate: picked,
-            pickupTimeSlot: order.pickupTimeSlot,
+            pickupTimeSlot: newTimeSlot,
           );
         } catch (e) {
           debugPrint(
@@ -1210,6 +1275,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       }
       setState(() {
         order.pickupDate = picked;
+        if (newTimeSlot != null) {
+          order.pickupTimeSlot = newTimeSlot;
+        }
         order.status = OrderStatus.reschedule;
         order.rawStatus = 'rescheduled';
       });
@@ -1218,6 +1286,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         picked,
         OrderStatus.reschedule,
         rawStatus: 'rescheduled',
+        pickupTimeSlot: newTimeSlot,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

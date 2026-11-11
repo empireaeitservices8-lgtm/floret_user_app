@@ -24,6 +24,7 @@ import 'utils/routes.dart';
 import 'utils/themes.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
