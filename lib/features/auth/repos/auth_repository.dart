@@ -11,6 +11,7 @@ import '../../profile/model/address_model.dart';
 import '../../../services/address_storage_service.dart';
 import '../model/auth_model.dart';
 import 'package:floret_app/services/api_client.dart';
+import '../../../models/district_model.dart';
 
 class AuthRepository {
   final WebAPIService _webAPIService;
@@ -141,8 +142,8 @@ class AuthRepository {
       final bool hasMouFile = filePath != null && filePath.isNotEmpty;
 
       if (hasMouFile) {
-        final filename = request.mouDocumentName ??
-            filePath.split(RegExp(r'[/\\]')).last;
+        final filename =
+            request.mouDocumentName ?? filePath.split(RegExp(r'[/\\]')).last;
 
         // mou_document is expected as a String on the backend serializer.
         requestData['mou_document'] = filename;
@@ -200,8 +201,7 @@ class AuthRepository {
             ? firstName
             : (signupResponse.username ?? fullName);
 
-        debugPrint(
-            '[RegisterProvider] Registration successful.');
+        debugPrint('[RegisterProvider] Registration successful.');
 
         String retrievedToken = signupResponse.token ?? '';
         String retrievedUserId = signupResponse.userId?.toString() ??
@@ -418,6 +418,37 @@ class AuthRepository {
     await SpHelper.clearUserData();
     OrderStore.instance.resetForLogout();
     AddressStorageService.resetForLogout();
+  }
+
+  final Map<String, List<String>> _districtsCache = {};
+
+  /// Fetches districts for a selected state (default: kerala) dynamically from /api/districts/?state={state}
+  Future<List<String>> fetchDistricts({String state = 'kerala'}) async {
+    final cleanState = state.toLowerCase().trim();
+    if (_districtsCache.containsKey(cleanState) &&
+        _districtsCache[cleanState]!.isNotEmpty) {
+      return _districtsCache[cleanState]!;
+    }
+
+    try {
+      final endpoint = '${ApiEndpoints.districts}?state=$cleanState';
+      debugPrint(
+          '🚀 [AUTH REPOSITORY] Fetching districts for $cleanState from: $endpoint');
+      final response =
+          await ApiClient().get(endpoint).timeout(const Duration(seconds: 10));
+
+      final list = DistrictModel.parseDistricts(response.data);
+      if (list.isNotEmpty) {
+        _districtsCache[cleanState] = list;
+        debugPrint(
+            '✅ [AUTH REPOSITORY] Fetched ${list.length} districts for $cleanState: $list');
+        return list;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [AUTH REPOSITORY] Error fetching districts: $e');
+    }
+
+    return _districtsCache[cleanState] ?? [];
   }
 
   /// Fetches wards for a selected local body.

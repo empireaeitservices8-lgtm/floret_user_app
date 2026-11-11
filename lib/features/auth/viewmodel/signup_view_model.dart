@@ -21,6 +21,7 @@ class SignupViewModel extends ViewModel {
       _isPhoneFocused = phoneFocusNode.hasFocus;
       notifyListeners();
     });
+    fetchDistricts(state: 'kerala');
   }
 
   int _currentStep = 1;
@@ -295,10 +296,9 @@ class SignupViewModel extends ViewModel {
 
   static const List<String> keralaOnlyState = ['Kerala'];
 
-  static const List<String> keralaDistricts = [
-    'Alappuzha',
-    'Thiruvananthapuram',
-  ];
+  List<String> _dynamicDistricts = [];
+  bool _isLoadingDistricts = false;
+  bool get isLoadingDistricts => _isLoadingDistricts;
 
   static const List<String> thiruvananthapuramLocalBodies = [
     'Nedumangadu Municipality',
@@ -418,10 +418,26 @@ class SignupViewModel extends ViewModel {
   List<String> get availableStates => keralaOnlyState;
 
   List<String> get availableDistricts {
-    if (_selectedState == 'Kerala') {
-      return keralaDistricts;
+    return _dynamicDistricts;
+  }
+
+  Future<List<String>> fetchDistricts({String state = 'kerala'}) async {
+    final cleanState = state.trim().toLowerCase();
+    _isLoadingDistricts = true;
+    notifyListeners();
+
+    try {
+      final districts = await _authRepository.fetchDistricts(state: cleanState);
+      if (districts.isNotEmpty) {
+        _dynamicDistricts = districts;
+      }
+    } catch (e) {
+      debugPrint('[SignupViewModel] Error fetching districts: $e');
+    } finally {
+      _isLoadingDistricts = false;
+      notifyListeners();
     }
-    return keralaDistricts;
+    return _dynamicDistricts;
   }
 
   List<String> get availableLocalBodies {
@@ -462,6 +478,7 @@ class SignupViewModel extends ViewModel {
     _dynamicWards = [];
     _step3ErrorMessage = null;
     notifyListeners();
+    fetchDistricts(state: state);
   }
 
   void setDistrictSelection(String district) {
@@ -484,7 +501,8 @@ class SignupViewModel extends ViewModel {
   }
 
   Future<List<String>> fetchWardsForLocalBody(String localBody) async {
-    if (_wardsCache.containsKey(localBody) && _wardsCache[localBody]!.isNotEmpty) {
+    if (_wardsCache.containsKey(localBody) &&
+        _wardsCache[localBody]!.isNotEmpty) {
       _dynamicWards = _wardsCache[localBody]!;
       notifyListeners();
       return _dynamicWards;
@@ -645,7 +663,8 @@ class SignupViewModel extends ViewModel {
           await prefs.setString(sp_keys.keyToken, trimmedToken);
           await prefs.setString('token', trimmedToken);
           await WebAPIService().initTokenToHeader();
-          debugPrint('💾 [SIGNUP VIEWMODEL] Saved authentication token: $trimmedToken');
+          debugPrint(
+              '💾 [SIGNUP VIEWMODEL] Saved authentication token: $trimmedToken');
         }
 
         // Save account type and initialize commercial fee paid flag

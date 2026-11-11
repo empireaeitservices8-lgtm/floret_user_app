@@ -103,6 +103,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     }
     _viewModel.loadSavedAddresses();
     _loadRewardData();
+    _repo.fetchDistricts(state: 'kerala');
   }
 
   Future<void> _loadRewardData() async {
@@ -995,6 +996,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
             items: _repo.getAvailableStates(),
             onSelect: (state) {
               vm.setStateSelection(state);
+              _repo.fetchDistricts(state: state);
               if (_hasSubmittedLocation) setState(() {});
             },
           ),
@@ -1009,7 +1011,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
           hint: vm.selectedState == null
               ? 'Select State first'
               : 'Select District',
-          onTap: () {
+          onTap: () async {
             if (vm.selectedState == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -1019,9 +1021,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               );
               return;
             }
+            List<String> items = _repo.getDistrictsForState(vm.selectedState!);
+            if (items.isEmpty) {
+              items = await _repo.fetchDistricts(state: vm.selectedState!);
+            }
+            if (!mounted) return;
             _showSelectionSheet(
               title: 'Select District',
-              items: _repo.getDistrictsForState(vm.selectedState!),
+              items: items,
               onSelect: (district) => vm.setDistrictSelection(district),
             );
           },

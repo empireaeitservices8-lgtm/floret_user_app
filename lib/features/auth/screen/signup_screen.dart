@@ -1463,7 +1463,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   _buildDropdownButton(
                     text: vm.selectedDistrict ?? 'Select Sta...',
                     hasValue: vm.selectedDistrict != null,
-                    onTap: () {
+                    onTap: () async {
                       if (vm.selectedState == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -1473,9 +1473,15 @@ class _SignupScreenState extends State<SignupScreen> {
                         );
                         return;
                       }
+                      List<String> items = vm.availableDistricts;
+                      if (items.isEmpty) {
+                        items =
+                            await vm.fetchDistricts(state: vm.selectedState!);
+                      }
+                      if (!mounted) return;
                       _showSelectionSheet(
                         title: 'Select District',
-                        items: vm.availableDistricts,
+                        items: items,
                         selectedValue: vm.selectedDistrict,
                         onSelect: (val) => vm.setDistrictSelection(val),
                       );

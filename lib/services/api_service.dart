@@ -30,6 +30,7 @@ class ApiService {
   static const String receiveBillEndpoint = '/api/receive-bill/';
   static const String availablePickupSlotsEndpoint =
       '/api/available-pickup-slots/';
+  static const String districtsEndpoint = '/api/districts/';
   static const String downloadBillInvoiceEndpoint =
       '/api/download-bill-invoice/';
   //static const String razorpayGenerateQr = '/api/razorpay/generate-qr/';
@@ -948,6 +949,23 @@ class ApiService {
     return _authenticatedGet(
       endpoint: availablePickupSlotsEndpoint,
       requestName: 'GET AVAILABLE PICKUP SLOTS',
+      queryParameters: params.isNotEmpty ? params : null,
+      token: token,
+    );
+  }
+
+  /// Sends a GET request to /api/districts/?state={state}
+  Future<Response> getDistricts({
+    String? state,
+    String? token,
+  }) async {
+    final Map<String, dynamic> params = {};
+    if (state != null && state.trim().isNotEmpty) {
+      params['state'] = state.trim().toLowerCase();
+    }
+    return _authenticatedGet(
+      endpoint: districtsEndpoint,
+      requestName: 'GET DISTRICTS',
       queryParameters: params.isNotEmpty ? params : null,
       token: token,
     );

@@ -8,9 +8,11 @@ import 'package:floret_app/services/api_endpoints.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 import 'package:flutter/material.dart';
 import '../model/booking_model.dart';
+import '../../../models/district_model.dart';
 
 class BookingRepository {
   final Map<String, List<String>> _wardsCache = {};
+  final Map<String, List<String>> _districtsCache = {};
 
   List<WasteCategoryItem> getDefaultCategories() {
     return [
@@ -100,10 +102,43 @@ class BookingRepository {
   }
 
   List<String> getDistrictsForState(String state) {
-    if (state == 'Kerala') {
+    final cleanState = state.toLowerCase().trim();
+    if (_districtsCache.containsKey(cleanState) &&
+        _districtsCache[cleanState]!.isNotEmpty) {
+      return _districtsCache[cleanState]!;
+    }
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
       return const ['Thiruvananthapuram', 'Alappuzha'];
     }
-    return const ['City Central', 'North District', 'South District'];
+    return [];
+  }
+
+  /// Fetches districts for a selected state (default: kerala) dynamically from /api/districts/?state={state}
+  Future<List<String>> fetchDistricts({String state = 'kerala'}) async {
+    final cleanState = state.toLowerCase().trim();
+    if (_districtsCache.containsKey(cleanState) &&
+        _districtsCache[cleanState]!.isNotEmpty) {
+      return _districtsCache[cleanState]!;
+    }
+
+    try {
+      final endpoint = '${ApiEndpoints.districts}?state=$cleanState';
+      debugPrint('🚀 [BOOKING REPOSITORY] Fetching districts from: $endpoint');
+      final response =
+          await ApiClient().get(endpoint).timeout(const Duration(seconds: 10));
+
+      final list = DistrictModel.parseDistricts(response.data);
+      if (list.isNotEmpty) {
+        _districtsCache[cleanState] = list;
+        debugPrint(
+            '✅ [BOOKING REPOSITORY] Fetched ${list.length} districts for $cleanState: $list');
+        return list;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [BOOKING REPOSITORY] Error fetching districts: $e');
+    }
+
+    return _districtsCache[cleanState] ?? [];
   }
 
   List<String> getLocalBodies(String district) {

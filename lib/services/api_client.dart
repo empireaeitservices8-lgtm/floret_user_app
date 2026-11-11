@@ -6,9 +6,19 @@ import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/utils/sp_keys.dart' as sp_keys;
 
 class ApiClient {
+  static ApiClient? _instance;
   late final Dio dio;
 
-  ApiClient({Dio? customDio}) {
+  factory ApiClient({Dio? customDio}) {
+    if (customDio != null) {
+      _instance = ApiClient._internal(customDio: customDio);
+      return _instance!;
+    }
+    _instance ??= ApiClient._internal();
+    return _instance!;
+  }
+
+  ApiClient._internal({Dio? customDio}) {
     dio = customDio ??
         Dio(
           BaseOptions(

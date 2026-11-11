@@ -448,8 +448,13 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                                 );
                                 return;
                               }
-                              final districts =
+                              var districts =
                                   _bookingRepo.getDistrictsForState(selectedState!);
+                              if (districts.isEmpty) {
+                                districts = await _bookingRepo.fetchDistricts(
+                                    state: selectedState!);
+                              }
+                              if (!context.mounted) return;
                               final picked = await _showSelectionPicker(
                                 context: context,
                                 title: 'Select District',
