@@ -24,6 +24,7 @@ class OrderModel {
   String? pickupTimeSlot;
   final String? district;
   final String? localBody;
+  final String? rejectionReason;
 
   OrderModel({
     this.id,
@@ -43,6 +44,7 @@ class OrderModel {
     this.pickupTimeSlot,
     this.district,
     this.localBody,
+    this.rejectionReason,
   });
 
   int? get pickupId =>
@@ -82,6 +84,8 @@ class OrderModel {
         if (pickupTimeSlot != null) 'pickupTimeSlot': pickupTimeSlot,
         if (district != null) 'district': district,
         if (localBody != null) 'localBody': localBody,
+        if (rejectionReason != null) 'rejectionReason': rejectionReason,
+        if (rejectionReason != null) 'rejection_reason': rejectionReason,
       };
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -119,7 +123,15 @@ class OrderModel {
       contact: json['contact'] as String? ?? 'User',
       status: OrderStatus.values.firstWhere(
         (e) => e.name == json['status'],
-        orElse: () => OrderStatus.pending,
+        orElse: () {
+          final s = (json['status'] ?? json['rawStatus'] ?? '')
+              .toString()
+              .toLowerCase();
+          if (s.contains('reschedul')) return OrderStatus.reschedule;
+          if (s.contains('cancel')) return OrderStatus.cancelled;
+          if (s.contains('complete')) return OrderStatus.completed;
+          return OrderStatus.pending;
+        },
       ),
       userId: json['userId']?.toString() ??
           json['user_id']?.toString() ??
@@ -137,6 +149,11 @@ class OrderModel {
       district: json['district'] as String?,
       localBody: (json['local_body'] ?? json['localBody'] ?? json['localbody'])
           as String?,
+      rejectionReason: (json['rejection_reason'] ??
+              json['rejectionReason'] ??
+              json['reschedule_reason'] ??
+              json['reason'])
+          ?.toString(),
     );
   }
 
@@ -354,6 +371,11 @@ class OrderModel {
       district: json['district'] as String?,
       localBody: (json['local_body'] ?? json['localBody'] ?? json['localbody'])
           as String?,
+      rejectionReason: (json['rejection_reason'] ??
+              json['rejectionReason'] ??
+              json['reschedule_reason'] ??
+              json['reason'])
+          ?.toString(),
     );
   }
 }
@@ -584,6 +606,7 @@ class OrderStore {
   void addOrder(OrderModel order) {
     final orderWithUser = (order.userId == null && _currentUserId.isNotEmpty)
         ? OrderModel(
+            id: order.id,
             bookingId: order.bookingId,
             wasteType: order.wasteType,
             pickupDate: order.pickupDate,
@@ -593,6 +616,14 @@ class OrderStore {
             contact: order.contact,
             status: order.status,
             userId: _currentUserId,
+            weight: order.weight,
+            bagsUsed: order.bagsUsed,
+            rawStatus: order.rawStatus,
+            paymentStatus: order.paymentStatus,
+            pickupTimeSlot: order.pickupTimeSlot,
+            district: order.district,
+            localBody: order.localBody,
+            rejectionReason: order.rejectionReason,
           )
         : order;
     orders.value = [orderWithUser, ...orders.value];
@@ -713,6 +744,10 @@ class OrderStore {
           paymentStatus: (isLocallyCompleted && existing.isPaid)
               ? existing.paymentStatus
               : remote.paymentStatus,
+          pickupTimeSlot: remote.pickupTimeSlot ?? existing.pickupTimeSlot,
+          district: remote.district ?? existing.district,
+          localBody: remote.localBody ?? existing.localBody,
+          rejectionReason: remote.rejectionReason ?? existing.rejectionReason,
         );
       } else {
         map[remote.bookingId] = remote;

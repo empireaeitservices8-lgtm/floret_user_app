@@ -511,13 +511,21 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         // unpaid it show under pending (or pending status)
         return orders.where((o) {
           if (o.status == OrderStatus.cancelled ||
-              o.status == OrderStatus.reschedule) {
+              o.status == OrderStatus.reschedule ||
+              (o.rawStatus != null &&
+                  (o.rawStatus!.toLowerCase().contains('cancel') ||
+                      o.rawStatus!.toLowerCase().contains('reschedul')))) {
             return false;
           }
           return !o.isPaid || o.status == OrderStatus.pending;
         }).toList();
       case 3:
-        return orders.where((o) => o.status == OrderStatus.reschedule).toList();
+        return orders
+            .where((o) =>
+                o.status == OrderStatus.reschedule ||
+                (o.rawStatus != null &&
+                    o.rawStatus!.toLowerCase().contains('reschedul')))
+            .toList();
       case 4:
         return orders
             .where((o) =>
@@ -739,6 +747,32 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                       ),
                     ],
                   ),
+                  if ((order.status == OrderStatus.reschedule ||
+                          normalized.contains('RESCHEDULE')) &&
+                      order.rejectionReason != null &&
+                      order.rejectionReason!.trim().isNotEmpty) ...[
+                    const Divider(height: 28, color: Color(0xFFF1F5F9)),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          size: 18,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            order.rejectionReason!.trim(),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (!isCancelled) ...[
                     const Divider(height: 28, color: Color(0xFFF1F5F9)),
                     if (isCompletedAndPaid) ...[
@@ -1046,7 +1080,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(10),
