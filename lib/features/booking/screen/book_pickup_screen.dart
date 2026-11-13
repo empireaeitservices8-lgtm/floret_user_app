@@ -230,6 +230,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
 
   // Top Bar & Stepper matching Images 3, 4, 5
   Widget _buildTopHeader(BuildContext context, BookingViewModel vm) {
+    var size = MediaQuery.of(context).size.width;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: const BoxDecoration(
@@ -305,7 +306,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
 
               // Divider
               Container(
-                width: 28,
+                width: 18,
                 height: 1.5,
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 color: const Color(0xFFE2E8F0),
@@ -321,7 +322,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
 
               // Divider
               Container(
-                width: 28,
+                width: 18,
                 height: 1.5,
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 color: const Color(0xFFE2E8F0),
