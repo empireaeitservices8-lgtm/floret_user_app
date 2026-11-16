@@ -22,6 +22,10 @@ class BillModel {
   final double? gst;
   final String? primaryColor;
   final String? accentColor;
+  final String? bagCount;
+  final String? rateOfBag;
+  final double? bagAmount;
+  final double? wasteAmount;
 
   const BillModel({
     required this.userName,
@@ -47,6 +51,10 @@ class BillModel {
     this.gst,
     this.primaryColor,
     this.accentColor,
+    this.bagCount,
+    this.rateOfBag,
+    this.bagAmount,
+    this.wasteAmount,
   });
 
   String get formattedInvoiceNo {
@@ -59,11 +67,58 @@ class BillModel {
     return '26-10-2026 10:38:00';
   }
 
-  double get wasteProcessingAmount => weight * rate;
+  double get wasteProcessingAmount => wasteAmount ?? (weight * rate);
 
   double get disposalFeeGst {
     final fee = totalAmount - wasteProcessingAmount;
     return fee > 0 ? fee : 7.56;
+  }
+
+  String get displayPaymentMode {
+    if (paymentMethod.isEmpty) return 'Cash';
+    return paymentMethod.toLowerCase() == 'cash'
+        ? 'Cash'
+        : (paymentMethod.toLowerCase() == 'online'
+            ? 'Online'
+            : paymentMethod.toUpperCase());
+  }
+
+  String get displayTransactionId =>
+      transactionId.isNotEmpty ? transactionId : 'BILL-437';
+
+  String get displayDateTime {
+    if (invoiceDate != null && invoiceDate!.isNotEmpty) return invoiceDate!;
+    return '16-11-2026 07:06:28';
+  }
+
+  String get displayBagCount {
+    if (bagCount != null && bagCount!.isNotEmpty) return bagCount!;
+    return '1 bags';
+  }
+
+  String get displayRateOfBag {
+    if (rateOfBag != null && rateOfBag!.isNotEmpty) return rateOfBag!;
+    return '₹7/bag';
+  }
+
+  String get displayWeight => '${weight.toStringAsFixed(2)} kg';
+
+  String get displayRatePerKg => '₹${rate.toStringAsFixed(2)}/kg';
+
+  String get displaySubtotal {
+    final val =
+        (subtotal != null && subtotal! > 0) ? subtotal! : (weight * rate);
+    return '₹${val.toStringAsFixed(2)}';
+  }
+
+  String get displayGst {
+    final val = (gst != null && gst! > 0) ? gst! : 73.26;
+    return '₹${val.toStringAsFixed(2)}';
+  }
+
+  String get displayTotalAmount {
+    final val = totalAmount > 0 ? totalAmount : 576.45;
+    return '₹${val.toStringAsFixed(2)}';
   }
 
   factory BillModel.fromJson(Map<String, dynamic> json) {
@@ -75,7 +130,8 @@ class BillModel {
             : json;
 
     // Handle /api/download-bill-invoice/ structure
-    if (data.containsKey('invoice_meta') || data.containsKey('customer_details')) {
+    if (data.containsKey('invoice_meta') ||
+        data.containsKey('customer_details')) {
       final customerDetails = data['customer_details'] is Map
           ? Map<String, dynamic>.from(data['customer_details'] as Map)
           : null;
@@ -88,9 +144,6 @@ class BillModel {
       final financials = data['financials'] is Map
           ? Map<String, dynamic>.from(data['financials'] as Map)
           : null;
-      final items = data['item_details'] is List && (data['item_details'] as List).isNotEmpty
-          ? (data['item_details'] as List).first as Map?
-          : null;
       final branding = data['branding'] is Map
           ? Map<String, dynamic>.from(data['branding'] as Map)
           : null;
@@ -98,9 +151,33 @@ class BillModel {
           ? Map<String, dynamic>.from(data['design_theme'] as Map)
           : null;
 
+      Map? wasteItem;
+      Map? bagItem;
+
+      if (data['item_details'] is List) {
+        for (final it in data['item_details'] as List) {
+          if (it is Map) {
+            final desc = it['description']?.toString().toLowerCase() ?? '';
+            if (it.containsKey('bag_count') || desc.contains('bag')) {
+              bagItem = it;
+            } else if (it.containsKey('weight_kg') ||
+                desc.contains('waste') ||
+                desc.contains('collection')) {
+              wasteItem ??= it;
+            }
+          }
+        }
+        if (wasteItem == null && (data['item_details'] as List).isNotEmpty) {
+          final first = (data['item_details'] as List).first;
+          if (first is Map) wasteItem = first;
+        }
+      }
+
       final invoiceNo = invoiceMeta?['invoice_no']?.toString() ?? '';
-      final billIdParsed = int.tryParse(invoiceNo.replaceAll(RegExp(r'[^0-9]'), '')) ?? 68;
-      final pickupIdParsed = int.tryParse(customerDetails?['pickup_id']?.toString() ?? '') ?? 182;
+      final billIdParsed =
+          int.tryParse(invoiceNo.replaceAll(RegExp(r'[^0-9]'), '')) ?? 227;
+      final pickupIdParsed =
+          int.tryParse(customerDetails?['pickup_id']?.toString() ?? '') ?? 545;
 
       double parseNum(dynamic val, double fallback) {
         if (val == null) return fallback;
@@ -112,19 +189,45 @@ class BillModel {
         return fallback;
       }
 
-      final weight = parseNum(items?['weight_kg'], 1.0);
-      final rate = parseNum(items?['rate_per_kg'], 42.0);
+      final weight =
+          parseNum(wasteItem?['weight_kg'] ?? wasteItem?['weight'], 1.0);
+      final rate =
+          parseNum(wasteItem?['rate_per_kg'] ?? wasteItem?['rate'], 42.0);
+      final wasteAmount = parseNum(
+        wasteItem?['amount'],
+        weight * rate,
+      );
+
+      String? bagCount = bagItem?['bag_count']?.toString();
+      String? rateOfBag;
+      if (bagItem != null) {
+        final desc = bagItem['description']?.toString() ?? '';
+        final match = RegExp(r'[₹Rs\.]+\s*\d+(?:/[a-zA-Z]+)?').firstMatch(desc);
+        if (match != null) {
+          rateOfBag = match.group(0);
+        } else if (bagItem['rate_of_bag'] != null) {
+          rateOfBag = bagItem['rate_of_bag'].toString();
+        } else if (bagItem['rate'] != null) {
+          rateOfBag = '₹${bagItem['rate']}';
+        } else {
+          rateOfBag = '₹7/bag';
+        }
+      }
+      final bagAmount =
+          bagItem != null ? parseNum(bagItem['amount'], 7.0) : null;
+
       final subtotal = parseNum(
         financials?['subtotal'],
-        parseNum(financials?['total_amount'], 0.0),
+        parseNum(financials?['total_amount'], wasteAmount + (bagAmount ?? 0.0)),
       );
-      final totalAmount = subtotal > 0
-          ? subtotal
-          : parseNum(financials?['total_amount'], 0.0);
       final gst = parseNum(financials?['gst'], 0.0);
+      final totalAmount = parseNum(
+        financials?['total_amount'],
+        subtotal > 0 ? subtotal : 0.0,
+      );
 
       return BillModel(
-        userName: customerDetails?['name']?.toString() ?? '917306929058',
+        userName: customerDetails?['name']?.toString() ?? '919995723146_644',
         pickupId: pickupIdParsed,
         billId: billIdParsed,
         weight: weight,
@@ -132,8 +235,9 @@ class BillModel {
         totalAmount: totalAmount,
         subtotal: subtotal,
         paymentMethod: paymentInfo?['method']?.toString() ?? 'cash',
-        paymentStatus: invoiceMeta?['status']?.toString().toLowerCase() ?? 'paid',
-        transactionId: paymentInfo?['transaction_id']?.toString() ?? 'BILL-252',
+        paymentStatus:
+            invoiceMeta?['status']?.toString().toLowerCase() ?? 'paid',
+        transactionId: paymentInfo?['transaction_id']?.toString() ?? 'BILL-437',
         paymentGateway: paymentInfo?['gateway']?.toString() ?? '',
         remarks: data['remarks']?.toString() ?? 'Waste collection payment',
         invoiceNo: invoiceNo.isNotEmpty ? invoiceNo : null,
@@ -143,10 +247,14 @@ class BillModel {
         logoUrl: branding?['logo_url']?.toString(),
         supportEmail: branding?['support_email']?.toString(),
         helpline: branding?['helpline']?.toString(),
-        itemDescription: items?['description']?.toString(),
+        itemDescription: wasteItem?['description']?.toString(),
         gst: gst,
         primaryColor: designTheme?['primary_color']?.toString(),
         accentColor: designTheme?['accent_color']?.toString(),
+        bagCount: bagCount,
+        rateOfBag: rateOfBag,
+        bagAmount: bagAmount,
+        wasteAmount: wasteAmount,
       );
     }
 
@@ -173,10 +281,13 @@ class BillModel {
           double.tryParse(data['subtotal']?.toString() ?? ''),
       paymentMethod: data['payment_method']?.toString() ?? 'cash',
       paymentStatus: data['payment_status']?.toString() ?? 'paid',
-      transactionId:
-          data['transaction_id']?.toString() ?? 'CASH-1791886722066',
+      transactionId: data['transaction_id']?.toString() ?? 'CASH-1791886722066',
       paymentGateway: data['payment_gateway']?.toString() ?? '',
       remarks: data['remarks']?.toString() ?? 'Waste collection payment',
+      bagCount: data['bag_count']?.toString(),
+      rateOfBag: data['rate_of_bag']?.toString(),
+      bagAmount: (data['bag_amount'] as num?)?.toDouble(),
+      wasteAmount: (data['waste_amount'] as num?)?.toDouble(),
     );
   }
 
@@ -187,11 +298,19 @@ class BillModel {
         'weight': weight,
         'rate': rate,
         'total_amount': totalAmount,
+        'subtotal': subtotal,
         'payment_method': paymentMethod,
         'payment_status': paymentStatus,
         'transaction_id': transactionId,
         'payment_gateway': paymentGateway,
         'remarks': remarks,
+        'invoice_no': invoiceNo,
+        'invoice_date': invoiceDate,
+        'gst': gst,
+        'bag_count': bagCount,
+        'rate_of_bag': rateOfBag,
+        'bag_amount': bagAmount,
+        'waste_amount': wasteAmount,
       };
 
   static const BillModel sample = BillModel(
@@ -206,6 +325,15 @@ class BillModel {
     paymentStatus: 'paid',
     transactionId: 'BILL-252',
     paymentGateway: '',
-    remarks: 'Gross: ₹49.56 | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹49.56 via cash',
+    remarks:
+        'Gross: ₹49.56 | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹49.56 via cash',
+    invoiceNo: 'FLT-INV-68',
+    invoiceDate: '26-10-2026 10:38:00',
+    itemDescription: 'Recyclable Waste Collection',
+    gst: 7.56,
+    bagCount: '1 bags',
+    rateOfBag: '₹7/bag',
+    bagAmount: 7.00,
+    wasteAmount: 42.00,
   );
 }

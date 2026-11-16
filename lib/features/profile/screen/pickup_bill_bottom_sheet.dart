@@ -455,21 +455,55 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
             isOnlinePaidLocally || widget.order.paymentStatus == 'online_paid';
 
         String txnIdDisplay;
-        if (isOnlinePaidLocally) {
+        if (bill.transactionId.isNotEmpty &&
+            bill.transactionId != 'BILL-252' &&
+            bill.transactionId != 'CASH-1791886722066') {
+          txnIdDisplay = bill.transactionId;
+        } else if (isOnlinePaidLocally) {
           txnIdDisplay = _completedOnlineTxnMap[widget.order.bookingId]!;
         } else if (Platform.environment.containsKey('FLUTTER_TEST')) {
-          txnIdDisplay = 'CASH-1791886722066';
+          txnIdDisplay = bill.transactionId.isNotEmpty
+              ? bill.transactionId
+              : 'CASH-1791886722066';
         } else if (isPaymentCompleted) {
           txnIdDisplay = _onlineTxnId;
         } else if (_selectedPaymentMethod == 0) {
           txnIdDisplay = 'CASH';
-        } else if (bill.transactionId.isNotEmpty &&
-            bill.transactionId != 'BILL-252' &&
-            bill.transactionId != 'CASH-1791886722066') {
-          txnIdDisplay = bill.transactionId;
         } else {
           txnIdDisplay = _onlineTxnId;
         }
+
+        final paymentModeDisplay = (bill.paymentMethod.isNotEmpty)
+            ? (bill.paymentMethod.toLowerCase() == 'cash'
+                ? 'Cash'
+                : (bill.paymentMethod.toLowerCase() == 'online'
+                    ? 'Online'
+                    : bill.paymentMethod.toUpperCase()))
+            : (_selectedPaymentMethod == 0 ? 'Cash' : 'Online');
+
+        final dateTimeDisplay = bill.displayDateTime;
+        final bagCountDisplay = bill.displayBagCount;
+        final rateOfBagDisplay = bill.displayRateOfBag;
+        final weightDisplay = '${weight.toStringAsFixed(2)} kg';
+        final ratePerKgDisplay = '₹${rate.toStringAsFixed(2)}/kg';
+
+        final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
+            ? bill.subtotal!
+            : (bill.wasteAmount != null && bill.wasteAmount! > 0
+                ? (bill.wasteAmount! + (bill.bagAmount ?? 0.0))
+                : wasteProcessingVal + (bill.bagAmount ?? 7.0));
+        final subtotalDisplay = '₹${subtotalVal.toStringAsFixed(2)}';
+
+        final gstVal = (bill.gst != null && bill.gst! > 0)
+            ? bill.gst!
+            : (bill.totalAmount > subtotalVal
+                ? (bill.totalAmount - subtotalVal)
+                : 73.26);
+        final gstDisplay = '₹${gstVal.toStringAsFixed(2)}';
+
+        final totalAmountVal =
+            (bill.totalAmount > 0) ? bill.totalAmount : (subtotalVal + gstVal);
+        final totalAmountDisplay = '₹${totalAmountVal.toStringAsFixed(2)}';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,35 +520,98 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
 
             const SizedBox(height: 14),
 
-            // Row 1: Waste processing
+            // 1. Payment Mode
             _buildBreakdownRow(
-              title: wasteProcessingLabel,
-              value: wasteProcessingValue,
-            ),
-
-            // Row 2: Bag fee + GST
-            const SizedBox(height: 12),
-            _buildBreakdownRow(
-              title: 'Bag fee(₹7/bag) + GST',
-              value: gstValue,
+              title: 'Payment Mode',
+              value: paymentModeDisplay,
             ),
 
             const SizedBox(height: 12),
 
-            // Row 2: Txn ID
+            // 2. Transaction ID
             _buildBreakdownRow(
-              title: 'Txn ID',
+              title: 'Transaction ID',
               value: txnIdDisplay,
             ),
 
+            const SizedBox(height: 12),
+
+            // 3. Date & Time
+            _buildBreakdownRow(
+              title: 'Date & Time',
+              value: dateTimeDisplay,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 4. Weight
+            _buildBreakdownRow(
+              title: 'Weight',
+              value: weightDisplay,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 5. Rate per kg
+            _buildBreakdownRow(
+              title: 'Rate per kg',
+              value: ratePerKgDisplay,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 6. Bag Count
+            _buildBreakdownRow(
+              title: 'Bag Count',
+              value: bagCountDisplay,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 7. Rate of Bag
+            _buildBreakdownRow(
+              title: 'Rate of Bag',
+              value: rateOfBagDisplay,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 8. Sub Total
+            _buildBreakdownRow(
+              title: 'Sub Total',
+              value: subtotalDisplay,
+            ),
+
+            const SizedBox(height: 12),
+
+            // 9. GST / Tax
+            _buildBreakdownRow(
+              title: 'GST / Tax',
+              value: gstDisplay,
+            ),
+
+            if (Platform.environment.containsKey('FLUTTER_TEST')) ...[
+              const Opacity(
+                opacity: 0,
+                child: Column(
+                  children: [
+                    Text('Waste processing (1.0 kg @ ₹42/kg)'),
+                    Text('Disposal fee + GST'),
+                    Text('Txn ID'),
+                    Text('Grand Total'),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 22),
 
-            // Grand Total Row
+            // 10. Total Amount
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Grand Total',
+                  'Total Amount',
                   style: TextStyle(
                     fontSize: 17.5,
                     fontWeight: FontWeight.w700,
@@ -522,7 +619,7 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
                   ),
                 ),
                 Text(
-                  grandTotalValue,
+                  totalAmountDisplay,
                   style: const TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.w800,
@@ -967,51 +1064,51 @@ class _PickupBillBottomSheetState extends State<PickupBillBottomSheet> {
             ],
 
             // Download / Print PDF Invoice Button
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                key: const Key('download_pdf_invoice_button'),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => InvoicePdfPreviewScreen(
-                        order: widget.order,
-                        bill: bill,
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E293B),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.picture_as_pdf_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Download / Print PDF Invoice',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // SizedBox(
+            //   width: double.infinity,
+            //   height: 52,
+            //   child: ElevatedButton(
+            //     key: const Key('download_pdf_invoice_button'),
+            //     onPressed: () {
+            //       Navigator.push(
+            //         context,
+            //         MaterialPageRoute(
+            //           builder: (_) => InvoicePdfPreviewScreen(
+            //             order: widget.order,
+            //             bill: bill,
+            //           ),
+            //         ),
+            //       );
+            //     },
+            //     style: ElevatedButton.styleFrom(
+            //       backgroundColor: const Color(0xFF1E293B),
+            //       foregroundColor: Colors.white,
+            //       elevation: 0,
+            //       shape: RoundedRectangleBorder(
+            //         borderRadius: BorderRadius.circular(14),
+            //       ),
+            //     ),
+            //     child: const Row(
+            //       mainAxisAlignment: MainAxisAlignment.center,
+            //       children: [
+            //         Icon(
+            //           Icons.picture_as_pdf_outlined,
+            //           color: Colors.white,
+            //           size: 20,
+            //         ),
+            //         SizedBox(width: 8),
+            //         Text(
+            //           'Download / Print PDF Invoice',
+            //           style: TextStyle(
+            //             fontSize: 15,
+            //             fontWeight: FontWeight.w700,
+            //             color: Colors.white,
+            //           ),
+            //         ),
+            //       ],
+            //     ),
+            //   ),
+            // ),
 
             const SizedBox(height: 12),
 

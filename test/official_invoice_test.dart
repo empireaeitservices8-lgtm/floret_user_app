@@ -22,7 +22,8 @@ class MockProfileRepository extends ProfileRepository {
   }
 
   @override
-  Future<BillModel?> downloadBillInvoice(dynamic pickupId, {String? token}) async {
+  Future<BillModel?> downloadBillInvoice(dynamic pickupId,
+      {String? token}) async {
     if (onDownloadBill != null) {
       return onDownloadBill!(pickupId);
     }
@@ -97,7 +98,8 @@ void main() {
       expect(find.text('Invoice'), findsOneWidget);
     });
 
-    testWidgets('2. Tap on Invoice opens OfficialInvoiceScreen matching Images 2 & 3',
+    testWidgets(
+        '2. Tap on Invoice opens OfficialInvoiceScreen matching Images 2 & 3',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
@@ -153,7 +155,7 @@ void main() {
     });
 
     testWidgets(
-        '3. Tap on Download / Print PDF Invoice opens InvoicePdfPreviewScreen matching Image 4',
+        '3. Tap on Download / Print PDF Invoice opens OfficialInvoiceScreen without PDF and Download/Print buttons',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
@@ -173,26 +175,15 @@ void main() {
       await tester.tap(find.text('Download / Print PDF Invoice'));
       await tester.pumpAndSettle();
 
-      // Check InvoicePdfPreviewScreen elements (Image 4)
-      expect(find.byType(InvoicePdfPreviewScreen), findsOneWidget);
-      expect(find.text('Select a printer'), findsOneWidget);
-      expect(find.text('Copies:   1'), findsOneWidget);
-      expect(find.text('Paper size:   ISO A4'), findsOneWidget);
+      // Check that it shows official invoice page elements
+      expect(find.text('Official Invoice'), findsWidgets);
+      expect(find.text('CUSTOMER & PICKUP DETAILS'), findsWidgets);
+      expect(find.text('LINE ITEMS & PRICING'), findsWidgets);
+      expect(find.text('PAYMENT SPECIFICATIONS'), findsWidgets);
 
-      // A4 Sheet elements
-      expect(find.text('FLORETTECHNOLOGIES'), findsOneWidget);
-      expect(find.text('INVOICE'), findsOneWidget);
-      expect(find.text('BILLED TO:'), findsOneWidget);
-      expect(find.text('DATE & STATUS:'), findsOneWidget);
-      expect(find.text('DESCRIPTION'), findsOneWidget);
-      expect(find.text('QTY / WEIGHT'), findsOneWidget);
-      expect(find.text('RATE (Rs./kg)'), findsOneWidget);
-      expect(find.text('AMOUNT'), findsOneWidget);
-      expect(find.text('PAYMENT INFORMATION'), findsOneWidget);
-
-      // Bottom bar
-      expect(find.text('1/1'), findsOneWidget);
-      expect(find.byIcon(Icons.check), findsOneWidget);
+      // Verify "PDF" action button and "Download / Print PDF Invoice" button are NOT present on the new page
+      expect(find.text('PDF'), findsNothing);
+      expect(find.text('Download / Print PDF Invoice'), findsNothing);
     });
 
     testWidgets(
@@ -220,7 +211,9 @@ void main() {
       expect(find.text('1/1'), findsOneWidget);
     });
 
-    test('5. InvoicePdfService generates valid vector PDF bytes with order and bill details', () async {
+    test(
+        '5. InvoicePdfService generates valid vector PDF bytes with order and bill details',
+        () async {
       final pdfBytes = await InvoicePdfService.instance.generateInvoicePdfBytes(
         order: completedOrder,
         bill: BillModel.sample,
@@ -372,8 +365,7 @@ void main() {
       expect(find.text('Weight: 5.00 kg'), findsOneWidget);
       expect(find.text('Rate: ₹42.00/kg'), findsOneWidget);
       expect(find.text('₹256.06'), findsWidgets);
-      expect(
-          find.textContaining('Paid: ₹256.06 via cash', findRichText: true),
+      expect(find.textContaining('Paid: ₹256.06 via cash', findRichText: true),
           findsOneWidget);
     });
   });

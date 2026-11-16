@@ -172,38 +172,46 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
         : '#${order.bookingId.replaceAll(RegExp(r'[^0-9]'), '')}';
     final customerName =
         bill.userName.isNotEmpty ? bill.userName : '917306929058';
-    final invoiceDateStr = order.completedDate != null
-        ? _formatDateTime(order.completedDate!)
-        : '15-10-2026 12:56:09';
-    final wasteTitle = order.wasteType.toLowerCase().contains('waste')
-        ? (order.wasteType.toLowerCase().contains('collection')
-            ? order.wasteType
-            : '${order.wasteType} Collection')
-        : 'Recyclable Waste Collection';
+    final invoiceDateStr = (bill.invoiceDate != null && bill.invoiceDate!.isNotEmpty)
+        ? bill.invoiceDate!
+        : (order.completedDate != null
+            ? _formatDateTime(order.completedDate!)
+            : '15-10-2026 12:56:09');
+    final wasteTitle = (bill.itemDescription != null && bill.itemDescription!.isNotEmpty)
+        ? bill.itemDescription!
+        : (order.wasteType.toLowerCase().contains('waste')
+            ? (order.wasteType.toLowerCase().contains('collection')
+                ? order.wasteType
+                : '${order.wasteType} Collection')
+            : 'Recyclable Waste Collection');
     final weightStr = bill.weight.toStringAsFixed(2);
     final rateStr = bill.rate.toStringAsFixed(2);
+    final wasteAmountVal = (bill.wasteAmount != null && bill.wasteAmount! > 0)
+        ? bill.wasteAmount!
+        : (bill.weight * bill.rate);
+    final wasteAmountStr = wasteAmountVal.toStringAsFixed(2);
+    final hasBagItem = (bill.bagCount != null && bill.bagCount!.isNotEmpty) ||
+        (bill.bagAmount != null && bill.bagAmount! > 0);
+    final bagAmountVal = bill.bagAmount ?? 7.00;
+    final bagAmountStr = bagAmountVal.toStringAsFixed(2);
     final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
         ? bill.subtotal!
-        : bill.totalAmount;
+        : (wasteAmountVal + (hasBagItem ? bagAmountVal : 0.0));
     final subtotalStr = subtotalVal.toStringAsFixed(2);
-    final totalStr = subtotalStr;
-    final wasteProcessingVal =
-        (bill.wasteProcessingAmount > 0 && bill.weight > 0)
-            ? bill.wasteProcessingAmount
-            : bill.weight * bill.rate;
-    final rawGst = subtotalVal - wasteProcessingVal;
-    final gstVal = rawGst.abs() > 0.001
-        ? rawGst.abs()
-        : ((bill.gst != null && bill.gst! > 0) ? bill.gst! : 0.0);
+    final totalVal = bill.totalAmount > 0 ? bill.totalAmount : subtotalVal;
+    final totalStr = totalVal.toStringAsFixed(2);
+    final gstVal = (bill.gst != null && bill.gst! > 0)
+        ? bill.gst!
+        : (totalVal > subtotalVal ? (totalVal - subtotalVal) : 0.0);
     final gstStr = gstVal.toStringAsFixed(2);
     final methodStr = bill.paymentMethod.isNotEmpty
         ? bill.paymentMethod.toUpperCase()
         : 'CASH';
     final txnId =
-        bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
+        bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-437';
     final remarks = bill.remarks.isNotEmpty
         ? bill.remarks
-        : 'Gross: ₹$subtotalStr | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹$subtotalStr via ${methodStr.toLowerCase()}';
+        : 'Gross: ₹$totalStr | Voucher (FLT-250): -₹0.00 | Wallet: -₹0.00 | Paid: ₹$totalStr via ${methodStr.toLowerCase()}';
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 420),
@@ -460,7 +468,7 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                   ),
                 ),
 
-                // Table Row
+                // Table Row 1: Waste
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -502,7 +510,7 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                       Expanded(
                         flex: 3,
                         child: Text(
-                          'Rs. $totalStr',
+                          'Rs. $wasteAmountStr',
                           textAlign: TextAlign.right,
                           style: const TextStyle(
                             fontSize: 8.5,
@@ -514,6 +522,66 @@ class InvoicePdfPreviewScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                if (hasBagItem) ...[
+                  Container(
+                    height: 0.5,
+                    color: const Color(0xFFE2E8F0),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: Text(
+                            'Bag fee (${bill.displayRateOfBag}) + GST',
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            bill.displayBagCount,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            bill.displayRateOfBag,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Rs. $bagAmountStr',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -799,8 +799,25 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                                       textColor: const Color(0xFF4B5563),
                                       backgroundColor: const Color(0xFFF3F4F6),
                                       borderColor: const Color(0xFFD1D5DB),
-                                      onTap: () => showPickupBillBottomSheet(
-                                          context, order),
+                                      onTap: () async {
+                                        final pickupId = order.pickupId ??
+                                            int.tryParse(order.bookingId
+                                                .replaceAll(
+                                                    RegExp(r'[^0-9]'), '')) ??
+                                            182;
+                                        BillModel? fetchedBill;
+                                        try {
+                                          fetchedBill = await _profileRepository
+                                              .downloadBillInvoice(pickupId);
+                                        } catch (e) {
+                                          debugPrint(
+                                              '[OrderHistoryScreen] downloadBillInvoice on View Bill tap: $e');
+                                        }
+                                        if (!context.mounted) return;
+                                        showPickupBillBottomSheet(
+                                            context, order,
+                                            initialBill: fetchedBill);
+                                      },
                                     ),
                                   ],
                                 ),
@@ -1018,6 +1035,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             builder: (_) => OfficialInvoiceScreen(
               order: order,
               initialBill: fetchedBill,
+              repository: _profileRepository,
             ),
           ),
         );

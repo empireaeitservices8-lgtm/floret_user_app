@@ -54,29 +54,34 @@ class InvoicePdfService {
                 : 'Recyclable Waste Collection');
     final weightStr = bill.weight.toStringAsFixed(2);
     final rateStr = bill.rate.toStringAsFixed(2);
+    final wasteAmountVal = (bill.wasteAmount != null && bill.wasteAmount! > 0)
+        ? bill.wasteAmount!
+        : (bill.weight * bill.rate);
+    final wasteAmountStr = wasteAmountVal.toStringAsFixed(2);
+    final hasBagItem = (bill.bagCount != null && bill.bagCount!.isNotEmpty) ||
+        (bill.bagAmount != null && bill.bagAmount! > 0);
+    final bagAmountVal = bill.bagAmount ?? 7.00;
+    final bagAmountStr = bagAmountVal.toStringAsFixed(2);
     final subtotalVal = (bill.subtotal != null && bill.subtotal! > 0)
         ? bill.subtotal!
-        : bill.totalAmount;
+        : (wasteAmountVal + (hasBagItem ? bagAmountVal : 0.0));
     final subtotalStr = subtotalVal.toStringAsFixed(2);
-    final totalStr = subtotalStr;
-    final wasteProcessingVal =
-        (bill.wasteProcessingAmount > 0 && bill.weight > 0)
-            ? bill.wasteProcessingAmount
-            : bill.weight * bill.rate;
-    final rawGst = subtotalVal - wasteProcessingVal;
-    final gstVal = rawGst.abs() > 0.001
-        ? rawGst.abs()
-        : ((bill.gst != null && bill.gst! > 0) ? bill.gst! : 0.0);
+    final totalVal = bill.totalAmount > 0 ? bill.totalAmount : subtotalVal;
+    final totalStr = totalVal.toStringAsFixed(2);
+    final gstVal = (bill.gst != null && bill.gst! > 0)
+        ? bill.gst!
+        : (totalVal > subtotalVal ? (totalVal - subtotalVal) : 0.0);
     final gstStr = gstVal.toStringAsFixed(2);
     final methodStr = bill.paymentMethod.isNotEmpty
         ? bill.paymentMethod.toUpperCase()
         : 'CASH';
     final txnId =
-        bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-252';
+        bill.transactionId.isNotEmpty ? bill.transactionId : 'BILL-437';
     final remarks = bill.remarks.isNotEmpty
         ? bill.remarks
-        : 'Gross: Rs. $subtotalStr | Voucher (FLT-250): -Rs. 0.00 | Wallet: -Rs. 0.00 | Paid: Rs. $subtotalStr via ${methodStr.toLowerCase()}';
+        : 'Gross: Rs. $totalStr | Voucher (FLT-250): -Rs. 0.00 | Wallet: -Rs. 0.00 | Paid: Rs. $totalStr via ${methodStr.toLowerCase()}';
     final safeRemarks = remarks.replaceAll('₹', 'Rs. ');
+    final safeRateOfBag = bill.displayRateOfBag.replaceAll('₹', 'Rs. ');
 
     // Attempt to load logo image if available
     pw.MemoryImage? logoImage;
@@ -391,7 +396,7 @@ class InvoicePdfService {
                           pw.Expanded(
                             flex: 3,
                             child: pw.Text(
-                              'Rs. $totalStr',
+                              'Rs. $wasteAmountStr',
                               textAlign: pw.TextAlign.right,
                               style: pw.TextStyle(
                                 fontSize: 10,
@@ -403,6 +408,65 @@ class InvoicePdfService {
                         ],
                       ),
                     ),
+                    if (hasBagItem) ...[
+                      pw.Container(
+                        height: 0.5,
+                        color: PdfColor.fromInt(0xFFE2E8F0),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 10),
+                        child: pw.Row(
+                          children: [
+                            pw.Expanded(
+                              flex: 5,
+                              child: pw.Text(
+                                'Bag fee ($safeRateOfBag) + GST',
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColor.fromInt(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                            pw.Expanded(
+                              flex: 3,
+                              child: pw.Text(
+                                bill.displayBagCount,
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  color: PdfColor.fromInt(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                            pw.Expanded(
+                              flex: 3,
+                              child: pw.Text(
+                                safeRateOfBag,
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  color: PdfColor.fromInt(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                            pw.Expanded(
+                              flex: 3,
+                              child: pw.Text(
+                                'Rs. $bagAmountStr',
+                                textAlign: pw.TextAlign.right,
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColor.fromInt(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
