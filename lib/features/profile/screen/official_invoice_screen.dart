@@ -299,7 +299,8 @@ class _OfficialInvoiceScreenState extends State<OfficialInvoiceScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () => _handleDownloadPrintPdf(bill),
+                    onPressed:
+                        bill != null ? () => _navigateToPdfPreview(bill) : null,
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
