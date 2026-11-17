@@ -201,6 +201,61 @@ void main() {
       final vm = HomeViewModel();
       expect(vm.getUserPickupWeight(), equals(0.0));
     });
+
+    test('HomeOverviewModel correctly parses /api/home/ response with total_recycled_weight: 0.0 for user jijo', () {
+      final json = {
+        "username": "jijo",
+        "pending_bills": 0,
+        "scheduled_pickups": 0,
+        "total_recycled_weight": 0.0,
+        "message": "Welcome back, jijo!"
+      };
+
+      final overview = HomeOverviewModel.fromJson(json);
+      expect(overview.username, equals('jijo'));
+      expect(overview.pendingBills, equals(0));
+      expect(overview.scheduledPickups, equals(0));
+      expect(overview.totalRecycledWeight, equals(0.0));
+      expect(overview.message, equals('Welcome back, jijo!'));
+
+      final vm = HomeViewModel();
+      vm.setHomeOverview(overview);
+      expect(vm.hasFetchedHomeOverview, isTrue);
+      expect(vm.totalRecycledWeight, equals(0.0));
+      expect(vm.getUserPickupWeight(), equals(0.0));
+    });
+
+    test('HomeViewModel returns total_recycled_weight: 0.0 from /api/home/ even if local completed orders exist', () {
+      final vm = HomeViewModel();
+      final now = DateTime.now();
+
+      final completedOrder = OrderModel(
+        bookingId: 'ORD-COMPLETED',
+        wasteType: 'Sanitary',
+        pickupDate: now,
+        completedDate: now,
+        address: 'Addr',
+        fullAddress: 'Full Addr',
+        contact: 'User',
+        status: OrderStatus.completed,
+      );
+
+      // Before API response, ordersWeight would be 5.0
+      expect(vm.getUserPickupWeight([completedOrder]), equals(5.0));
+
+      // After /api/home/ response returns total_recycled_weight: 0.0
+      final json = {
+        "username": "jijo",
+        "pending_bills": 0,
+        "scheduled_pickups": 0,
+        "total_recycled_weight": 0.0,
+        "message": "Welcome back, jijo!"
+      };
+      vm.setHomeOverview(HomeOverviewModel.fromJson(json));
+
+      // Now getUserPickupWeight strictly returns 0.0 from the API response
+      expect(vm.getUserPickupWeight([completedOrder]), equals(0.0));
+    });
   });
 }
 

@@ -54,6 +54,9 @@ class HomeViewModel extends ViewModel {
   List<OrderModel> _orderHistory = const [];
   bool _isRefreshing = false;
   bool _isLoadingOrders = false;
+  bool _hasFetchedHomeOverview = false;
+
+  bool get hasFetchedHomeOverview => _hasFetchedHomeOverview;
 
   String get userName {
     if (_userName.isNotEmpty &&
@@ -304,16 +307,46 @@ class HomeViewModel extends ViewModel {
       ordersWeight = monthlyPickups.length * 5.0;
     }
 
-    if (isCurrentMonth) {
-      final apiWeight = _homeBundle.recycleProgress.totalRecycledWeight > 0
-          ? _homeBundle.recycleProgress.totalRecycledWeight
-          : _homeBundle.homeOverview.totalRecycledWeight;
-      if (apiWeight > 0) {
-        return apiWeight > ordersWeight ? apiWeight : ordersWeight;
-      }
+    if (isCurrentMonth &&
+        (_hasFetchedHomeOverview ||
+            _homeBundle.homeOverview.totalRecycledWeight > 0)) {
+      return _homeBundle.homeOverview.totalRecycledWeight;
     }
 
     return ordersWeight;
+  }
+
+  /// Sets or updates the home overview model
+  void setHomeOverview(HomeOverviewModel overview) {
+    _hasFetchedHomeOverview = true;
+    _homeBundle = _homeBundle.copyWith(homeOverview: overview);
+    if (overview.username != null &&
+        overview.username!.isNotEmpty &&
+        overview.username!.toLowerCase() != 'user') {
+      _userName = overview.username!;
+    }
+    notifyListeners();
+  }
+
+  /// Fetches home overview directly from GET /api/home/
+  Future<HomeOverviewModel> fetchHomeOverview() async {
+    try {
+      final overview = await _repository.fetchHomeOverview();
+      if (overview != null) {
+        _hasFetchedHomeOverview = true;
+        _homeBundle = _homeBundle.copyWith(homeOverview: overview);
+        if (overview.username != null &&
+            overview.username!.isNotEmpty &&
+            overview.username!.toLowerCase() != 'user') {
+          _userName = overview.username!;
+        }
+        notifyListeners();
+        return overview;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [HOME VIEWMODEL] fetchHomeOverview error: $e');
+    }
+    return _homeBundle.homeOverview;
   }
 
   /// Fetches order history from backend API, updates local state,
@@ -392,6 +425,15 @@ class HomeViewModel extends ViewModel {
       }
       _userName = await _repository.getUserName();
       _pickupOptions = await _repository.getPickupOptions();
+
+      // Fetch home overview directly from GET /api/home/
+      try {
+        await fetchHomeOverview();
+      } catch (homeErr) {
+        debugPrint(
+            '⚠️ [HOME VIEWMODEL] homeOverview in loadHomeData error: $homeErr');
+      }
+
       _homeBundle = await _repository.fetchAllHomeData();
 
       // Fetch wallet balance directly

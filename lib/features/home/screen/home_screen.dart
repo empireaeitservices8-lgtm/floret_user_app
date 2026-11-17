@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _viewModel = HomeViewModel();
     _localProfileVm = ProfileViewModel();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _viewModel.fetchHomeOverview();
       _viewModel.fetchOrderHistory();
       _viewModel.fetchWalletBalance();
       _localProfileVm.getProfile();
@@ -100,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: RefreshIndicator(
                   onRefresh: () async {
                     await Future.wait([
+                      vm.fetchHomeOverview(),
                       vm.loadHomeData(isRefresh: true),
                       vm.fetchWalletBalance(),
                       _getProfileViewModel(context, listen: false).getProfile(),
@@ -913,24 +915,26 @@ class _HomeScreenState extends State<HomeScreen> {
       {HomeViewModel? vm, List<OrderModel>? orders}) {
     const double targetWeight = 50.0;
     final now = DateTime.now();
-    final double userWeight = vm?.getUserPickupWeight(orders, now) ??
-        (() {
-          final apiWeight = vm?.homeOverview.totalRecycledWeight ?? 0.0;
-          final list = orders ?? OrderStore.instance.orders.value;
-          final monthlyList = list.where((o) {
-            final date = o.completedDate ?? o.pickupDate;
-            return date.year == now.year && date.month == now.month;
-          }).toList();
-          final completed = monthlyList
-              .where((o) => o.status == OrderStatus.completed)
-              .toList();
-          final valid = monthlyList
-              .where((o) => o.status != OrderStatus.cancelled)
-              .toList();
-          final target = completed.isNotEmpty ? completed : valid;
-          final ordersWeight = target.length * 5.0;
-          return apiWeight > ordersWeight ? apiWeight : ordersWeight;
-        })();
+    final double userWeight = (vm != null &&
+            (vm.hasFetchedHomeOverview ||
+                vm.homeOverview.totalRecycledWeight > 0))
+        ? vm.homeOverview.totalRecycledWeight
+        : (vm?.getUserPickupWeight(orders, now) ??
+            (() {
+              final list = orders ?? OrderStore.instance.orders.value;
+              final monthlyList = list.where((o) {
+                final date = o.completedDate ?? o.pickupDate;
+                return date.year == now.year && date.month == now.month;
+              }).toList();
+              final completed = monthlyList
+                  .where((o) => o.status == OrderStatus.completed)
+                  .toList();
+              final valid = monthlyList
+                  .where((o) => o.status != OrderStatus.cancelled)
+                  .toList();
+              final target = completed.isNotEmpty ? completed : valid;
+              return target.length * 5.0;
+            })());
 
     final double progressFraction = (userWeight / targetWeight).clamp(0.0, 1.0);
     final int percentDone =

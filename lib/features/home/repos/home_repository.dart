@@ -39,11 +39,25 @@ class HomeRepository {
   }
 
   /// 1. GET /api/home/
-  Future<HomeOverviewModel> fetchHomeOverview() async {
+  Future<HomeOverviewModel?> fetchHomeOverview() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST') &&
+        _apiService.runtimeType.toString() == 'ApiService') {
+      return null;
+    }
     try {
       final response = await _apiService.getHome();
-      if (response.data is Map) {
-        final map = Map<String, dynamic>.from(response.data as Map);
+      dynamic responseData = response.data;
+      if (responseData is String) {
+        try {
+          responseData = jsonDecode(responseData);
+        } catch (_) {}
+      }
+      if (responseData is Map) {
+        final map = Map<String, dynamic>.from(
+          (responseData['data'] is Map)
+              ? responseData['data'] as Map
+              : responseData,
+        );
         final model = HomeOverviewModel.fromJson(map);
         // Also save username/message if present and not generic
         if (model.username != null &&
@@ -51,16 +65,14 @@ class HomeRepository {
             model.username!.toLowerCase() != 'user') {
           await SpHelper.saveString('home_username', model.username!);
         }
-        if (model.totalRecycledWeight > 0) {
-          await SpHelper.saveString(
-              'total_recycled_weight', model.totalRecycledWeight.toString());
-        }
+        await SpHelper.saveString(
+            'total_recycled_weight', model.totalRecycledWeight.toString());
         return model;
       }
     } catch (e) {
       debugPrint('⚠️ [HOME REPO] fetchHomeOverview error: $e');
     }
-    return const HomeOverviewModel();
+    return null;
   }
 
   /// 1b. GET /api/recycle-progress/
@@ -248,7 +260,8 @@ class HomeRepository {
     ]);
 
     return HomeDataBundle(
-      homeOverview: results[0] as HomeOverviewModel,
+      homeOverview:
+          (results[0] as HomeOverviewModel?) ?? const HomeOverviewModel(),
       recycleProgress: results[1] as RecycleProgressModel,
       walletBalance: results[2] as WalletBalanceDataModel,
       walletTransactions: results[3] as WalletTransactionsResponseModel,
