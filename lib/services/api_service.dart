@@ -803,7 +803,7 @@ class ApiService {
       endpoint: walletVerifyPaymentEndpoint,
       requestName: 'VERIFY PAYMENT',
       data: {
-        if (transactionId != null) 'transaction_id': transactionId,
+        'transaction_id': transactionId,
         'razorpay_order_id': razorpayOrderId,
         'razorpay_payment_id': razorpayPaymentId,
         'razorpay_signature': razorpaySignature,

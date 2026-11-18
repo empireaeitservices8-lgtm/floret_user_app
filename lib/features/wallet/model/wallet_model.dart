@@ -253,10 +253,14 @@ class WalletTransactionItemModel {
       credit = json['is_credit'] == true;
     } else if (json['transaction_type'] != null) {
       final type = json['transaction_type'].toString().toLowerCase();
-      credit = type.contains('credit') || type.contains('topup') || type.contains('add');
+      credit = type.contains('credit') ||
+          type.contains('topup') ||
+          type.contains('add');
     } else if (json['type'] != null) {
       final type = json['type'].toString().toLowerCase();
-      credit = type.contains('credit') || type.contains('topup') || type.contains('add');
+      credit = type.contains('credit') ||
+          type.contains('topup') ||
+          type.contains('add');
     }
 
     // Title / Description
@@ -389,25 +393,52 @@ class RewardPointsDataModel {
   });
 
   factory RewardPointsDataModel.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic val) {
+      if (val == null) return 0;
+      if (val is num) return val.toInt();
+      return int.tryParse(val.toString()) ?? 0;
+    }
+
+    double parseDouble(dynamic val) {
+      if (val == null) return 0.0;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString()) ?? 0.0;
+    }
+
+    final targetJson = (json['data'] is Map<String, dynamic>)
+        ? json['data'] as Map<String, dynamic>
+        : (json['data'] is Map
+            ? Map<String, dynamic>.from(json['data'] as Map)
+            : json);
+
     return RewardPointsDataModel(
-      id: (json['id'] as num?)?.toInt(),
-      user: (json['user'] as num?)?.toInt(),
-      totalEarned: (json['total_earned'] as num?)?.toInt() ?? 0,
-      totalRedeemed: (json['total_redeemed'] as num?)?.toInt() ?? 0,
-      totalExpired: (json['total_expired'] as num?)?.toInt() ?? 0,
-      availablePoints: (json['available_points'] as num?)?.toInt() ?? 0,
-      monetaryValue: (json['monetary_value'] is String)
-          ? double.tryParse(json['monetary_value']) ?? 0.0
-          : (json['monetary_value'] as num?)?.toDouble() ?? 0.0,
-      config: json['config'] is Map<String, dynamic>
+      id: parseInt(targetJson['id']),
+      user: parseInt(targetJson['user']),
+      totalEarned: parseInt(targetJson['total_earned'] ??
+          targetJson['totalEarned'] ??
+          targetJson['earned_points'] ??
+          targetJson['points']),
+      totalRedeemed: parseInt(targetJson['total_redeemed'] ??
+          targetJson['totalRedeemed'] ??
+          targetJson['redeemed_points']),
+      totalExpired:
+          parseInt(targetJson['total_expired'] ?? targetJson['totalExpired']),
+      availablePoints: parseInt(targetJson['available_points'] ??
+          targetJson['availablePoints'] ??
+          targetJson['points'] ??
+          targetJson['reward_points']),
+      monetaryValue: parseDouble(targetJson['monetary_value'] ??
+          targetJson['monetaryValue'] ??
+          targetJson['value']),
+      config: targetJson['config'] is Map<String, dynamic>
           ? RewardPointsConfigModel.fromJson(
-              json['config'] as Map<String, dynamic>)
-          : (json['config'] is Map
+              targetJson['config'] as Map<String, dynamic>)
+          : (targetJson['config'] is Map
               ? RewardPointsConfigModel.fromJson(
-                  Map<String, dynamic>.from(json['config'] as Map))
+                  Map<String, dynamic>.from(targetJson['config'] as Map))
               : null),
-      createdAt: json['created_at'] as String?,
-      updatedAt: json['updated_at'] as String?,
+      createdAt: targetJson['created_at']?.toString(),
+      updatedAt: targetJson['updated_at']?.toString(),
     );
   }
 
@@ -472,9 +503,8 @@ class RewardPointsTransactionItemModel {
             ? 'Points Earned'
             : (type == 'redeemed' ? 'Points Redeemed' : 'Points Expired'));
 
-    final rawDate = json['created_at']?.toString() ??
-        json['date']?.toString() ??
-        '';
+    final rawDate =
+        json['created_at']?.toString() ?? json['date']?.toString() ?? '';
     final formattedDate = formatWalletDate(rawDate);
 
     return RewardPointsTransactionItemModel(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../home/screen/home_screen.dart';
+import '../repos/wallet_repository.dart';
 
 class PaymentSuccessfulScreen extends StatefulWidget {
   static const String routeName = '/payment_successful';
@@ -22,7 +23,17 @@ class _PaymentSuccessfulScreenState extends State<PaymentSuccessfulScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshWalletAndRewards();
     _startRedirectTimer();
+  }
+
+  void _refreshWalletAndRewards() {
+    try {
+      final repo = WalletRepository();
+      repo.fetchBalance();
+      repo.fetchRewardPoints();
+      repo.fetchTransactions();
+    } catch (_) {}
   }
 
   void _startRedirectTimer() {

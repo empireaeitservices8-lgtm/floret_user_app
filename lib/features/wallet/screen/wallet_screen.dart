@@ -309,6 +309,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           config: vm.topupConfig,
                           onTopUpSuccess: () {
                             vm.fetchWalletBalance();
+                            vm.fetchRewardPoints();
                             vm.loadWalletData(isRefresh: true);
                           },
                         );
@@ -426,6 +427,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 config: vm.topupConfig,
                 onTopUpSuccess: () {
                   vm.fetchWalletBalance();
+                  vm.fetchRewardPoints();
                   vm.loadWalletData(isRefresh: true);
                 },
               );
@@ -686,6 +688,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 config: vm.topupConfig,
                 onTopUpSuccess: () {
                   vm.fetchWalletBalance();
+                  vm.fetchRewardPoints();
                   vm.loadWalletData(isRefresh: true);
                 },
               );

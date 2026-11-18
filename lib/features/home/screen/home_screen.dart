@@ -40,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _localProfileVm = ProfileViewModel();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _viewModel.fetchHomeOverview();
+      _viewModel.fetchRewardPoints();
       _viewModel.fetchOrderHistory();
       _viewModel.fetchWalletBalance();
       _localProfileVm.getProfile();
@@ -102,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onRefresh: () async {
                     await Future.wait([
                       vm.fetchHomeOverview(),
+                      vm.fetchRewardPoints(),
                       vm.loadHomeData(isRefresh: true),
                       vm.fetchWalletBalance(),
                       _getProfileViewModel(context, listen: false).getProfile(),

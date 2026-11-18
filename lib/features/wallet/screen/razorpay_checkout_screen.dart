@@ -71,15 +71,16 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
               ? order!.transactionId as int
               : int.tryParse('${order?.transactionId}') ?? widget.transactionId;
 
-          if (txnId != null) {
-            await _walletRepository.verifyPayment(
-              transactionId: txnId,
-              razorpayOrderId:
-                  r.orderId ?? order?.razorpayOrderId ?? widget.orderId,
-              razorpayPaymentId: r.paymentId ?? '',
-              razorpaySignature: r.signature ?? '',
-            );
-          }
+          debugPrint(
+              '🚀 [RAZORPAY CHECKOUT] Calling verifyPayment: txnId=$txnId, orderId=${r.orderId ?? order?.razorpayOrderId ?? widget.orderId}, paymentId=${r.paymentId}');
+
+          await _walletRepository.verifyPayment(
+            transactionId: txnId,
+            razorpayOrderId:
+                r.orderId ?? order?.razorpayOrderId ?? widget.orderId,
+            razorpayPaymentId: r.paymentId ?? '',
+            razorpaySignature: r.signature ?? '',
+          );
         } catch (e) {
           debugPrint(' [RAZORPAY CHECKOUT] post-payment error: $e');
         }
@@ -92,6 +93,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
 
         await _walletRepository.fetchBalance();
         await _walletRepository.fetchTransactions();
+        await _walletRepository.fetchRewardPoints();
         if (mounted) setState(() => _isProcessing = false);
 
         onSuccess?.call();

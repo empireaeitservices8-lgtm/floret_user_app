@@ -54,34 +54,40 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
 
     setState(() => _isProcessing = true);
 
+    WalletTopupOrderResponseModel? order;
+    try {
+      order = await _walletRepository.createTopupOrder(amount: amount);
+    } catch (e) {
+      debugPrint('⚠️ [TOP UP] createTopupOrder pre-checkout error: $e');
+    }
+
     _razorpayService?.dispose();
     _razorpayService = RazorpayService();
     _razorpayService!.openCheckout(
+      order: order,
       amount: amount,
       onSuccess: (PaymentSuccessResponse r) async {
-        // ONLY call add wallet API after payment is genuinely successful
         try {
-          final order =
-              await _walletRepository.createTopupOrder(amount: amount);
           final txnId = order?.transactionId is int
               ? order!.transactionId as int
               : int.tryParse('${order?.transactionId}');
 
-          if (txnId != null) {
-            await _walletRepository.verifyPayment(
-              transactionId: txnId,
-              razorpayOrderId:
-                  r.orderId ?? order?.razorpayOrderId ?? 'order_123',
-              razorpayPaymentId: r.paymentId ?? '',
-              razorpaySignature: r.signature ?? '',
-            );
-          }
+          debugPrint(
+              '🚀 [TOP UP] Calling verifyPayment: txnId=$txnId, orderId=${r.orderId ?? order?.razorpayOrderId}, paymentId=${r.paymentId}');
+
+          await _walletRepository.verifyPayment(
+            transactionId: txnId,
+            razorpayOrderId: r.orderId ?? order?.razorpayOrderId ?? 'order_123',
+            razorpayPaymentId: r.paymentId ?? '',
+            razorpaySignature: r.signature ?? '',
+          );
         } catch (e) {
           debugPrint('⚠️ [TOP UP] post-payment add wallet error: $e');
         }
 
         await _walletRepository.fetchBalance();
         await _walletRepository.fetchTransactions();
+        await _walletRepository.fetchRewardPoints();
         if (mounted) setState(() => _isProcessing = false);
 
         onSuccess?.call();
@@ -94,8 +100,8 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
       },
       onError: (PaymentFailureResponse r) {
         if (mounted) setState(() => _isProcessing = false);
-        messenger.showSnackBar(SnackBar(
-            content: Text(r.message ?? 'Payment cancelled.')));
+        messenger.showSnackBar(
+            SnackBar(content: Text(r.message ?? 'Payment cancelled.')));
       },
       onExternalWallet: (_) {
         if (mounted) setState(() => _isProcessing = false);
@@ -106,10 +112,10 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _presetAmounts = (widget.config != null &&
-            widget.config!.predefinedAmounts.isNotEmpty)
-        ? List<int>.from(widget.config!.predefinedAmounts)
-        : const [500, 1000, 1500, 2000];
+    _presetAmounts =
+        (widget.config != null && widget.config!.predefinedAmounts.isNotEmpty)
+            ? List<int>.from(widget.config!.predefinedAmounts)
+            : const [500, 1000, 1500, 2000];
     _minAmount = widget.config?.minAmount ?? 500;
     _maxAmount = widget.config?.maxAmount ?? 2000;
 
@@ -434,7 +440,8 @@ class _TopUpBottomSheetState extends State<TopUpBottomSheet> {
           color: isSelected ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFF1E293B) : const Color(0xFFCBD5E1),
+            color:
+                isSelected ? const Color(0xFF1E293B) : const Color(0xFFCBD5E1),
             width: 1.2,
           ),
         ),

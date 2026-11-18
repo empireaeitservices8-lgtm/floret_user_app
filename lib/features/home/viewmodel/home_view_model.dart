@@ -458,6 +458,17 @@ class HomeViewModel extends ViewModel {
             '⚠️ [HOME VIEWMODEL] recycleProgress in loadHomeData error: $recErr');
       }
 
+      // Fetch reward points directly
+      try {
+        final pts = await _repository.fetchRewardPoints();
+        if (pts.availablePoints > 0) {
+          _homeBundle = _homeBundle.copyWith(rewardPoints: pts);
+        }
+      } catch (ptsErr) {
+        debugPrint(
+            '⚠️ [HOME VIEWMODEL] rewardPoints in loadHomeData error: $ptsErr');
+      }
+
       // Call order history API in parallel or immediately after home bundle
       try {
         final remoteOrders = await _repository.fetchOrderHistory();
