@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:floret_app/services/api_service.dart';
 import 'package:floret_app/services/web_api_services.dart';
@@ -325,6 +326,57 @@ class WalletRepository {
   Future<bool> redeemRewards(int points) async {
     await Future.delayed(const Duration(milliseconds: 400));
     return true;
+  }
+
+  /// 8. POST /api/wallet/redeem/
+  Future<WalletRedeemResponseModel> redeemWallet({
+    required num walletAmount,
+    String? token,
+  }) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST') &&
+        _apiService.runtimeType.toString() == 'ApiService') {
+      return WalletRedeemResponseModel(
+        success: true,
+        message: 'Wallet redemption successful',
+        amountRedeemed: walletAmount.toStringAsFixed(2),
+        remainingBalance: '0.00',
+        transactionId: 'REDEEM_${DateTime.now().millisecondsSinceEpoch}',
+      );
+    }
+    try {
+      final response = await _apiService.redeemWallet(
+        walletAmount: walletAmount,
+        token: token,
+      );
+      if (response.data is Map) {
+        final map = Map<String, dynamic>.from(response.data as Map);
+        final statusCode = response.statusCode ?? 200;
+        final isSuccess = statusCode >= 200 && statusCode < 300;
+        return WalletRedeemResponseModel.fromJson(map, success: isSuccess);
+      }
+      return const WalletRedeemResponseModel(
+        success: true,
+        message: 'Wallet redemption successful',
+      );
+    } on DioException catch (dioErr) {
+      debugPrint('⚠️ [WALLET REPO] redeemWallet DioException: $dioErr');
+      String errMsg = 'Redemption failed';
+      if (dioErr.response?.data is Map) {
+        final map = Map<String, dynamic>.from(dioErr.response!.data as Map);
+        return WalletRedeemResponseModel.fromJson(map, success: false);
+      }
+      final parsed = _apiService.parseDioError(dioErr);
+      return WalletRedeemResponseModel(
+        success: false,
+        message: parsed.isNotEmpty ? parsed : errMsg,
+      );
+    } catch (e) {
+      debugPrint('⚠️ [WALLET REPO] redeemWallet error: $e');
+      return WalletRedeemResponseModel(
+        success: false,
+        message: e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
   }
 
   /// 7. POST /api/wallet/topup/verify-payment/

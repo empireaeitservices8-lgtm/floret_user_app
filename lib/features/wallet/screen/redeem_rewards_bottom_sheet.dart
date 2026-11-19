@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class RedeemRewardsBottomSheet extends StatefulWidget {
   final int availablePoints;
-  final ValueChanged<int>? onConfirmRedeem;
+  final ValueChanged<num>? onConfirmRedeem;
 
   const RedeemRewardsBottomSheet({
     super.key,
@@ -13,7 +13,7 @@ class RedeemRewardsBottomSheet extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     int availablePoints = 0,
-    ValueChanged<int>? onConfirmRedeem,
+    ValueChanged<num>? onConfirmRedeem,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -39,7 +39,7 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _pointsController = TextEditingController(text: '100');
+    _pointsController = TextEditingController(text: '5');
     _descriptionController =
         TextEditingController(text: 'Redeem for wallet credit');
     _pointsController.addListener(_onPointsChanged);
@@ -61,7 +61,7 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
     setState(() {
       _selectedOptionIndex = index;
       if (index == 0) {
-        _pointsController.text = '100';
+        _pointsController.text = '5';
         _descriptionController.text = 'Redeem for wallet credit';
       } else {
         _pointsController.text = '7';
@@ -324,35 +324,13 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: () {
-                      final currentPointsToRedeem =
-                          int.tryParse(_pointsController.text.trim()) ??
-                              (_selectedOptionIndex == 0 ? 100 : 7);
-                      if (widget.availablePoints < currentPointsToRedeem) {
-                        final messenger = ScaffoldMessenger.of(context);
-                        Navigator.pop(context);
-                        messenger.showSnackBar(
-                          SnackBar(
-                            backgroundColor: const Color(0xFFFF5252),
-                            behavior: SnackBarBehavior.fixed,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                            content: Text(
-                              'Insufficient points! You need at least $currentPointsToRedeem eco-points to redeem.',
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      } else {
-                        Navigator.pop(context);
-                        widget.onConfirmRedeem?.call(currentPointsToRedeem);
-                      }
+                      final text = _pointsController.text.trim();
+                      final parsed = num.tryParse(text);
+                      final num amountToRedeem = (parsed != null && parsed > 0)
+                          ? ((parsed % 1 == 0) ? parsed.toInt() : parsed)
+                          : 5;
+                      Navigator.pop(context);
+                      widget.onConfirmRedeem?.call(amountToRedeem);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1E293B),
@@ -407,9 +385,8 @@ class _RedeemRewardsBottomSheetState extends State<RedeemRewardsBottomSheet> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFF1E293B)
-                : const Color(0xFFE2E8F0),
+            color:
+                isSelected ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),

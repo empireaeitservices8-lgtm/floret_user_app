@@ -23,6 +23,7 @@ class ApiService {
       '/api/wallet/mandate/authorize/';
   static const String walletVerifyPaymentEndpoint =
       '/api/wallet/topup/verify-payment/';
+  static const String walletRedeemEndpoint = '/api/wallet/redeem/';
   static const String rewardPointsEndpoint = '/api/reward-points/';
   static const String rewardPointsTransactionsEndpoint =
       '/api/reward-points/transactions/';
@@ -807,6 +808,23 @@ class ApiService {
         'razorpay_order_id': razorpayOrderId,
         'razorpay_payment_id': razorpayPaymentId,
         'razorpay_signature': razorpaySignature,
+      },
+      token: token,
+    );
+  }
+
+  /// Sends a POST request to /api/wallet/redeem/
+  Future<Response> redeemWallet({
+    required num walletAmount,
+    String? token,
+  }) async {
+    final num amountToSend =
+        (walletAmount % 1 == 0) ? walletAmount.toInt() : walletAmount;
+    return _authenticatedPost(
+      endpoint: walletRedeemEndpoint,
+      requestName: 'WALLET REDEEM',
+      data: {
+        'wallet_amount': amountToSend,
       },
       token: token,
     );

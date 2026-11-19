@@ -64,8 +64,8 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel =
-        widget.viewModel ?? WalletViewModel(initialPoints: widget.initialPoints);
+    _viewModel = widget.viewModel ??
+        WalletViewModel(initialPoints: widget.initialPoints);
     if (widget.initialTab != 0) {
       _viewModel.setActivityTab(widget.initialTab);
     }
@@ -889,23 +889,35 @@ class _WalletScreenState extends State<WalletScreen> {
                       RedeemRewardsBottomSheet.show(
                         context,
                         availablePoints: vm.availableSafaiPoints,
-                        onConfirmRedeem: (points) async {
-                          final success = await vm.redeemRewards(points);
-                          if (mounted && success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: const Color(0xFF10B981),
-                                content: Text(
-                                  'Successfully redeemed $points points!',
-                                  style: const TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
+                        onConfirmRedeem: (amount) async {
+                          final result = await vm.redeemWallet(amount);
+                          if (!mounted) return;
+                          final message = result.message.isNotEmpty
+                              ? result.message
+                              : (result.success
+                                  ? 'Wallet redemption successful'
+                                  : 'Redemption failed');
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: result.success
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFEF4444),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              content: Text(
+                                message,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
                                 ),
                               ),
-                            );
-                          }
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
                         },
                       );
                     },
@@ -1084,8 +1096,7 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _buildRewardPointTransactionItem(
-      RewardPointsTransactionItemModel tx) {
+  Widget _buildRewardPointTransactionItem(RewardPointsTransactionItemModel tx) {
     final isEarned = tx.type == 'earned';
     final isExpired = tx.type == 'expired';
 

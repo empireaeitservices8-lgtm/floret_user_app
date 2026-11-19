@@ -691,3 +691,47 @@ class WalletDataBundle {
     );
   }
 }
+
+/// Model for POST /api/wallet/redeem/ response
+class WalletRedeemResponseModel {
+  final bool success;
+  final String message;
+  final String? amountRedeemed;
+  final String? remainingBalance;
+  final String? transactionId;
+  final Map<String, dynamic> rawJson;
+
+  const WalletRedeemResponseModel({
+    this.success = false,
+    this.message = '',
+    this.amountRedeemed,
+    this.remainingBalance,
+    this.transactionId,
+    this.rawJson = const {},
+  });
+
+  factory WalletRedeemResponseModel.fromJson(
+    Map<String, dynamic> json, {
+    bool success = true,
+  }) {
+    return WalletRedeemResponseModel(
+      success: success,
+      message: json['message']?.toString() ??
+          json['detail']?.toString() ??
+          json['error']?.toString() ??
+          '',
+      amountRedeemed: json['amount_redeemed']?.toString(),
+      remainingBalance: json['remaining_balance']?.toString(),
+      transactionId: json['transaction_id']?.toString(),
+      rawJson: json,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'success': success,
+        'message': message,
+        'amount_redeemed': amountRedeemed,
+        'remaining_balance': remainingBalance,
+        'transaction_id': transactionId,
+      };
+}

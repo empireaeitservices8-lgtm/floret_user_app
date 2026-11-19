@@ -17,4 +17,5 @@ class ApiEndpoints {
   static const String wards = "/api/wards/";
   static const String availablePickupSlots = "/api/available-pickup-slots/";
   static const String districts = "/api/districts/";
+  static const String walletRedeem = "/api/wallet/redeem/";
 }

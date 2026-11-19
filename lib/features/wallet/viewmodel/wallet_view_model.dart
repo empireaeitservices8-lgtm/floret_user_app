@@ -400,6 +400,19 @@ class WalletViewModel extends ViewModel {
     }
   }
 
+  Future<WalletRedeemResponseModel> redeemWallet(num walletAmount) async {
+    showLoading();
+    try {
+      final result = await _repository.redeemWallet(walletAmount: walletAmount);
+      if (result.success) {
+        await loadWalletData(isRefresh: true);
+      }
+      return result;
+    } finally {
+      hideLoading();
+    }
+  }
+
   Future<bool> verifyPayment({
     int? transactionId,
     String razorpayOrderId = 'order_123',
