@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:floret_app/helpers/sp_helper.dart';
 import 'package:floret_app/services/api_client.dart';
@@ -13,6 +14,7 @@ import '../../profile/model/order_model.dart';
 import '../../map/screen/location_picker_map_screen.dart';
 import '../../wallet/repos/wallet_repository.dart';
 import '../../home/repos/home_repository.dart';
+import '../../home/screen/bottom_navigation_screen.dart';
 
 class BookPickupScreen extends StatefulWidget {
   static const String routeName = '/book_pickup';
@@ -101,6 +103,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
       _viewModel = BookingViewModel();
       _internalViewModel = true;
     }
+    _viewModel.setDistrictSelection('Thiruvananthapuram');
     _viewModel.loadSavedAddresses();
     _loadRewardData();
     _repo.fetchDistricts(state: 'kerala');
@@ -450,17 +453,61 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     );
   }
 
+  Future<void> _handleOutOfServiceLocation() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Service is not available in your location',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      BottomNavigationScreen.routeName,
+      (route) => false,
+    );
+  }
+
   Future<void> _openMapLocationPicker(BookingViewModel vm) async {
     final result = await Navigator.push<SelectedLocationResult>(
       context,
       MaterialPageRoute(
         builder: (context) => const LocationPickerMapScreen(
           confirmButtonText: 'Confirm & Save Address',
+          checkServiceAvailability: true,
         ),
       ),
     );
 
     if (result == null || !mounted) return;
+
+    if (result.isOutOfService ||
+        isLocationOutOfService(
+          latitude: result.latitude,
+          longitude: result.longitude,
+          district: result.district,
+          city: result.city,
+          localBody: result.localBody,
+          state: result.state,
+          fullAddress: result.fullAddress,
+          zipCode: result.zipCode,
+        )) {
+      await _handleOutOfServiceLocation();
+      return;
+    }
 
     vm.setMapLocation(
       address: result.street.isNotEmpty ? result.street : result.fullAddress,
@@ -1008,29 +1055,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         _buildFieldLabel('District', isRequired: false),
         const SizedBox(height: 8),
         _buildDropdownSelector(
-          currentValue: vm.selectedDistrict,
-          hint: vm.selectedState == null
-              ? 'Select State first'
-              : 'Select District',
-          onTap: () async {
-            if (vm.selectedState == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Please select state first'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              return;
-            }
-            List<String> items = _repo.getDistrictsForState(vm.selectedState!);
-            if (items.isEmpty) {
-              items = await _repo.fetchDistricts(state: vm.selectedState!);
-            }
-            if (!mounted) return;
+          currentValue: vm.selectedDistrict ?? 'Thiruvananthapuram',
+          hint: 'Thiruvananthapuram',
+          onTap: () {
             _showSelectionSheet(
               title: 'Select District',
-              items: items,
-              onSelect: (district) => vm.setDistrictSelection(district),
+              items: const ['Thiruvananthapuram'],
+              onSelect: (district) =>
+                  vm.setDistrictSelection('Thiruvananthapuram'),
             );
           },
         ),
@@ -1041,22 +1073,14 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         const SizedBox(height: 8),
         _buildDropdownSelector(
           currentValue: vm.selectedLocalBody,
-          hint: vm.selectedDistrict == null
+          hint: (vm.selectedDistrict ?? 'Thiruvananthapuram').isEmpty
               ? 'Select District first'
               : 'Select Local Body',
           onTap: () {
-            if (vm.selectedDistrict == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Please select district first'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              return;
-            }
             _showSelectionSheet(
               title: 'Select Local Body',
-              items: _repo.getLocalBodies(vm.selectedDistrict!),
+              items: _repo
+                  .getLocalBodies(vm.selectedDistrict ?? 'Thiruvananthapuram'),
               onSelect: (lb) => vm.setLocalBodySelection(lb),
             );
           },
@@ -1560,7 +1584,16 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         const SizedBox(height: 18),
 
         // Landmark (Optional)
-        _buildFieldLabel('Landmark (Optional)'),
+
+        Text(
+          'Landmark (Optional)',
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1E242F),
+          ),
+        ),
+
         const SizedBox(height: 8),
         _buildTextField(
           controller: _landmarkController,
@@ -1570,7 +1603,15 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         const SizedBox(height: 18),
 
         // Collector Notes (Optional)
-        _buildFieldLabel('Collector Notes (Optional)'),
+
+        Text(
+          'Collector Notes (Optional)',
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1E242F),
+          ),
+        ),
         const SizedBox(height: 8),
         _buildNotesField(
           controller: _collectorNotesController,

@@ -6,6 +6,97 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
+/// Checks if a given coordinate or address components are OUT of Thiruvananthapuram
+/// district and supported local bodies like Varkala and Nedumangadu.
+bool isLocationOutOfService({
+  double? latitude,
+  double? longitude,
+  String? district,
+  String? city,
+  String? localBody,
+  String? state,
+  String? fullAddress,
+  String? zipCode,
+}) {
+  // 1. Geographic coordinate check for Thiruvananthapuram district bounding box
+  // South: ~8.20° N (Parassala / Pozhiyoor)
+  // North: ~8.92° N (Madathara / north of Varkala)
+  // West: ~76.65° E (Coastline)
+  // East: ~77.30° E (Border with Tamil Nadu)
+  if (latitude != null && longitude != null) {
+    if (latitude < 8.20 ||
+        latitude > 8.92 ||
+        longitude < 76.65 ||
+        longitude > 77.30) {
+      return true; // Outside Thiruvananthapuram district bounds
+    }
+  }
+
+  // 2. Postal PIN code check (Thiruvananthapuram district PINs start with 695)
+  if (zipCode != null) {
+    final digits = zipCode.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 6 && !digits.startsWith('695')) {
+      return true; // Other district postal code
+    }
+  }
+
+  // 3. Address text component check
+  final combined = [
+    district ?? '',
+    city ?? '',
+    localBody ?? '',
+    state ?? '',
+    fullAddress ?? '',
+  ].join(' ').toLowerCase();
+
+  const otherPlaces = [
+    'kollam',
+    'alappuzha',
+    'ernakulam',
+    'kochi',
+    'cochin',
+    'kozhikode',
+    'calicut',
+    'kottayam',
+    'thrissur',
+    'trichur',
+    'malappuram',
+    'palakkad',
+    'kannur',
+    'kasaragod',
+    'wayanad',
+    'idukki',
+    'pathanamthitta',
+    'bengaluru',
+    'bangalore',
+    'chennai',
+    'tamil nadu',
+    'karnataka',
+    'delhi',
+    'mumbai',
+    'maharashtra',
+  ];
+
+  for (final place in otherPlaces) {
+    if (combined.contains(place)) {
+      return true;
+    }
+  }
+
+  final isSupported = combined.contains('thiruvananthapuram') ||
+      combined.contains('trivandrum') ||
+      combined.contains('varkala') ||
+      combined.contains('varkkala') ||
+      combined.contains('nedumangad') ||
+      combined.contains('nedumangadu');
+
+  if (combined.trim().isNotEmpty && !isSupported) {
+    return true;
+  }
+
+  return false;
+}
+
 /// Data class representing the location selected and confirmed by the user.
 class SelectedLocationResult {
   final double latitude;
@@ -19,6 +110,7 @@ class SelectedLocationResult {
   final String? ward;
   final String zipCode;
   final String shortCode;
+  final bool isOutOfService;
 
   const SelectedLocationResult({
     required this.latitude,
@@ -32,11 +124,12 @@ class SelectedLocationResult {
     this.ward,
     required this.zipCode,
     required this.shortCode,
+    this.isOutOfService = false,
   });
 
   @override
   String toString() {
-    return 'SelectedLocationResult(lat: $latitude, lng: $longitude, street: $street, city: $city, state: $state, zip: $zipCode)';
+    return 'SelectedLocationResult(lat: $latitude, lng: $longitude, street: $street, city: $city, state: $state, zip: $zipCode, isOutOfService: $isOutOfService)';
   }
 }
 
@@ -45,11 +138,13 @@ class LocationPickerMapScreen extends StatefulWidget {
 
   final LatLng? initialLocation;
   final String? confirmButtonText;
+  final bool checkServiceAvailability;
 
   const LocationPickerMapScreen({
     super.key,
     this.initialLocation,
     this.confirmButtonText,
+    this.checkServiceAvailability = false,
   });
 
   @override
@@ -205,7 +300,8 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
         } else if (locality.isNotEmpty) {
           title = locality;
         } else {
-          title = '${target.latitude.toStringAsFixed(4)}, ${target.longitude.toStringAsFixed(4)}';
+          title =
+              '${target.latitude.toStringAsFixed(4)}, ${target.longitude.toStringAsFixed(4)}';
         }
 
         // Formulate full descriptive address
@@ -240,9 +336,13 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
               ? full
               : '${target.latitude.toStringAsFixed(5)}, ${target.longitude.toStringAsFixed(5)}';
           _street = streetPart.isNotEmpty ? streetPart : full;
-          _city = locality.isNotEmpty ? locality : (subLocality.isNotEmpty ? subLocality : 'Thiruvananthapuram');
+          _city = locality.isNotEmpty
+              ? locality
+              : (subLocality.isNotEmpty ? subLocality : 'Thiruvananthapuram');
           _state = admin.isNotEmpty ? admin : 'Kerala';
-          _district = subAdmin.isNotEmpty ? subAdmin : (locality.isNotEmpty ? locality : 'Thiruvananthapuram');
+          _district = subAdmin.isNotEmpty
+              ? subAdmin
+              : (locality.isNotEmpty ? locality : 'Thiruvananthapuram');
           _zipCode = postal.isNotEmpty ? postal : '695004';
           _localBody = subLocality.isNotEmpty ? subLocality : null;
           _ward = place.subThoroughfare;
@@ -269,7 +369,8 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
       _shortCode = 'Selected Pin';
       _fullAddress =
           'Lat: ${target.latitude.toStringAsFixed(5)}, Lng: ${target.longitude.toStringAsFixed(5)}, Thiruvananthapuram, Kerala';
-      _street = 'Location (${target.latitude.toStringAsFixed(4)}, ${target.longitude.toStringAsFixed(4)})';
+      _street =
+          'Location (${target.latitude.toStringAsFixed(4)}, ${target.longitude.toStringAsFixed(4)})';
       _city = 'Thiruvananthapuram';
       _state = 'Kerala';
       _district = 'Thiruvananthapuram';
@@ -311,7 +412,8 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Search failed: ${e.toString().replaceFirst("Exception: ", "")}'),
+          content: Text(
+              'Search failed: ${e.toString().replaceFirst("Exception: ", "")}'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -340,7 +442,8 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Location permission is needed to find your location.'),
+              content:
+                  Text('Location permission is needed to find your location.'),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -365,7 +468,8 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Could not obtain current location. Move map manually.'),
+          content:
+              Text('Could not obtain current location. Move map manually.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -380,6 +484,18 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
 
   /// Confirms the selected location and returns the result to caller.
   void _onConfirmLocation() {
+    final bool outOfService = widget.checkServiceAvailability &&
+        isLocationOutOfService(
+          latitude: _currentCenter.latitude,
+          longitude: _currentCenter.longitude,
+          district: _district,
+          city: _city,
+          localBody: _localBody,
+          state: _state,
+          fullAddress: _fullAddress,
+          zipCode: _zipCode,
+        );
+
     final result = SelectedLocationResult(
       latitude: _currentCenter.latitude,
       longitude: _currentCenter.longitude,
@@ -394,6 +510,7 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
       ward: _ward,
       zipCode: _zipCode.isNotEmpty ? _zipCode : '695004',
       shortCode: _shortCode,
+      isOutOfService: outOfService,
     );
 
     Navigator.pop(context, result);
@@ -667,7 +784,8 @@ class _LocationPickerMapScreenState extends State<LocationPickerMapScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
               decoration: BoxDecoration(
                 color: const Color(0xFF121826),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.45),

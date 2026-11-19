@@ -116,7 +116,7 @@ class BookingViewModel extends ViewModel {
     cityController.text = address.city;
     zipCodeController.text = address.pincode;
     _selectedState = address.state ?? 'Kerala';
-    _selectedDistrict = address.district;
+    _selectedDistrict = 'Thiruvananthapuram';
     _selectedLocalBody = address.localBody;
     _selectedWard = address.ward;
   }
@@ -166,8 +166,8 @@ class BookingViewModel extends ViewModel {
   String? _selectedState;
   String? get selectedState => _selectedState;
 
-  String? _selectedDistrict;
-  String? get selectedDistrict => _selectedDistrict;
+  String? _selectedDistrict = 'Thiruvananthapuram';
+  String? get selectedDistrict => _selectedDistrict ?? 'Thiruvananthapuram';
 
   String? _selectedLocalBody;
   String? get selectedLocalBody => _selectedLocalBody;
@@ -202,7 +202,7 @@ class BookingViewModel extends ViewModel {
       _selectedState = state;
     }
     if (district != null && district.isNotEmpty) {
-      _selectedDistrict = district;
+      _selectedDistrict = 'Thiruvananthapuram';
     }
     if (localBody != null && localBody.isNotEmpty) {
       _selectedLocalBody = localBody;
@@ -282,14 +282,14 @@ class BookingViewModel extends ViewModel {
 
   void setStateSelection(String? state) {
     _selectedState = state;
-    _selectedDistrict = null;
+    _selectedDistrict = 'Thiruvananthapuram';
     _selectedLocalBody = null;
     _selectedWard = null;
     notifyListeners();
   }
 
   void setDistrictSelection(String? district) {
-    _selectedDistrict = district;
+    _selectedDistrict = 'Thiruvananthapuram';
     _selectedLocalBody = null;
     _selectedWard = null;
     notifyListeners();
